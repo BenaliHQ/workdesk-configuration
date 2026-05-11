@@ -1,0 +1,799 @@
+/* ============================================================
+   workdesk.css — WorkDesk OS appearance snippet
+   ============================================================
+   Operator-approved: 2026-05-11 (Phase 6 close)
+   Authored by the workdesk-surface-appearance project (Phase 6).
+   Promoted from reference/prototypes/_tokens.css plus native-surface
+   styling per specs/ui-design.md.
+
+   Revision history:
+     2026-05-11 — Initial Phase 6 deliverable.
+     2026-05-11 — File-row long-filename truncation fix: title-content
+                  uses overflow/ellipsis/nowrap so 32px row height holds
+                  clean when filenames exceed pane width.
+     2026-05-11 — Specificity + cascade fix: override Obsidian's primitive
+                  grayscale tokens (--color-base-00..100) on body.theme-light
+                  / body.theme-dark (specificity 0,1,1, beats Obsidian's
+                  .theme-light at 0,1,0). Architecture verified by extracting
+                  Obsidian.app/Contents/Resources/obsidian.asar and reading
+                  the bundled app.css directly. Three-layer cascade:
+                  primitives (.theme-light) → semantic aliases (body {}) →
+                  paint (body { background: var(--background-primary) }).
+                  We override layer 1 so the whole cascade derives WorkDesk
+                  colors automatically, plus belt-and-suspenders layer-2
+                  aliases for any internal rule pointing at them directly.
+     2026-05-11 — Pre-release fixes from independent review (Phase 7):
+                  (a) Folder chevron selector — replaced fictional
+                      `.nav-folder-collapse-indicator` with Obsidian's real
+                      `.collapse-icon svg.svg-icon`. Sizing 10px → 12px and
+                      transition 100ms → 200ms applied; rotation owned by
+                      Obsidian core (`.is-collapsed` + `--direction`).
+                  (b) V4 empty-folder placeholder removed. Obsidian doesn't
+                      expose an `is-empty` class on .nav-folder elements, so
+                      pure CSS can't detect folder emptiness. Plugin-side
+                      DOM observation is required; ## CSS scope already
+                      assigns this surface to the implementation project.
+                  (c) --callout-color renamed to --wd-callout-color to avoid
+                      collision with Obsidian's RGB-triple internal variable
+                      (Obsidian consumes --callout-color via rgba(var(--),0.1)
+                      which fails silently when fed a hex literal).
+
+   SCOPE: native-Obsidian surfaces only.
+     - Body typography (DM Sans / Manrope / JetBrains Mono / Source Serif 4)
+     - Hidden markdown formatters (.cm-formatting-strong/em/strikethrough)
+     - File-explorer Files-mode polish (the native explorer)
+     - Color tokens mapped onto Obsidian native variables
+     - Obsidian callouts (note / info / warning / success / failure)
+     - <kbd> tags
+     - prefers-reduced-motion variants
+
+   OUT OF SCOPE — owned by the workdesk-surface implementation project:
+     - Zone modes (custom view middle pane)
+     - Ribbon zone dots
+     - Object cards
+     - Focus-mode pane collapse
+     - Plugin-rendered empty states (V1, V3, V5)
+     - Capture-flow popover, API-key modal, settings-tab right-pane,
+       search modal, calendar tab
+     See specs/ui-design.md `## CSS scope` for the full partition.
+
+   SHIPPING:
+     Project copy:    deliverables/workdesk.css (this file)
+     Framework copy:  config/appearance/workdesk.css (byte-identical;
+                      Phase 7 copies; auto-enabled by bootstrap)
+
+   TOKEN DISCIPLINE:
+     All color/font/spacing values reference --wd-* tokens defined below.
+     Categories frozen at Phase 0 close (2026-05-09); append-only.
+     No hardcoded hex/rgb/hsl literals outside the token block.
+     The CSS keywords (transparent, currentColor, inherit) are allowed.
+
+   ============================================================
+   WCAG AA contrast ratios (from notes/contrast-table.md, 2026-05-09)
+   ============================================================
+   Body text on surfaces (target ≥4.5:1):
+     text-primary on surface-app:    LIGHT 15.44:1 (AAA)  DARK 14.77:1 (AAA)
+     text-primary on surface-pane:   LIGHT 16.54:1 (AAA)  DARK 13.99:1 (AAA)
+     text-primary on surface-card:   LIGHT 17.40:1 (AAA)  DARK 12.65:1 (AAA)
+     text-secondary on surface-app:  LIGHT  6.12:1 (AA)   DARK  7.40:1 (AAA)
+     text-secondary on surface-pane: LIGHT  6.55:1 (AA)   DARK  7.01:1 (AAA)
+     text-secondary on surface-card: LIGHT  6.90:1 (AA)   DARK  6.34:1 (AA)
+
+   Tertiary text + UI (target ≥3:1):
+     text-tertiary on surface-app:   LIGHT  3.55:1 (AA)   DARK  3.67:1 (AA)
+     text-tertiary on surface-pane:  LIGHT  3.80:1 (AA)   DARK  3.48:1 (AA)
+     text-tertiary on surface-card:  LIGHT  4.00:1 (AA)   DARK  3.14:1 (AA)
+     accent-slate on surface-app:    LIGHT  4.88:1 (AAA)  DARK  6.01:1 (AAA)
+     accent-slate on surface-pane:   LIGHT  5.23:1 (AAA)  DARK  5.69:1 (AAA)
+     accent-slate on surface-card:   LIGHT  5.50:1 (AAA)  DARK  5.14:1 (AAA)
+
+   Zone foreground on zone tint (target ≥4.5:1 for icon/letter inside):
+     atlas-fg on atlas-tint:         LIGHT 4.83:1 (AA)    DARK 4.89:1 (AA)
+     gtd-fg on gtd-tint:             LIGHT 5.23:1 (AA)    DARK 5.32:1 (AA)
+     intel-fg on intel-tint:         LIGHT 5.07:1 (AA)    DARK 5.61:1 (AA)
+     personal-fg on personal-tint:   LIGHT 5.43:1 (AA)    DARK 5.35:1 (AA)
+     system-fg on system-tint:       LIGHT 5.84:1 (AA)    DARK 5.49:1 (AA)
+     config-fg on config-tint:       LIGHT 5.63:1 (AA)    DARK 6.33:1 (AAA)
+     files-fg on files-tint:         LIGHT 7.24:1 (AAA)   DARK 5.02:1 (AA)
+
+   Zone tint on surface (target ≥3:1):
+     ALL 28 PAIRS FAIL strict 1.4.11 (1.04–2.31:1).
+     RESOLVED via Option 2 — bordered zone dots. The zone-fg border
+     carries 3:1+ vs surface; the tint fill is decorative. Per WCAG
+     1.4.11 "the border IS the UI affordance; the fill is decoration."
+     See notes/contrast-table.md for the full rationale.
+   ============================================================ */
+
+
+/* ============================================================
+   TOKENS — light mode default
+   ============================================================
+   Frozen categories (Phase 0 close, 2026-05-09):
+     surface, accent, zone-{name}, files, text, font, space
+   Append-only after Phase 0. Token VALUES can change freely.
+   ============================================================ */
+
+:root {
+
+  /* ---- SURFACE (light mode default) ---- */
+  --wd-surface-app:         #f3f1ee;
+  --wd-surface-pane:        #faf9f7;
+  --wd-surface-card:        #ffffff;
+  --wd-surface-card-soft:   #fdfcfa;
+  --wd-surface-border-hair: #ebe7e0;
+  --wd-surface-border-soft: #e3ddd5;
+  --wd-surface-row-hover:   #f0ede7;
+  --wd-surface-row-active:  #e8e3da;
+
+  /* ---- ACCENT ---- */
+  --wd-accent-slate: #5a6b7a;
+
+  /* ---- ZONE TINTS (light) ---- */
+  --wd-zone-atlas-tint:    #e7eef6;
+  --wd-zone-atlas-fg:      #4a6a8a;
+  --wd-zone-gtd-tint:      #e6efe6;
+  --wd-zone-gtd-fg:        #3f6a42;
+  --wd-zone-intel-tint:    #f5ecdc;
+  --wd-zone-intel-fg:      #7a5a26;
+  --wd-zone-personal-tint: #f4e6e8;
+  --wd-zone-personal-fg:   #8a4a55;
+  --wd-zone-system-tint:   #ececec;
+  --wd-zone-system-fg:     #5a5a5a;
+  --wd-zone-config-tint:   #ece9f3;
+  --wd-zone-config-fg:     #5e548a;
+
+  /* ---- FILES MODE (light) ---- */
+  --wd-files-tint: #e8e8e6;
+  --wd-files-fg:   #4a4a48;
+
+  /* ---- TEXT (delegate to Obsidian native, with light fallbacks) ---- */
+  --wd-text-primary:   var(--text-normal, #1a1a1a);
+  --wd-text-secondary: var(--text-muted,  #5a5a5a);
+  --wd-text-tertiary:  var(--text-faint,  #7a7a7a);
+
+  /* ---- TYPOGRAPHY STACKS ----
+     Font files are vendored by plugins (workdesk-surface loads DM Sans,
+     Manrope, JetBrains Mono, Source Serif 4; workdesk-terminal loads
+     Geist Mono). This file contains zero @font-face rules; degrades
+     gracefully to system fallbacks if plugins aren't installed. */
+  --wd-font-body:     'DM Sans',         ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --wd-font-display:  'Manrope',         ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --wd-font-code:     'JetBrains Mono',  ui-monospace, 'SF Mono', 'Menlo', monospace;
+  --wd-font-terminal: 'Geist Mono',      ui-monospace, 'SF Mono', 'Menlo', monospace;
+  --wd-font-longform: 'Source Serif 4',  ui-serif, Georgia, 'Times New Roman', serif;
+
+  /* ---- SPACING (4px base) ---- */
+  --wd-space-1:  4px;
+  --wd-space-2:  8px;
+  --wd-space-3: 12px;
+  --wd-space-4: 16px;
+  --wd-space-5: 24px;
+  --wd-space-6: 32px;
+}
+
+/* ---- DARK MODE OVERRIDES ----
+   Activated by Obsidian's .theme-dark class on html/body, or by an
+   explicit [data-theme="dark"] attribute (so prototypes and harnesses
+   can toggle theme without an Obsidian runtime). */
+.theme-dark,
+[data-theme="dark"] {
+
+  /* SURFACE — warm-not-cool dark palette */
+  --wd-surface-app:         #1c1a17;
+  --wd-surface-pane:        #211f1c;
+  --wd-surface-card:        #2a2723;
+  --wd-surface-card-soft:   #262320;
+  --wd-surface-border-hair: #2d2a25;
+  --wd-surface-border-soft: #3a342d;
+  --wd-surface-row-hover:   #2c2823;
+  --wd-surface-row-active:  #36312a;
+
+  /* ACCENT */
+  --wd-accent-slate: #8a9aa8;
+
+  /* ZONE TINTS (dark) — revised 2026-05-09 for 3:1+ contrast vs warm-dark surface */
+  --wd-zone-atlas-tint:    #3a567a;
+  --wd-zone-atlas-fg:      #b5d4f0;
+  --wd-zone-gtd-tint:      #3a5a3e;
+  --wd-zone-gtd-fg:        #b8e0bc;
+  --wd-zone-intel-tint:    #5a4628;
+  --wd-zone-intel-fg:      #e8c896;
+  --wd-zone-personal-tint: #5a3a42;
+  --wd-zone-personal-fg:   #e8b0b8;
+  --wd-zone-system-tint:   #4a4238;
+  --wd-zone-system-fg:     #c8c0b6;
+  --wd-zone-config-tint:   #3e3656;
+  --wd-zone-config-fg:     #c8bce8;
+
+  /* FILES MODE (dark) */
+  --wd-files-tint: #423d35;
+  --wd-files-fg:   #b8b0a4;
+
+  /* TEXT — dark-mode fallbacks */
+  --wd-text-primary:   var(--text-normal, #f0ece8);
+  --wd-text-secondary: var(--text-muted,  #b0a8a0);
+  --wd-text-tertiary:  var(--text-faint,  #7a726a);
+}
+
+
+/* ============================================================
+   COLOR TOKENS APPLIED TO OBSIDIAN NATIVE CHROME
+   ============================================================
+   Obsidian's theming has three layers, learned by inspecting its
+   bundled app.css (Obsidian.app/Contents/Resources/obsidian.asar):
+
+     1. PRIMITIVES — `.theme-light` / `.theme-dark` (specificity 0,1,0)
+        set 12 grayscale tokens: `--color-base-00` .. `--color-base-100`.
+     2. SEMANTIC ALIASES — `body { ... }` (specificity 0,0,1) derives
+        `--background-primary: var(--color-base-00)`,
+        `--background-secondary: var(--color-base-20)`, etc.
+     3. PAINT — `body { background: var(--background-primary); }` and
+        many other selectors USE the semantic aliases.
+
+   To override the WHOLE cream surface system with one source-of-truth,
+   we override the PRIMITIVES (layer 1). The semantic aliases (layer 2)
+   then automatically derive WorkDesk colors. This matches Obsidian's
+   own theming architecture (and the kepano/obsidian-minimal pattern).
+
+   Specificity strategy: we use `body.theme-light` / `body.theme-dark`
+   (0,1,1) — one notch above Obsidian's `.theme-light` / `.theme-dark`
+   (0,1,0) — so we win regardless of snippet vs core load order. We
+   also override the SEMANTIC aliases (layer 2) as a belt-and-suspenders
+   so any internal Obsidian rule that points at them directly resolves
+   to WorkDesk colors too.
+   ============================================================ */
+
+/* Layer 1 — primitive grayscale tokens (the root of the cascade) */
+body.theme-light {
+  --color-base-00:  var(--wd-surface-app);          /* #f3f1ee — app surface */
+  --color-base-05:  var(--wd-surface-card-soft);    /* #fdfcfa — subtle alt */
+  --color-base-10:  var(--wd-surface-pane);         /* #faf9f7 — pane mid */
+  --color-base-20:  var(--wd-surface-pane);         /* #faf9f7 — bg-secondary */
+  --color-base-25:  var(--wd-surface-row-active);   /* #e8e3da — selected */
+  --color-base-30:  var(--wd-surface-border-soft);  /* #e3ddd5 — soft border */
+  --color-base-35:  var(--wd-surface-border-soft);  /* #e3ddd5 */
+  --color-base-40:  var(--wd-text-tertiary);        /* #7a7a7a — faint */
+  --color-base-50:  var(--wd-text-tertiary);        /* #7a7a7a */
+  --color-base-60:  var(--wd-text-secondary);       /* #5a5a5a — muted */
+  --color-base-70:  var(--wd-text-secondary);       /* #5a5a5a */
+  --color-base-100: var(--wd-text-primary);         /* #1a1a1a — normal */
+}
+body.theme-dark {
+  --color-base-00:  var(--wd-surface-app);          /* #1c1a17 — app surface */
+  --color-base-05:  var(--wd-surface-card-soft);    /* #262320 */
+  --color-base-10:  var(--wd-surface-pane);         /* #211f1c — pane mid */
+  --color-base-20:  var(--wd-surface-pane);         /* #211f1c */
+  --color-base-25:  var(--wd-surface-row-active);   /* #36312a — selected */
+  --color-base-30:  var(--wd-surface-border-soft);  /* #3a342d — soft border */
+  --color-base-35:  var(--wd-surface-border-soft);  /* #3a342d */
+  --color-base-40:  var(--wd-text-tertiary);        /* #7a726a — faint */
+  --color-base-50:  var(--wd-text-tertiary);        /* #7a726a */
+  --color-base-60:  var(--wd-text-secondary);       /* #b0a8a0 — muted */
+  --color-base-70:  var(--wd-text-secondary);       /* #b0a8a0 */
+  --color-base-100: var(--wd-text-primary);         /* #f0ece8 — normal */
+}
+
+/* Layer 2 — semantic aliases (belt-and-suspenders: override the aliases
+   too, in case any internal Obsidian rule references the alias directly
+   with higher specificity than the body { ... } where it's derived) */
+body.theme-light,
+body.theme-dark {
+  --background-primary:        var(--wd-surface-app);
+  --background-primary-alt:    var(--wd-surface-pane);
+  --background-secondary:      var(--wd-surface-pane);
+  --background-secondary-alt:  var(--wd-surface-card);
+  --background-modifier-border:        var(--wd-surface-border-hair);
+  --background-modifier-border-hover:  var(--wd-surface-border-soft);
+  --background-modifier-hover:         var(--wd-surface-row-hover);
+  --background-modifier-active-hover:  var(--wd-surface-row-active);
+  --background-modifier-form-field:    var(--wd-surface-card-soft);
+  --interactive-accent:        var(--wd-accent-slate);
+  --interactive-accent-hover:  var(--wd-accent-slate);
+  --text-accent:               var(--wd-accent-slate);
+  --text-accent-hover:         var(--wd-accent-slate);
+
+  color: var(--wd-text-primary);
+  background: var(--wd-surface-app);
+  font-family: var(--wd-font-body);
+}
+
+
+/* ============================================================
+   BODY TYPOGRAPHY
+   ============================================================
+   Editor body uses Source Serif 4 (Claude preset default).
+   Headings always use Manrope display.
+   UI chrome uses DM Sans.
+
+   The Benali preset (sans body) is set by the implementation project
+   via a `body.preset-benali` class (or equivalent). Default class
+   `preset-claude` is implicit — these rules apply when no preset class
+   is set, which is the ship default.
+
+   Note: body color/background/font-family are set in the COLOR TOKENS
+   block above (using body.theme-light/dark for specificity). The rules
+   here apply to non-theme-dependent body properties.
+   ============================================================ */
+
+body {
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Editor reading surface — serif body (Claude preset, default) */
+.markdown-preview-view,
+.markdown-source-view.mod-cm6 .cm-line {
+  font-family: var(--wd-font-longform);
+  font-size: 17px;
+  line-height: 1.7;
+}
+
+/* Headings — Manrope across both presets */
+.markdown-preview-view h1,
+.markdown-preview-view h2,
+.markdown-preview-view h3,
+.markdown-preview-view h4,
+.markdown-source-view.mod-cm6 .HyperMD-header-1,
+.markdown-source-view.mod-cm6 .HyperMD-header-2,
+.markdown-source-view.mod-cm6 .HyperMD-header-3,
+.markdown-source-view.mod-cm6 .HyperMD-header-4 {
+  font-family: var(--wd-font-display);
+  font-weight: 600;
+  color: var(--wd-text-primary);
+}
+
+.markdown-preview-view h1,
+.markdown-source-view.mod-cm6 .HyperMD-header-1 {
+  font-size: 32px;
+  line-height: 1.18;
+  letter-spacing: -0.018em;
+}
+.markdown-preview-view h2,
+.markdown-source-view.mod-cm6 .HyperMD-header-2 {
+  font-size: 22px;
+  line-height: 1.3;
+  letter-spacing: -0.012em;
+}
+.markdown-preview-view h3,
+.markdown-source-view.mod-cm6 .HyperMD-header-3 {
+  font-size: 18px;
+  line-height: 1.4;
+  letter-spacing: -0.006em;
+}
+.markdown-preview-view h4,
+.markdown-source-view.mod-cm6 .HyperMD-header-4 {
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+/* Paragraph rhythm */
+.markdown-preview-view p {
+  margin-bottom: 0.6em;
+}
+
+/* Benali preset override — implementation project applies body.preset-benali */
+body.preset-benali .markdown-preview-view,
+body.preset-benali .markdown-source-view.mod-cm6 .cm-line {
+  font-family: var(--wd-font-body);
+  font-size: 16px;
+  line-height: 1.65;
+}
+
+/* Inline code — JetBrains Mono regardless of preset */
+.markdown-preview-view code,
+.markdown-source-view.mod-cm6 .cm-inline-code {
+  font-family: var(--wd-font-code);
+  font-size: 0.92em;
+  background: var(--wd-surface-card-soft);
+  padding: 1px 6px;
+  border-radius: 3px;
+  color: var(--wd-text-primary);
+}
+
+/* Code blocks — JetBrains Mono */
+.markdown-preview-view pre,
+.markdown-source-view.mod-cm6 .HyperMD-codeblock {
+  font-family: var(--wd-font-code);
+  font-size: 13px;
+  line-height: 1.55;
+}
+.markdown-preview-view pre {
+  background: var(--wd-surface-card-soft);
+  border: 1px solid var(--wd-surface-border-hair);
+  border-radius: 6px;
+  padding: var(--wd-space-3) var(--wd-space-4);
+}
+
+/* Tags — soft pill (per spec ## Editor surface → Inline elements) */
+.markdown-preview-view a.tag,
+.markdown-source-view.mod-cm6 .cm-hashtag {
+  background: var(--wd-surface-card-soft);
+  color: var(--wd-text-secondary);
+  border: 1px solid var(--wd-surface-border-hair);
+  border-radius: 4px;
+  padding: 1px 8px;
+  font-size: 0.85em;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+/* Wikilinks — 1px underline, slate accent (per spec) */
+.markdown-preview-view a.internal-link,
+.markdown-source-view.mod-cm6 .cm-hmd-internal-link {
+  color: var(--wd-accent-slate);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+/* External links — match wikilink treatment */
+.markdown-preview-view a.external-link {
+  color: var(--wd-accent-slate);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+/* Strikethrough — line-through preserves text color */
+.markdown-preview-view del,
+.markdown-preview-view s {
+  color: var(--wd-text-primary);
+}
+
+/* Blockquote — soft left rule */
+.markdown-preview-view blockquote {
+  border-left: 3px solid var(--wd-surface-border-soft);
+  background: transparent;
+  padding-left: var(--wd-space-4);
+  color: var(--wd-text-secondary);
+  margin: var(--wd-space-3) 0;
+}
+
+/* Tables — hairline borders */
+.markdown-preview-view table {
+  border-collapse: collapse;
+  margin: var(--wd-space-3) 0;
+}
+.markdown-preview-view th,
+.markdown-preview-view td {
+  border: 1px solid var(--wd-surface-border-hair);
+  padding: var(--wd-space-2) var(--wd-space-3);
+}
+.markdown-preview-view th {
+  background: var(--wd-surface-card-soft);
+  font-weight: 600;
+  text-align: left;
+}
+
+/* Horizontal rule — single hairline */
+.markdown-preview-view hr {
+  border: none;
+  border-top: 1px solid var(--wd-surface-border-hair);
+  margin: var(--wd-space-5) 0;
+}
+
+
+/* ============================================================
+   HIDDEN MARKDOWN FORMATTERS (Decision 12)
+   ============================================================
+   Hide marker characters for inline formatting in Live Preview and
+   Reading View. Source Mode is the deliberate raw view and stays
+   untouched (audit pair 2).
+
+   Hidden:  strong (**), emphasis (_ or *), strikethrough (~~)
+   Visible: link markers, headings, lists, blockquote, code
+
+   Default behavior is STRICT-HIDE — formatters stay hidden even when
+   the cursor is positioned within a formatted span. The implementation
+   project's settings tab exposes a "Reveal when cursor adjacent"
+   sub-toggle that flips this to Obsidian's classic cursor-adjacent
+   reveal behavior. Default sub-toggle value: OFF.
+   ============================================================ */
+
+/* Live Preview hides the marker characters (CodeMirror 6) */
+.markdown-source-view.mod-cm6 .cm-formatting-strong,
+.markdown-source-view.mod-cm6 .cm-formatting-em,
+.markdown-source-view.mod-cm6 .cm-formatting-strikethrough {
+  display: none;
+}
+
+/* Strict-hide: even when cursor is adjacent, formatter stays hidden.
+   Obsidian's default exposes .cm-formatting on active line; we keep
+   them hidden unconditionally by default. The implementation project
+   removes these rules when the sub-toggle is flipped on. */
+.markdown-source-view.mod-cm6 .cm-active .cm-formatting-strong,
+.markdown-source-view.mod-cm6 .cm-active .cm-formatting-em,
+.markdown-source-view.mod-cm6 .cm-active .cm-formatting-strikethrough {
+  display: none;
+}
+
+/* Reading View renders without markers natively — no rule needed. */
+
+/* Link markers stay visible so URLs are editable inline */
+.markdown-source-view.mod-cm6 .cm-formatting-link {
+  display: inline;
+}
+
+
+/* ============================================================
+   FILE EXPLORER — FILES MODE POLISH
+   ============================================================
+   Files mode = Obsidian's native file-explorer view, styled by this
+   stylesheet. Zone-mode middle pane is a custom plugin view, owned by
+   the implementation project (out of scope here).
+
+   Layout per specs/ui-design.md ## Files mode:
+     - Pane width 320px (set by plugin via grid; we don't force it here)
+     - Indent step 16px per nesting level
+     - File-row gap 8px default
+     - Row height 32px
+     - Row hover --wd-surface-row-hover
+     - Row active --wd-surface-row-active + 3px slate left bar
+     - Folder chevron 12px right-arrow rotates 90° on expand, 200ms ease
+   ============================================================ */
+
+/* Pane surface — bumped specificity to defeat Obsidian's defaults */
+body.theme-light .workspace-leaf-content[data-type="file-explorer"],
+body.theme-dark .workspace-leaf-content[data-type="file-explorer"] {
+  background: var(--wd-surface-pane);
+  border-right: 1px solid var(--wd-surface-border-hair);
+}
+
+/* File and folder rows
+   Row height is locked at 32px per spec (## Files mode → Tree rendering).
+   Long file names must truncate single-line with ellipsis — wrapping
+   to two lines breaks the active-row treatment (3-cue redundancy assumes
+   a 32px row) and fills the row background awkwardly. */
+.nav-file-title,
+.nav-folder-title {
+  height: 32px;
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  padding: 0 var(--wd-space-3);
+  margin: var(--wd-space-1) var(--wd-space-2);
+  border-radius: 6px;
+  color: var(--wd-text-primary);
+  font-family: var(--wd-font-body);
+  font-size: 13px;
+  font-weight: 400;
+  cursor: pointer;
+  transition: background 120ms ease;
+  overflow: hidden;
+}
+
+/* The title-content span holds the actual file/folder name and must
+   truncate with ellipsis when it exceeds the row width. */
+.nav-file-title-content,
+.nav-folder-title-content {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nav-file-title:hover,
+.nav-folder-title:hover {
+  background: var(--wd-surface-row-hover);
+}
+
+/* Active (selected) row — three-cue treatment per spec */
+.nav-file-title.is-active,
+.nav-folder-title.is-active {
+  background: var(--wd-surface-row-active);
+  color: var(--wd-text-primary);
+  font-weight: 500;
+  position: relative;
+}
+
+.nav-file-title.is-active::before,
+.nav-folder-title.is-active::before {
+  content: "";
+  position: absolute;
+  left: -2px;
+  top: 4px;
+  bottom: 4px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--wd-accent-slate);
+}
+
+/* Indent step — 16px per nesting level
+   Obsidian renders nested folders inside .nav-folder-children with no
+   explicit indent; we add left padding per nested folder level. */
+.nav-folder-children .nav-folder-title,
+.nav-folder-children .nav-file-title {
+  margin-left: 16px;
+}
+
+/* Deep-tree row gap — 6px when ≥3 levels deep (per spec).
+   We approximate with a nested-children-of-children-of-children selector;
+   the implementation project may refine when real DOM stabilizes. */
+.nav-folder-children .nav-folder-children .nav-folder-children .nav-file-title,
+.nav-folder-children .nav-folder-children .nav-folder-children .nav-folder-title {
+  margin-top: 2px;
+  margin-bottom: 2px;
+}
+
+/* Folder chevron — rotates on expand.
+   Obsidian's actual class is .collapse-icon (a flexbox span containing an
+   svg.svg-icon at 10px × 10px with a 100ms transform transition). Rotation
+   to the collapsed state is handled by Obsidian core via
+   `.collapse-icon.is-collapsed svg.svg-icon { transform: rotate(...) }`
+   using a `--direction` CSS variable for RTL support — we don't override
+   that. We only bump size to 12px and the transition to 200ms to match
+   spec ## Files mode → Tree rendering. */
+.workspace-leaf-content[data-type="file-explorer"] .collapse-icon {
+  color: var(--wd-text-tertiary);
+}
+.workspace-leaf-content[data-type="file-explorer"] .collapse-icon svg.svg-icon {
+  width: 12px;
+  height: 12px;
+  transition: transform 200ms ease;
+}
+
+/* V4 empty-folder placeholder ("Empty folder" italic row) is NOT pure-CSS
+   feasible: Obsidian does not apply an `is-empty` (or equivalent) class to
+   .nav-folder elements, so :empty / class-based selectors can't catch it.
+   The spec's ## CSS scope partition already says V4 needs plugin-side DOM
+   observation to toggle a custom class. The implementation project owns
+   this surface; this comment records why no CSS rule lives here. */
+
+
+/* ============================================================
+   OBSIDIAN CALLOUTS
+   ============================================================
+   5 callout types, mapped per specs/ui-design.md ## Editor surface →
+   Callouts. Reuses existing zone tokens — no new color tokens.
+
+     [!note]    → atlas blue   (neutral knowledge)
+     [!info]    → atlas blue   (informational)
+     [!warning] → intel amber  (classical warning)
+     [!success] → gtd green    (done, completion)
+     [!failure] → personal red (error / attention)
+
+   Phase 7's writing-style rule patch teaches Claude to use these.
+   ============================================================ */
+
+/* IMPORTANT: do NOT set Obsidian's --callout-color variable. Obsidian
+   internally consumes it as an RGB triple via `rgba(var(--callout-color),
+   0.1)` and `rgb(var(--callout-color))`, so setting it to a hex value
+   (like #4a6a8a) yields invalid CSS that silently fails inside Obsidian's
+   own callout rules. We use our own --wd-callout-color (plain color, not
+   triple) to drive title + icon color for our rendering. Background,
+   border-left-color, and color are set directly. */
+
+.callout {
+  background: var(--wd-zone-atlas-tint);
+  border: 1px solid var(--wd-surface-border-hair);
+  border-left: 3px solid var(--wd-zone-atlas-fg);
+  border-radius: 6px;
+  padding: var(--wd-space-3) var(--wd-space-4);
+  margin: var(--wd-space-3) 0;
+  color: var(--wd-text-primary);
+  --wd-callout-color: var(--wd-zone-atlas-fg);
+}
+
+.callout-title {
+  color: var(--wd-callout-color);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: var(--wd-space-2);
+}
+
+.callout-icon {
+  color: var(--wd-callout-color);
+}
+
+.callout-content {
+  margin-top: var(--wd-space-2);
+  color: var(--wd-text-primary);
+}
+
+/* Note + Info → atlas */
+.callout[data-callout="note"],
+.callout[data-callout="info"] {
+  background: var(--wd-zone-atlas-tint);
+  border-left-color: var(--wd-zone-atlas-fg);
+  --wd-callout-color: var(--wd-zone-atlas-fg);
+}
+
+/* Warning → intel amber */
+.callout[data-callout="warning"] {
+  background: var(--wd-zone-intel-tint);
+  border-left-color: var(--wd-zone-intel-fg);
+  --wd-callout-color: var(--wd-zone-intel-fg);
+}
+
+/* Success → gtd green */
+.callout[data-callout="success"],
+.callout[data-callout="done"],
+.callout[data-callout="check"] {
+  background: var(--wd-zone-gtd-tint);
+  border-left-color: var(--wd-zone-gtd-fg);
+  --wd-callout-color: var(--wd-zone-gtd-fg);
+}
+
+/* Failure → personal red */
+.callout[data-callout="failure"],
+.callout[data-callout="fail"],
+.callout[data-callout="error"],
+.callout[data-callout="danger"] {
+  background: var(--wd-zone-personal-tint);
+  border-left-color: var(--wd-zone-personal-fg);
+  --wd-callout-color: var(--wd-zone-personal-fg);
+}
+
+
+/* ============================================================
+   <kbd> TAGS
+   ============================================================
+   Plain HTML <kbd> for keyboard shortcuts. Phase 7's writing-style
+   rule patch teaches Claude to use them; this rule styles them on-brand.
+
+   Per specs/ui-design.md ## Editor surface → kbd elements:
+     --wd-font-code, 11px, small caps, --wd-surface-card-soft background,
+     1px --wd-surface-border-soft border, 3px border-radius, 1px 6px padding
+   ============================================================ */
+
+kbd,
+.markdown-preview-view kbd,
+.markdown-source-view.mod-cm6 kbd {
+  font-family: var(--wd-font-code);
+  font-size: 11px;
+  font-variant: small-caps;
+  letter-spacing: 0.04em;
+  background: var(--wd-surface-card-soft);
+  color: var(--wd-text-primary);
+  border: 1px solid var(--wd-surface-border-soft);
+  border-radius: 3px;
+  padding: 1px 6px;
+  vertical-align: baseline;
+  white-space: nowrap;
+}
+
+
+/* ============================================================
+   ACCESSIBILITY HELPERS
+   ============================================================ */
+
+/* prefers-reduced-motion — disable transitions and animations */
+@media (prefers-reduced-motion: reduce) {
+
+  .nav-file-title,
+  .nav-folder-title,
+  .collapse-icon svg.svg-icon {
+    transition: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Focus ring — visible against the cream surface */
+:focus-visible {
+  outline: 2px solid var(--wd-accent-slate);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Selection — slate-tinted */
+::selection {
+  background: var(--wd-zone-atlas-tint);
+  color: var(--wd-text-primary);
+}
+
+
+/* ============================================================
+   END
+   ============================================================ */
