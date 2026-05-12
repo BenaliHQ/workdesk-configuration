@@ -7,6 +7,8 @@ description: Meta-skill — scaffold a new personal/ practice. Practices are ope
 
 `personal/` is read-only. Practices declare what lives there so the agent knows how to read it during signal generation.
 
+> **Operates under [[type-scaffolding]]** — design every required field, section, and structure deliberately. A type definition is a contract, not a folder layout. Apply the senior-teammate cold-pickup test, mark required vs optional explicitly, and validate by walking a real instance before locking the schema.
+
 ## Detection clause
 
 Surface proactively when:
