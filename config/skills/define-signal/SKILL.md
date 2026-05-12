@@ -7,6 +7,8 @@ description: Meta-skill — scaffold a new intel signal type. Signals are Claude
 
 Signals are semantic, not mechanical (per the plan §"Signals are semantic, not mechanical"). The declaration captures intent and anchors; Claude executes the contextual lookup at runtime.
 
+> **Operates under [[type-scaffolding]]** — design every required field, section, and structure deliberately. A type definition is a contract, not a folder layout. Apply the senior-teammate cold-pickup test, mark required vs optional explicitly, and validate by walking a real instance before locking the schema.
+
 ## Detection clause
 
 Surface proactively when:

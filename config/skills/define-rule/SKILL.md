@@ -7,6 +7,8 @@ description: Meta-skill — scaffold a new behavioral constraint at config/rules
 
 Skills can have learnings. Rules don't bend. This skill writes a new rule and wires it into the system.
 
+> **Operates under [[type-scaffolding]]** — design every required field, section, and structure deliberately. A rule is a contract, not a paragraph dump. Apply the senior-teammate cold-pickup test, mark required vs optional sections explicitly, and validate by walking a real instance before locking the schema.
+
 ## When to run
 
 - Operator corrects the same behavior in ≥2 distinct skills' `learnings.md` within 30 days (per `claude-md-coevolution` rule)

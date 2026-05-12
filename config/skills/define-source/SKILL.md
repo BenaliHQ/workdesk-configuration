@@ -7,6 +7,8 @@ description: Meta-skill — scaffold a new system source type. Sources are raw i
 
 Sources are how the vault learns. This skill defines a new raw-input type and its processing rule.
 
+> **Operates under [[type-scaffolding]]** — design every required field, section, and structure deliberately. A type definition is a contract, not a folder layout. Apply the senior-teammate cold-pickup test, mark required vs optional explicitly, and validate by walking a real instance before locking the schema.
+
 ## Detection clause
 
 Surface proactively when:

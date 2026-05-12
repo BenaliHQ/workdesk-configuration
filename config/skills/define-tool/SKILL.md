@@ -7,6 +7,8 @@ description: Meta-skill — scaffold a new tool integration (CLI binary, MCP ser
 
 Tools are how Claude reaches outside the vault. Defining a tool installs it (when possible), documents it, and wires it into the system.
 
+> **Operates under [[type-scaffolding]]** — design every required field, section, and structure deliberately. A type definition is a contract, not a folder layout. Apply the senior-teammate cold-pickup test, mark required vs optional explicitly, and validate by walking a real instance before locking the schema.
+
 ## Detection clause
 
 Surface proactively when:

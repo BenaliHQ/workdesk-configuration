@@ -77,7 +77,7 @@ Wildcards are supported with `*` at the end of a path segment. `atlas/*` exclude
 - **Atlas updates** — apply [[matching]]: every entity touched (person, project, decision) gets its note updated when there's substantive new info. Pure mentions don't trigger updates.
 - **Action item** → `gtd/inbox/` with `[ACTION]` prefix when the source contains a concrete to-do for the operator.
 
-If a concept could become a project (compelling enough to spin its own work), still create the concept normally AND add a separate `[REVIEW]` inbox note: *"Concept [[X]] could be a project — consider scoping."* Don't invent a new outcome type.
+If a concept could become a project (compelling enough to spin its own work), still create the concept normally AND add a separate `[REVIEW]` inbox note: *"Concept `[[X]]` could be a project — consider scoping."* Don't invent a new outcome type.
 
 ### 4. Cross-link primary ↔ secondaries ↔ source
 
@@ -102,7 +102,7 @@ Otherwise, no notification. Pure quotes, generic-interest synthesis, "doesn't ap
 
 When a source contradicts existing vault content:
 
-- Flag the contradiction explicitly in the synthesis: *"This conflicts with [[decision-Y]] from [[meeting-Z]]."*
+- Flag the contradiction explicitly in the synthesis: *"This conflicts with `[[decision-Y]]` from `[[meeting-Z]]`."*
 - Give Claude's unbiased take. Use research where appropriate (e.g., "Recent industry data suggests X is now more nuanced than the original decision assumed."). Cite sources.
 - Do NOT silently overwrite or ignore the prior content. The contradiction is information.
 - Surface a `[REVIEW]` inbox notification — contradictions always warrant operator attention.
