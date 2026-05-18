@@ -6,7 +6,9 @@
 #
 # Single user-visible install entry. Operator pre-installs Obsidian + Claude
 # Code; this script verifies them, downloads the pinned tarball, runs
-# bootstrap.sh, vendors 7 plugins, seeds BRAT, registers the vault, exits.
+# bootstrap.sh, vendors BRAT (the only bundled plugin), registers the vault,
+# exits. Operators install additional plugins (workdesk-terminal, surface
+# appearance, etc.) opt-in via BRAT from inside Obsidian.
 #
 # Invocation:
 #   curl -fsSL https://raw.githubusercontent.com/BenaliHQ/workdesk-os/v1.1.0/init.sh | bash
@@ -28,13 +30,7 @@ DEFAULT_VAULT_PATH="$HOME/Workdesk-OS"
 DEFAULT_REF="main"
 
 PLUGIN_IDS=(
-  "templater-obsidian"
-  "obsidian-minimal-settings"
-  "custom-sort"
-  "calendar"
-  "periodic-notes"
   "obsidian42-brat"
-  "workdesk-terminal"
 )
 
 # ---- io helpers --------------------------------------------------------------
@@ -140,7 +136,7 @@ find_obsidian_app() {
 }
 
 required_obsidian_version() {
-  # Read max minAppVersion across the 7 vendored plugin manifests.
+  # Read max minAppVersion across the vendored plugin manifests.
   # At platform-check time we don't yet have the source tree; this function
   # is called *after* repo-fetched. We accept the source root as $1.
   local src="$1"
@@ -439,7 +435,7 @@ step_bootstrap_ran() {
 # ---- step 5: plugins-vendored ------------------------------------------------
 
 step_plugins_vendored() {
-  log_step "plugins-vendored (7 plugins)"
+  log_step "plugins-vendored (1 plugin)"
 
   local plugins_dst="$VAULT_PATH/.obsidian/plugins"
 
@@ -614,23 +610,32 @@ step_brat_seeded() {
   cp "$fixture" "$tmp"
   json_ok "$tmp" || { rm -f "$tmp"; fail "BRAT fixture is not valid JSON" "Re-vendor."; }
 
-  # Validate required keys/values in the source-of-truth fixture.
-  local pl0 psl_repo
-  pl0=$(plutil -extract pluginList.0 raw "$tmp" 2>/dev/null) || pl0=""
-  psl_repo=$(plutil -extract pluginSubListFrozenVersion.0.repo raw "$tmp" 2>/dev/null) || psl_repo=""
-  if [[ "$pl0" != "BenaliHQ/workdesk-terminal" ]]; then
+  # Validate required structural keys in the source-of-truth fixture.
+  # As of v1.4.0, pluginList and pluginSubListFrozenVersion ship EMPTY — BRAT
+  # is the only bundled plugin and operators install everything else opt-in
+  # via BRAT's "Add a beta plugin" command. Validate the keys exist and are
+  # arrays of length 0.
+  local pl_count psl_count
+  pl_count=$(plutil -extract pluginList raw "$tmp" 2>/dev/null | wc -l | tr -d ' ')
+  psl_count=$(plutil -extract pluginSubListFrozenVersion raw "$tmp" 2>/dev/null | wc -l | tr -d ' ')
+  # plutil -extract on an empty array emits a single empty line; non-empty arrays emit one line per element.
+  # Treat both 0 and 1 as "empty-shaped"; reject if any element is present beyond that.
+  local pl_first psl_first
+  pl_first=$(plutil -extract pluginList.0 raw "$tmp" 2>/dev/null) || pl_first=""
+  psl_first=$(plutil -extract pluginSubListFrozenVersion.0.repo raw "$tmp" 2>/dev/null) || psl_first=""
+  if [[ -n "$pl_first" ]]; then
     rm -f "$tmp"
-    fail "BRAT fixture pluginList.0 is '$pl0', expected 'BenaliHQ/workdesk-terminal'" "Re-vendor."
+    fail "BRAT fixture pluginList is non-empty ('$pl_first'); v1.4.0 ships empty for opt-in plugin install" "Re-vendor — see scripts/regenerate-brat-fixture.sh."
   fi
-  if [[ "$psl_repo" != "BenaliHQ/workdesk-terminal" ]]; then
+  if [[ -n "$psl_first" ]]; then
     rm -f "$tmp"
-    fail "BRAT fixture pluginSubListFrozenVersion.0.repo is '$psl_repo', expected 'BenaliHQ/workdesk-terminal'" "Re-vendor."
+    fail "BRAT fixture pluginSubListFrozenVersion is non-empty ('$psl_first'); v1.4.0 ships empty for opt-in plugin install" "Re-vendor — see scripts/regenerate-brat-fixture.sh."
   fi
 
   mv "$tmp" "$data_json"
 
   state_mark "brat-seeded"
-  log_install "brat-seeded" "ok" "fork pinned"
+  log_install "brat-seeded" "ok" "empty plugin list — operators install opt-in via BRAT"
 }
 
 # ---- step 8: obsidian-vault-registered ---------------------------------------

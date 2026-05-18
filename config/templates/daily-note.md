@@ -1,5 +1,5 @@
 ---
-date: <% tp.date.now("YYYY-MM-DD", 0, tp.file.title, "YYYY.MM.DD [Daily Note]") %>
+date: {{date:YYYY-MM-DD}}
 type: daily
 ---
 

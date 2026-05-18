@@ -3,8 +3,12 @@
 # recompute SHA256s into each plugin's UPSTREAM.md.
 #
 # Usage:
-#   scripts/refresh-vendored-plugins.sh                 # re-pull all 7 at current pins
+#   scripts/refresh-vendored-plugins.sh                 # re-pull all vendored plugins at current pins
 #   scripts/refresh-vendored-plugins.sh <plugin-id> <tag>  # bump one plugin to a new tag
+#
+# As of v1.4.0, BRAT is the only bundled plugin. Other plugins
+# (workdesk-terminal, surface appearance, calendar, periodic-notes, templater,
+# minimal-settings, custom-sort) are opt-in via BRAT from inside Obsidian.
 #
 # After running, manually update Tag pinned / Release URL / Retrieved /
 # Manifest version / minAppVersion fields in the affected UPSTREAM.md files
@@ -17,13 +21,7 @@ VENDOR_ROOT="$REPO_ROOT/vendor/plugins"
 
 # id repo tag artifacts...
 PLUGINS=(
-  "templater-obsidian|SilentVoid13/Templater|2.19.3|main.js manifest.json styles.css"
-  "obsidian-minimal-settings|kepano/obsidian-minimal-settings|8.2.2|main.js manifest.json styles.css"
-  "custom-sort|SebastianMC/obsidian-custom-sort|3.1.6|main.js manifest.json"
-  "calendar|liamcain/obsidian-calendar-plugin|1.5.10|main.js manifest.json"
-  "periodic-notes|liamcain/obsidian-periodic-notes|0.0.17|main.js manifest.json styles.css"
   "obsidian42-brat|TfTHacker/obsidian42-brat|2.0.4|main.js manifest.json styles.css"
-  "workdesk-terminal|BenaliHQ/workdesk-terminal|v1.1.2|main.js manifest.json styles.css"
 )
 
 refresh_one() {

@@ -47,7 +47,9 @@ Defaults: vault at `~/Workdesk-OS/`. Configure via env vars:
 | `WORKDESK_INIT_FORCE` | unset | Reuse a non-empty vault per ownership list |
 | `WORKDESK_INIT_OPEN` | unset | Launch Obsidian at the new vault on success |
 
-The orchestrator verifies prerequisites (Obsidian present + version + non-quarantined, Claude Code on PATH, Obsidian not currently running), downloads the pinned tarball, runs `bootstrap.sh`, vendors 7 plugins with SHA256 verification per artifact, seeds BRAT to track our terminal fork, and registers the vault in Obsidian's registry. **No sudo, no Homebrew, no Xcode CLT.** All macOS-native tooling.
+The orchestrator verifies prerequisites (Obsidian present + version + non-quarantined, Claude Code on PATH, Obsidian not currently running), downloads the pinned tarball, runs `bootstrap.sh`, vendors BRAT (the only bundled plugin) with SHA256 verification per artifact, and registers the vault in Obsidian's registry. **No sudo, no Homebrew, no Xcode CLT.** All macOS-native tooling.
+
+Other plugins (workdesk-terminal, surface appearance, calendar, periodic-notes, templater, minimal-settings, custom-sort) are **opt-in via BRAT** from inside Obsidian once the install completes — operators choose what they want, nothing is pre-installed by the WorkDesk OS distribution.
 
 Preview without writing anything:
 
@@ -108,25 +110,30 @@ Six meta-skills cover everything you'll add over time. Each scaffolds a declarat
 
 ## Vendored components
 
-WorkDesk OS bundles seven Obsidian plugins under [`vendor/plugins/`](vendor/plugins/). Each plugin's release artifacts (`main.js`, `manifest.json`, `styles.css` where present) are vendored at a pinned upstream tag, with SHA256s recorded in `vendor/plugins/<id>/UPSTREAM.md` and verified by `init.sh` at install time. Each plugin's upstream `LICENSE` is preserved alongside the artifacts.
+As of v1.4.0, WorkDesk OS bundles a single Obsidian plugin under [`vendor/plugins/`](vendor/plugins/): **BRAT** (Beta Reviewers Auto-update Tool). BRAT is the gateway — operators install everything else they want (workdesk-terminal, surface appearance, calendar, periodic-notes, templater, minimal-settings, custom-sort, etc.) opt-in from inside Obsidian using BRAT's "Add a beta plugin" command. BRAT's release artifacts (`main.js`, `manifest.json`, `styles.css`) are vendored at a pinned upstream tag, with SHA256s recorded in `vendor/plugins/obsidian42-brat/UPSTREAM.md` and verified by `init.sh` at install time. The upstream `LICENSE` is preserved alongside the artifacts.
 
 | Plugin | Upstream | Tag | License |
 |---|---|---|---|
-| Templater (`templater-obsidian`) | [SilentVoid13/Templater](https://github.com/SilentVoid13/Templater) | `2.19.3` | AGPL-3.0 |
-| Minimal Theme Settings (`obsidian-minimal-settings`) | [kepano/obsidian-minimal-settings](https://github.com/kepano/obsidian-minimal-settings) | `8.2.2` | MIT |
-| Custom File Explorer Sorting (`custom-sort`) | [SebastianMC/obsidian-custom-sort](https://github.com/SebastianMC/obsidian-custom-sort) | `3.1.6` | GPL-3.0 |
-| Calendar (`calendar`) | [liamcain/obsidian-calendar-plugin](https://github.com/liamcain/obsidian-calendar-plugin) | `1.5.10` | MIT |
-| Periodic Notes (`periodic-notes`) | [liamcain/obsidian-periodic-notes](https://github.com/liamcain/obsidian-periodic-notes) | `0.0.17` | MIT |
 | BRAT (`obsidian42-brat`) | [TfTHacker/obsidian42-brat](https://github.com/TfTHacker/obsidian42-brat) | `2.0.4` | MIT |
-| WorkDesk Terminal (`workdesk-terminal`) | [BenaliHQ/workdesk-terminal](https://github.com/BenaliHQ/workdesk-terminal) (metadata-only fork of `internetvin/internetvin-terminal`) | `v1.1.2` | MIT |
 
-Updates to the five upstream community plugins flow through `scripts/refresh-vendored-plugins.sh` plus a workdesk-os release. Updates to `workdesk-terminal` flow through BRAT — operators get the new release on next Obsidian launch with no re-install needed.
+Updates to BRAT itself flow through `scripts/refresh-vendored-plugins.sh` plus a workdesk-os release. Updates to plugins installed *via* BRAT flow automatically through BRAT — operators get new releases on next Obsidian launch without re-installing.
+
+### Suggested opt-in plugins
+
+Plugins previously bundled in WorkDesk OS that operators may want to install via BRAT after first launch (use BRAT's "Add a beta plugin" command and paste the GitHub repo):
+
+- [BenaliHQ/workdesk-terminal](https://github.com/BenaliHQ/workdesk-terminal) — embedded terminal pane (Claude Code-aware activity indicators)
+- [SilentVoid13/Templater](https://github.com/SilentVoid13/Templater) — advanced templating (required if you want `<% tp.* %>` syntax in templates beyond the core Daily Notes `{{date}}`)
+- [kepano/obsidian-minimal-settings](https://github.com/kepano/obsidian-minimal-settings) — Minimal theme configuration UI
+- [SebastianMC/obsidian-custom-sort](https://github.com/SebastianMC/obsidian-custom-sort) — custom file-explorer sorting
+- [liamcain/obsidian-calendar-plugin](https://github.com/liamcain/obsidian-calendar-plugin) — sidebar calendar
+- [liamcain/obsidian-periodic-notes](https://github.com/liamcain/obsidian-periodic-notes) — weekly/monthly/yearly notes
 
 ## License
 
 MIT. Fork it, ship it, make it yours.
 
-Each vendored plugin retains its own license. See `vendor/plugins/<id>/LICENSE` and `vendor/plugins/<id>/UPSTREAM.md`.
+The bundled BRAT plugin retains its own license. See `vendor/plugins/obsidian42-brat/LICENSE` and `vendor/plugins/obsidian42-brat/UPSTREAM.md`.
 
 ## Source
 

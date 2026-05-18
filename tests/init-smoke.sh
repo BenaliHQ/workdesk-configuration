@@ -162,18 +162,19 @@ fi
 
 # ---- SHA verification: tampered main.js detected (smoke 10) ------------------
 printf '\n[scenario] SHA256 mismatch detection\n'
-# Stage a tampered local clone
+# Stage a tampered local clone. As of v1.4.0, BRAT is the only bundled plugin
+# so we use it for the tampering test.
 sha_test="$test_root/sha-test-clone"
-mkdir -p "$sha_test/vendor/plugins/templater-obsidian"
-cp "$repo_root/vendor/plugins/templater-obsidian/manifest.json" "$sha_test/vendor/plugins/templater-obsidian/"
-cp "$repo_root/vendor/plugins/templater-obsidian/UPSTREAM.md" "$sha_test/vendor/plugins/templater-obsidian/"
-echo "TAMPERED" > "$sha_test/vendor/plugins/templater-obsidian/main.js"
-[[ -f "$repo_root/vendor/plugins/templater-obsidian/styles.css" ]] \
-  && cp "$repo_root/vendor/plugins/templater-obsidian/styles.css" "$sha_test/vendor/plugins/templater-obsidian/"
+mkdir -p "$sha_test/vendor/plugins/obsidian42-brat"
+cp "$repo_root/vendor/plugins/obsidian42-brat/manifest.json" "$sha_test/vendor/plugins/obsidian42-brat/"
+cp "$repo_root/vendor/plugins/obsidian42-brat/UPSTREAM.md" "$sha_test/vendor/plugins/obsidian42-brat/"
+echo "TAMPERED" > "$sha_test/vendor/plugins/obsidian42-brat/main.js"
+[[ -f "$repo_root/vendor/plugins/obsidian42-brat/styles.css" ]] \
+  && cp "$repo_root/vendor/plugins/obsidian42-brat/styles.css" "$sha_test/vendor/plugins/obsidian42-brat/"
 # We test only the SHA-mismatch branch logic; not the full init.sh which
 # would re-fetch. So we manually invoke the comparison.
-expected_sha=$(grep -E '\`main\.js\`' "$sha_test/vendor/plugins/templater-obsidian/UPSTREAM.md" | grep -oE '[a-f0-9]{64}' | head -n1)
-actual_sha=$(shasum -a 256 "$sha_test/vendor/plugins/templater-obsidian/main.js" | awk '{print $1}')
+expected_sha=$(grep -E '\`main\.js\`' "$sha_test/vendor/plugins/obsidian42-brat/UPSTREAM.md" | grep -oE '[a-f0-9]{64}' | head -n1)
+actual_sha=$(shasum -a 256 "$sha_test/vendor/plugins/obsidian42-brat/main.js" | awk '{print $1}')
 if [[ "$actual_sha" != "$expected_sha" ]]; then
   printf '  PASS  SHA256 mismatch correctly detectable (expected %s, got %s)\n' "${expected_sha:0:12}…" "${actual_sha:0:12}…"
   pass=$((pass+1))
@@ -192,10 +193,12 @@ else
   printf '  FAIL  fixture does not parse\n'
   fail=$((fail+1))
 fi
+# v1.4.0: pluginList and pluginSubListFrozenVersion ship EMPTY — BRAT is the
+# only bundled plugin and everything else is opt-in via BRAT's UI.
 pl0=$(plutil -extract pluginList.0 raw "$fixture" 2>/dev/null || echo "")
 psl_repo=$(plutil -extract pluginSubListFrozenVersion.0.repo raw "$fixture" 2>/dev/null || echo "")
-assert "fixture pluginList.0"                       "$pl0"      "BenaliHQ/workdesk-terminal"
-assert "fixture pluginSubListFrozenVersion.0.repo"  "$psl_repo" "BenaliHQ/workdesk-terminal"
+assert "fixture pluginList is empty"                "$pl0"      ""
+assert "fixture pluginSubListFrozenVersion empty"   "$psl_repo" ""
 update_at_startup=$(plutil -extract updateAtStartup raw "$fixture" 2>/dev/null || echo "")
 assert "fixture updateAtStartup"                    "$update_at_startup" "true"
 

@@ -219,11 +219,11 @@ print(json.dumps(json.loads(s), indent=2))
   note "Bundle-extracted defaults written to working file."
 fi
 
-step "Applying workdesk-terminal overrides"
-plutil -replace pluginList -json '["BenaliHQ/workdesk-terminal"]' "$WORK" 2>/dev/null \
-  || plutil -insert pluginList -json '["BenaliHQ/workdesk-terminal"]' "$WORK"
-plutil -replace pluginSubListFrozenVersion -json '[{"repo":"BenaliHQ/workdesk-terminal","version":"v1.1.2","token":""}]' "$WORK" 2>/dev/null \
-  || plutil -insert pluginSubListFrozenVersion -json '[{"repo":"BenaliHQ/workdesk-terminal","version":"v1.1.2","token":""}]' "$WORK"
+step "Applying empty-list overrides (v1.4.0 ships empty for opt-in plugin install)"
+plutil -replace pluginList -json '[]' "$WORK" 2>/dev/null \
+  || plutil -insert pluginList -json '[]' "$WORK"
+plutil -replace pluginSubListFrozenVersion -json '[]' "$WORK" 2>/dev/null \
+  || plutil -insert pluginSubListFrozenVersion -json '[]' "$WORK"
 
 step "Validating fixture"
 plutil -p "$WORK" >/dev/null
@@ -236,13 +236,14 @@ for required in pluginList pluginSubListFrozenVersion updateAtStartup; do
 done
 note "Required keys present: pluginList, pluginSubListFrozenVersion, updateAtStartup"
 
-PL0=$(plutil -extract pluginList.0 raw "$WORK")
-[[ "$PL0" == "BenaliHQ/workdesk-terminal" ]] || { fail "pluginList.0 is '$PL0', expected 'BenaliHQ/workdesk-terminal'"; exit 1; }
-note "pluginList.0 = BenaliHQ/workdesk-terminal ✓"
+# Verify the lists are empty.
+PL0=$(plutil -extract pluginList.0 raw "$WORK" 2>/dev/null || echo "")
+[[ -z "$PL0" ]] || { fail "pluginList non-empty ('$PL0'); v1.4.0 ships empty"; exit 1; }
+note "pluginList is empty ✓"
 
-PSL0_REPO=$(plutil -extract pluginSubListFrozenVersion.0.repo raw "$WORK")
-[[ "$PSL0_REPO" == "BenaliHQ/workdesk-terminal" ]] || { fail "pluginSubListFrozenVersion.0.repo is '$PSL0_REPO', expected 'BenaliHQ/workdesk-terminal'"; exit 1; }
-note "pluginSubListFrozenVersion.0.repo = BenaliHQ/workdesk-terminal ✓"
+PSL0=$(plutil -extract pluginSubListFrozenVersion.0.repo raw "$WORK" 2>/dev/null || echo "")
+[[ -z "$PSL0" ]] || { fail "pluginSubListFrozenVersion non-empty ('$PSL0'); v1.4.0 ships empty"; exit 1; }
+note "pluginSubListFrozenVersion is empty ✓"
 
 mv "$WORK" "$FIXTURE"
 step "Fixture written to $FIXTURE"
