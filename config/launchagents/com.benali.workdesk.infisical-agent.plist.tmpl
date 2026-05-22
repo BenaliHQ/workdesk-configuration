@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Generated from this template by config/scripts/bootstrap-infisical.sh.
+  Substitutions:
+    {{WORKDESK_ROOT}} → absolute path to the operator's workdesk-os install
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.benali.workdesk.infisical-agent</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>{{WORKDESK_ROOT}}/config/scripts/infisical-agent-run.sh</string>
+  </array>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>KeepAlive</key>
+  <dict>
+    <key>SuccessfulExit</key>
+    <false/>
+  </dict>
+
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
+
+  <key>StandardOutPath</key>
+  <string>{{WORKDESK_ROOT}}/system/log/infisical-agent.out</string>
+
+  <key>StandardErrorPath</key>
+  <string>{{WORKDESK_ROOT}}/system/log/infisical-agent.err</string>
+</dict>
+</plist>
