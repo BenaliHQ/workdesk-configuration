@@ -1,0 +1,27 @@
+# Infisical Agent config — foundation install.
+#
+# Generated from this template by config/scripts/bootstrap-infisical.sh.
+# Substitutions:
+#   {{WORKDESK_ROOT}} → absolute path to the operator's workdesk-os install
+#
+# Tool layers (gws, qbo, codex, …) append their template blocks to the
+# `templates:` list below via their own setup scripts. The foundation install
+# leaves the list empty — the agent runs, authenticates, and sits idle waiting
+# for tool layers to give it work.
+
+infisical:
+  address: "https://app.infisical.com"
+
+auth:
+  type: "universal-auth"
+  config:
+    client-id: "/Volumes/wd-ramdisk/infisical/client-id"
+    client-secret: "/Volumes/wd-ramdisk/infisical/client-secret"
+    remove_client_secret_on_read: false
+
+sinks:
+  - type: "file"
+    config:
+      path: "/Volumes/wd-ramdisk/infisical/access-token"
+
+templates: []

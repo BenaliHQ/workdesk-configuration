@@ -1,5 +1,6 @@
 ---
 name: ""
+email: ""
 role: ""
 work-mode: ""
 daily-planning-style: "morning"
@@ -7,7 +8,9 @@ week-start: "monday"
 first-30-days-mode: active
 created: ""
 last_updated: ""
-version: 1.1
+version: 1.2
+infisical-project-id: ""
+infisical-key-suffix: ""
 ---
 
 # Operator Profile
@@ -35,3 +38,15 @@ Wikilinks to `config/tools/<slug>.md` for each tool the operator named in onboar
 ## first-30-days-mode
 
 `active` during the guided first 14 days. Flips to `graduated` once: onboarding complete + ≥1 weekly-review generated + at least one of (project, recurring item, processed transcript) exists. Set by `/weekly-review` graduation check.
+
+## Infisical integration (optional)
+
+The `email`, `infisical-project-id`, and `infisical-key-suffix` frontmatter fields are optional — required only if you use the Infisical secrets-management layer. They are read by `config/scripts/lib/operator-config.sh` and every script in the Infisical/ramdisk/tool-auth stack.
+
+| Field | What | Example |
+|---|---|---|
+| `email` | Primary operator email. Used as the macOS Keychain account, and as the gws account label. | `you@example.com` |
+| `infisical-project-id` | UUID of your "personal" Infisical project (the one holding your non-client static keys). | `df755029-00a8-4374-b195-43eeb3268430` |
+| `infisical-key-suffix` | Uppercase identifier appended to per-account secret names (e.g. `PERSONAL_GWS_CREDENTIALS_<SUFFIX>_ENC_B64`). Usually the uppercase local part of your email. | `KHALIL` |
+
+Run `bash config/scripts/bootstrap-infisical.sh` to populate these interactively and complete the rest of the Infisical setup.
