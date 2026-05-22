@@ -26,16 +26,16 @@ bash config/scripts/setup-gws.sh
 
 That script:
 1. Verifies the Infisical foundation is in place.
-2. Installs gws via Homebrew if missing.
+2. Installs gws if missing (`brew install googleworkspace-cli`, falling back to `npm install -g @googleworkspace/cli`).
 3. Renders the 4 gws agent-templates from `.tmpl.in` → `.tmpl` with your operator-config values.
 4. Appends the gws templates block to `config/infisical/agent.yaml`.
-5. Reloads the Infisical Agent so it starts rendering gws state to the ramdisk.
-6. Symlinks `~/Library/Application Support/gws` to `/Volumes/wd-ramdisk/gws/`.
+5. Migrates `~/Library/Application Support/gws` to a symlink pointing at `/Volumes/wd-ramdisk/gws/`. Existing auth state survives the move via a backup at `gws.bak.<timestamp>`.
+6. **If you were already authenticated locally** — pushes your auth state to Infisical, *then* reloads the Infisical Agent. Race-safe ordering: Infisical has values before the agent's first render pass.
+7. **If you weren't yet authenticated** — stops at step 5 without reloading the agent. You then run `gws auth login` and re-run this script; on the second pass it detects the new auth state and finishes the wire-up.
 
-Then you run three manual steps:
-- Source the shell wrapper in `~/.zshrc`
-- `gws auth login --account <your-email>` (browser OAuth consent)
-- `bash config/scripts/gws-push-tokens-to-infisical.sh` (mirror local state back to Infisical so the next reboot rehydrates correctly)
+Why the conditional in step 6: if the agent reloads before Infisical has your state, the first render pass finds nothing in Infisical, writes empty files to the ramdisk, and the post-render hook decodes empty into empty — clobbering your just-migrated auth state. Pushing before reloading eliminates the window.
+
+If the script reloaded the agent for you, the only remaining tasks are verification and (optionally) sourcing the shell wrapper in `~/.zshrc` so future `gws auth login` calls pull OAuth-app creds from Infisical automatically.
 
 ## Where state lives
 
