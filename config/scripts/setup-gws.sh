@@ -64,17 +64,44 @@ if [[ ! -s "/Volumes/wd-ramdisk/infisical/access-token" ]]; then
   say  "    If this persists, check ${WORKDESK_ROOT}/system/log/infisical-agent.log"
 fi
 
-if command -v gws >/dev/null 2>&1; then
+# gws install — Google Workspace CLI at https://github.com/googleworkspace/cli.
+# Two install methods documented in the official README; we try brew first
+# (cleaner upgrade path, no node runtime needed), then npm as a fallback.
+# (Specifically AVOID `brew install gws` — that's an unrelated git-workspaces
+# tool by streakycobra. The Google CLI's brew formula is `googleworkspace-cli`.)
+if command -v gws >/dev/null 2>&1 && gws --help 2>&1 | grep -qi 'google workspace'; then
   ok "gws CLI present ($(gws --version 2>&1 | head -1 || echo 'version unknown'))"
+elif command -v gws >/dev/null 2>&1; then
+  err "A different tool named 'gws' is on PATH at $(command -v gws)."
+  say "    The setup needs the Google Workspace CLI from github.com/googleworkspace/cli."
+  say "    Remove or shadow the conflicting tool, then re-run."
+  exit 1
 else
-  warn "gws CLI not found — installing via Homebrew"
-  if ! command -v brew >/dev/null 2>&1; then
-    err "Homebrew not installed. Install from https://brew.sh first."
+  warn "gws CLI not found — installing the Google Workspace CLI"
+  if command -v brew >/dev/null 2>&1; then
+    say "    trying: brew install googleworkspace-cli"
+    if brew install googleworkspace-cli; then
+      ok "gws installed via Homebrew: $(gws --version 2>&1 | head -1 || echo 'version unknown')"
+    else
+      warn "brew install failed; falling back to npm"
+      if command -v npm >/dev/null 2>&1; then
+        npm install -g @googleworkspace/cli
+        ok "gws installed via npm: $(gws --version 2>&1 | head -1 || echo 'version unknown')"
+      else
+        err "Neither brew formula nor npm worked. Install manually:"
+        say "    https://github.com/googleworkspace/cli/releases"
+        exit 1
+      fi
+    fi
+  elif command -v npm >/dev/null 2>&1; then
+    say "    Homebrew not present; using npm install -g @googleworkspace/cli"
+    npm install -g @googleworkspace/cli
+    ok "gws installed via npm: $(gws --version 2>&1 | head -1 || echo 'version unknown')"
+  else
+    err "Neither Homebrew nor npm available. Install gws manually:"
+    say "    https://github.com/googleworkspace/cli/releases"
     exit 1
   fi
-  brew tap iyear/tap 2>/dev/null || true
-  brew install gws
-  ok "gws installed: $(gws --version 2>&1 | head -1 || echo 'version unknown')"
 fi
 
 # ─── Step 2: Render templates ───────────────────────────────────────────────
