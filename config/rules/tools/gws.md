@@ -6,7 +6,7 @@ This tool layer rides on top of the Infisical foundation (`config/rules/tools/in
 
 ## Access Method
 
-CLI binary: `/opt/homebrew/bin/gws` (Homebrew tap `iyear/tap`).
+CLI binary: `gws`, installed by `setup-gws.sh` via `brew install googleworkspace-cli` (preferred) or `npm install -g @googleworkspace/cli` (fallback). Both methods come from the official repo at https://github.com/googleworkspace/cli — do NOT `brew install gws`, which installs an unrelated git-workspaces tool of the same name.
 
 A shell wrapper at `config/shell/gws-env.sh` makes `gws auth login` pull the OAuth-app `client_id`/`client_secret` from Infisical at the moment of login — no env vars in your shell, no plaintext on disk. Source from `~/.zshrc`:
 
@@ -98,5 +98,5 @@ Surface proactively when:
 ## Sources
 
 - Infisical Agent docs: https://infisical.com/docs/integrations/platforms/infisical-agent
-- gws CLI: https://github.com/iyear/gws (Homebrew tap `iyear/tap`)
+- gws CLI: https://github.com/googleworkspace/cli (`brew install googleworkspace-cli` or `npm install -g @googleworkspace/cli`)
 - Foundation rule: [[infisical]]
