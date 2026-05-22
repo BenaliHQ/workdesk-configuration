@@ -195,11 +195,26 @@ else
 fi
 # v1.4.0: pluginList and pluginSubListFrozenVersion ship EMPTY — BRAT is the
 # only bundled plugin and everything else is opt-in via BRAT's UI.
-pl0=$(plutil -extract pluginList.0 raw "$fixture" 2>/dev/null || echo "")
-psl_repo=$(plutil -extract pluginSubListFrozenVersion.0.repo raw "$fixture" 2>/dev/null || echo "")
+#
+# `plutil -extract <keypath>` on a missing keypath sets exit code != 0, but its
+# error-vs-success output channel varies across plutil versions: older builds
+# print errors to stderr (suppressed by 2>/dev/null), newer builds (seen on
+# macos-latest CI) print to stdout, leaking the error message into the captured
+# value. Gate on exit code, not channel: only use the captured value when
+# extraction actually succeeded.
+extract_or_empty() {
+  local out
+  if out=$(plutil -extract "$2" raw "$1" 2>&1); then
+    printf '%s' "$out"
+  else
+    printf ''
+  fi
+}
+pl0=$(extract_or_empty "$fixture" pluginList.0)
+psl_repo=$(extract_or_empty "$fixture" pluginSubListFrozenVersion.0.repo)
 assert "fixture pluginList is empty"                "$pl0"      ""
 assert "fixture pluginSubListFrozenVersion empty"   "$psl_repo" ""
-update_at_startup=$(plutil -extract updateAtStartup raw "$fixture" 2>/dev/null || echo "")
+update_at_startup=$(extract_or_empty "$fixture" updateAtStartup)
 assert "fixture updateAtStartup"                    "$update_at_startup" "true"
 
 # ---- summary -----------------------------------------------------------------
