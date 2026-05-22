@@ -1,0 +1,3 @@
+{{- with getSecretByName "[[INFISICAL_PROJECT_ID]]" "prod" "/" "PERSONAL_GWS_ENCRYPTION_KEY" -}}
+{{ .Value }}
+{{- end -}}

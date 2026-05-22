@@ -215,29 +215,61 @@ load_plist() {
 load_plist "${LAUNCHAGENT_DIR}/${RAMDISK_PLIST_NAME}"
 load_plist "${LAUNCHAGENT_DIR}/${AGENT_PLIST_NAME}"
 
-# Give the agent a moment to authenticate.
-sleep 4
-
 # ─── Step 7: Verify ─────────────────────────────────────────────────────────
 step "7. Verify"
 
-if launchctl list | grep -q "com.benali.workdesk.infisical-agent"; then
-  ok "infisical-agent LaunchAgent registered"
-else
-  err "infisical-agent LaunchAgent not registered — check ~/Library/LaunchAgents/${AGENT_PLIST_NAME}"
-  exit 1
-fi
+# Poll for agent registration AND access-token sink. On macOS Sequoia first-
+# load, background-item approval can delay registration past a one-shot check;
+# poll for up to 30s.
+poll_for() {
+  local label="$1" check_cmd="$2" timeout="${3:-30}"
+  local i
+  for i in $(seq 1 "$((timeout * 2))"); do
+    if eval "${check_cmd}" >/dev/null 2>&1; then
+      ok "${label} (after ${i}× 0.5s)"
+      return 0
+    fi
+    sleep 0.5
+  done
+  err "${label} — still failing after ${timeout}s"
+  return 1
+}
 
-if [[ -f "/Volumes/wd-ramdisk/infisical/access-token" ]]; then
-  ok "agent authenticated (access-token sink populated)"
+poll_for "infisical-agent LaunchAgent registered" \
+  "launchctl list | grep -q 'com.benali.workdesk.infisical-agent'" 30 || {
+  say "    Check ~/Library/LaunchAgents/${AGENT_PLIST_NAME}"
+  say "    Inspect ${WORKDESK_ROOT}/system/log/infisical-agent.log"
+  exit 1
+}
+
+poll_for "agent authenticated (access-token sink populated)" \
+  "[[ -s /Volumes/wd-ramdisk/infisical/access-token ]]" 30 || {
+  say "    The agent registered but never wrote an access token."
+  say "    Check ${WORKDESK_ROOT}/system/log/infisical-agent.log for auth errors."
+  exit 1
+}
+
+# Authenticate the `infisical` shell CLI using the same UA identity the agent
+# uses. Without this, any shell-level `infisical secrets` call falls through
+# to interactive browser-login on a fresh machine — wrong auth path and noisy.
+say ""
+say "  Logging the shell CLI in via Universal Auth"
+if infisical login --method=universal-auth --plain --silent \
+     --client-id="$(security find-generic-password -a "${OPERATOR_EMAIL}" -s infisical-ua-client-id     -w 2>/dev/null)" \
+     --client-secret="$(security find-generic-password -a "${OPERATOR_EMAIL}" -s infisical-ua-client-secret -w 2>/dev/null)" \
+     >/dev/null 2>&1; then
+  ok "shell CLI authenticated via UA identity"
 else
-  warn "access-token sink not yet present — agent may still be starting"
-  say  "    tail -n 30 ${WORKDESK_ROOT}/system/log/infisical-agent.log"
+  warn "shell CLI UA login failed — \`infisical-names.sh\` may fall back to browser login"
 fi
 
 # Smoke test: fetch the names listing — proves the UA identity can read.
 if names_count=$(bash "${SCRIPT_DIR}/infisical-names.sh" 2>/dev/null | wc -l | tr -d ' '); then
-  ok "infisical project reachable — ${names_count} secret(s) listed"
+  if [[ "${names_count}" -gt 0 ]]; then
+    ok "infisical project reachable — ${names_count} secret(s) listed"
+  else
+    warn "infisical-names returned 0 secrets — project is reachable but empty, or the UA identity lacks read on this project"
+  fi
 else
   warn "infisical-names smoke check failed — confirm UA identity has Viewer role on this project"
 fi
@@ -255,9 +287,8 @@ ${bold}${grn}Bootstrap complete.${rst}
   Agent log:        ${WORKDESK_ROOT}/system/log/infisical-agent.log
 
 ${dim}Next steps:${rst}
-  - Tool layers (gws, qbo, codex) are not part of this foundation install.
-    Each tool's setup script (shipped in its own release) appends to
-    config/infisical/agent.yaml and runs its own ramdisk migration.
+  - To set up the Google Workspace CLI (gws) on this machine:
+      bash ${WORKDESK_ROOT}/config/scripts/setup-gws.sh
   - To list secrets safely (without leaking values into a Claude session):
       bash ${WORKDESK_ROOT}/config/scripts/infisical-names.sh
   - To fetch a single secret value:
