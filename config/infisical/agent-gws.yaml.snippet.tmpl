@@ -1,0 +1,41 @@
+# gws templates — appended to config/infisical/agent.yaml by setup-gws.sh.
+# Substitutions:
+#   {{WORKDESK_ROOT}}      → operator's workdesk-os install path
+#   [[OPERATOR_EMAIL_B64]] → base64(operator email), used as filename component
+
+  # client_secret.json — built from the three PERSONAL_GOOGLE_WORKSPACE_* keys.
+  - source-path: "{{WORKDESK_ROOT}}/config/infisical/templates/gws-client-secret-json.tmpl"
+    destination-path: "/Volumes/wd-ramdisk/gws/client_secret.json"
+    config:
+      polling-interval: "5m"
+      execute:
+        timeout: 10
+        command: "{{WORKDESK_ROOT}}/config/scripts/gws-post-render.sh"
+
+  # The .encryption_key file — plain ASCII (44 chars), no decoding needed.
+  - source-path: "{{WORKDESK_ROOT}}/config/infisical/templates/gws-encryption-key.tmpl"
+    destination-path: "/Volumes/wd-ramdisk/gws/.encryption_key"
+    config:
+      polling-interval: "5m"
+      execute:
+        timeout: 10
+        command: "{{WORKDESK_ROOT}}/config/scripts/gws-post-render.sh"
+
+  # The encrypted refresh token — stored in Infisical as base64.
+  # Rendered as <name>.b64 and decoded by gws-post-render.sh.
+  - source-path: "{{WORKDESK_ROOT}}/config/infisical/templates/gws-credentials-b64.tmpl"
+    destination-path: "/Volumes/wd-ramdisk/gws/credentials.[[OPERATOR_EMAIL_B64]].enc.b64"
+    config:
+      polling-interval: "5m"
+      execute:
+        timeout: 10
+        command: "{{WORKDESK_ROOT}}/config/scripts/gws-post-render.sh"
+
+  # accounts.json — small JSON listing registered accounts.
+  - source-path: "{{WORKDESK_ROOT}}/config/infisical/templates/gws-accounts-json.tmpl"
+    destination-path: "/Volumes/wd-ramdisk/gws/accounts.json"
+    config:
+      polling-interval: "5m"
+      execute:
+        timeout: 10
+        command: "{{WORKDESK_ROOT}}/config/scripts/gws-post-render.sh"

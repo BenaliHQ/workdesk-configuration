@@ -39,6 +39,16 @@ EOF
   exit 2
 fi
 
+# Use the agent's already-minted UA access token if the ramdisk sink is
+# populated. Without this, a fresh-install shell CLI has no cached auth
+# and the `infisical secrets` command falls through to interactive browser-
+# login — wrong auth path (human user instead of UA identity) and noisy.
+TOKEN_FILE="/Volumes/wd-ramdisk/infisical/access-token"
+if [[ -s "${TOKEN_FILE}" ]]; then
+  INFISICAL_TOKEN="$(cat "${TOKEN_FILE}")"
+  export INFISICAL_TOKEN
+fi
+
 infisical secrets --projectId="${PROJ}" --env="${ENV}" 2>&1 \
   | awk -F'│' '
       {
