@@ -507,7 +507,7 @@ step_plugins_vendored() {
   esac
 
   state_mark "plugins-vendored"
-  log_install "plugins-vendored" "ok" "7 plugins"
+  log_install "plugins-vendored" "ok" "${#PLUGIN_IDS[@]} plugin(s)"
 }
 
 # ---- step 6: community-plugins-enabled --------------------------------------
@@ -518,7 +518,7 @@ step_community_plugins_enabled() {
   local cp_file="$VAULT_PATH/.obsidian/community-plugins.json"
 
   if [[ -n "$DRY_RUN" ]]; then
-    log_dryrun "merge 7 ids into $cp_file"
+    log_dryrun "merge ${#PLUGIN_IDS[@]} id(s) into $cp_file"
     return 0
   fi
 
@@ -561,7 +561,7 @@ step_community_plugins_enabled() {
   mv "$tmp" "$cp_file"
 
   state_mark "community-plugins-enabled"
-  log_install "community-plugins-enabled" "ok" "7 ids merged"
+  log_install "community-plugins-enabled" "ok" "${#PLUGIN_IDS[@]} id(s) merged"
 }
 
 # ---- step 7: brat-seeded -----------------------------------------------------
@@ -707,6 +707,15 @@ step_obsidian_vault_registered() {
 
 step_install_complete() {
   log_step "install-complete (re-validating all artifacts)"
+
+  # In dry-run, no files were written by prior steps — skip the artifact
+  # re-validation but still mark the step so the dry-run completes cleanly
+  # (exit 0). The README documents --dry-run as a preview; it must not fail.
+  if [[ -n "$DRY_RUN" ]]; then
+    log_dryrun "(dry-run) skipping artifact re-validation"
+    state_mark "install-complete"
+    return 0
+  fi
 
   # Re-check every prior step's artifacts at the moment of marker write.
   [[ -d "$VAULT_PATH/config" ]] || fail "config/ missing" "Re-run init.sh."
