@@ -1,15 +1,21 @@
 ---
 name: update
-description: Pulls the latest WorkDesk OS release and applies it to this vault — updates skills, rules, scripts, and schema. Walks you through any conflicts in plain language. Operator data (personal/, atlas/, gtd/, intel/, system/) is never touched.
+description: Pulls the latest WorkDesk OS configuration release (skills, rules, scripts, hooks, schema) and applies it to this vault. Does NOT update the WorkDesk desktop plugin/app — that's installed and updated through a separate channel. Walks you through any conflicts in plain language. Operator data (personal/, atlas/, gtd/, intel/, system/) is never touched.
 ---
 
 # /update
 
-Updates the WorkDesk OS control plane (`config/`) to the latest release. Operator-facing skill — most users won't be technical, so Claude leads with plain-language narration. The bash engine (`config/scripts/migrate.sh`) owns invariants; this skill orchestrates the conversation.
+Updates the WorkDesk OS **configuration** (`config/` — skills, rules, scripts, hooks, schema) to the latest release. Operator-facing skill — most users won't be technical, so Claude leads with plain-language narration. The bash engine (`config/scripts/migrate.sh`) owns invariants; this skill orchestrates the conversation.
+
+> [!info] What this updates vs. what it doesn't
+> **This skill updates the configuration only** — the agent-side rules, skills, hooks, and scripts that live inside the vault's `config/` directory. Source: `BenaliHQ/workdesk-os` releases.
+>
+> **This skill does NOT update the WorkDesk desktop plugin/app.** That's a separate Obsidian plugin (source: `BenaliHQ/workdesk-operating-system`) installed and updated through its own channel — not through `/update`.
 
 ## Boundaries
 
 - **Updates only `config/`** — your skills, rules, hooks, scripts, and the operator-profile schema. Never touches `personal/`, `atlas/`, `gtd/`, `intel/`, or `system/`.
+- **Does not touch the WorkDesk desktop plugin.** The plugin (`BenaliHQ/workdesk-operating-system`) is a separate install with its own update channel. If the operator asks about plugin updates, redirect them — `/update` cannot help.
 - **Schema migrations** may rewrite specific files inside `config/` (e.g. `operator-profile.md` frontmatter when fields are renamed). Each migration is a versioned, reviewable script shipped with the release.
 - **Backup is automatic** before any write, at `<vault>/.workdesk-backups/<timestamp>/`. Restore via `/update restore <id>` or by running `config/scripts/migrate.sh restore <id>`.
 
@@ -63,7 +69,9 @@ Action values and their meaning:
 
 Summarize like this — short, factual, one paragraph:
 
-> WorkDesk OS v1.3.0 is available. This update modifies 4 skills, adds 1 new skill, and ships 1 schema migration (operator-profile field rename). 2 files have conflicts because you've customized them. Want to proceed?
+> WorkDesk OS **configuration** v1.3.0 is available. This update modifies 4 skills, adds 1 new skill, and ships 1 schema migration (operator-profile field rename). 2 files have conflicts because you've customized them. Want to proceed?
+
+(Lead with the word "configuration" so the operator doesn't confuse this with the desktop plugin.)
 
 Wait for a yes/no. No preamble dump of every file path. If they say no, exit cleanly.
 
@@ -137,7 +145,9 @@ If the operator says they want the change to take effect immediately in their cu
 
 On success, tell the operator:
 
-> Updated to v1.3.0. Backed up your prior state to `.workdesk-backups/2026-04-30-143022/` (you can run `/update restore 2026-04-30-143022` to roll back). Restart Claude Code so the new skills load.
+> Configuration updated to v1.3.0. Backed up your prior state to `.workdesk-backups/2026-04-30-143022/` (you can run `/update restore 2026-04-30-143022` to roll back). Restart Claude Code so the new skills load.
+
+(Word "configuration" up front — keeps the desktop-plugin-vs-config distinction visible at the end of the flow.)
 
 Tell them to restart Claude Code — skills are loaded at session start. Without a restart, the new skill bodies won't be picked up.
 
