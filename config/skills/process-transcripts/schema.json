@@ -1,0 +1,93 @@
+{
+  "type": "object",
+  "properties": {
+    "summary": {
+      "type": "string",
+      "description": "1-3 sentence operator-voice summary of what the meeting was actually about and what changed because of it. Not a topic list."
+    },
+    "attendees_present": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Full names of people who actually spoke or were explicitly addressed in the transcript. Do not include anyone only mentioned in passing."
+    },
+    "speaker_resolution_confidence": {
+      "type": "string",
+      "enum": ["high", "partial", "low"],
+      "description": "high = every speaker's name is in the transcript text. partial = some speakers identified, others ambiguous. low = many unknowns."
+    },
+    "key_topics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "topic": {"type": "string"},
+          "discussion": {"type": "string", "description": "2-4 sentences capturing what was actually said and concluded on this topic. Operator voice."}
+        },
+        "required": ["topic", "discussion"]
+      }
+    },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "decision": {"type": "string", "description": "What was decided, stated in one clear sentence."},
+          "made_by": {"type": "string", "description": "Person who made or confirmed the decision."},
+          "durability": {"type": "string", "enum": ["routine", "durable"], "description": "durable = a policy/strategy decision worth a standalone atlas/decisions note. routine = inline meeting-note decision."}
+        },
+        "required": ["decision", "made_by", "durability"]
+      }
+    },
+    "action_items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "description": {"type": "string", "description": "What needs to be done, one sentence imperative."},
+          "owner": {"type": "string", "description": "Person responsible. Use the full name from attendees_present."},
+          "owner_category": {
+            "type": "string",
+            "enum": ["khalil_or_benali_team", "client_team", "client_client", "unknown"],
+            "description": "khalil_or_benali_team = Khalil personally or Luciano/Gaby/Jenny/Yvette/Nick Jr/Arra/Reese. client_team = the client's employees. client_client = the client's clients (homeowners, prospects). Routes to gtd/inbox vs inline."
+          },
+          "due": {"type": "string", "description": "Due date if stated, empty string otherwise. ISO format if possible."}
+        },
+        "required": ["description", "owner", "owner_category"]
+      }
+    },
+    "key_quotes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "speaker": {"type": "string"},
+          "quote": {"type": "string"},
+          "why_quotable": {"type": "string", "description": "Why this line stands out — stand-alone insight, sharp framing, durable lesson."}
+        },
+        "required": ["speaker", "quote", "why_quotable"]
+      },
+      "description": "Only stand-alone quotes worth saving. Empty array if none."
+    },
+    "people_observations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "person": {"type": "string"},
+          "observation": {"type": "string", "description": "Substantive context about this person that would update their atlas/people note. Skip routine context."}
+        },
+        "required": ["person", "observation"]
+      }
+    },
+    "open_questions": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Unresolved questions from the meeting that the operator should follow up on."
+    },
+    "sensitive": {
+      "type": "boolean",
+      "description": "true if the meeting touched on confidential topics (compensation, terminations, legal, personal health, etc.)"
+    }
+  },
+  "required": ["summary", "attendees_present", "speaker_resolution_confidence", "key_topics", "decisions", "action_items", "open_questions", "sensitive"]
+}
