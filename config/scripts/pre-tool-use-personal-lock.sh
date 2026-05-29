@@ -49,11 +49,13 @@ case "$tool" in
     [[ "$input" =~ $re_cmd ]] && cmd="${BASH_REMATCH[1]}"
     [[ -z "$cmd" ]] && exit 0
 
-    # If the command does not mention personal/, allow it.
-    case "$cmd" in
-      *personal*) ;;
-      *) exit 0 ;;
-    esac
+    # Allow the command unless it references `personal` as a path component
+    # (i.e., with a word boundary on both sides — NOT as part of a longer
+    # token like `personal-khalil`, `infisical-personal-foo`, etc.).
+    # Word chars here include hyphen so identifier-style tokens are excluded.
+    if ! printf '%s' "$cmd" | grep -Eq '(^|[^A-Za-z0-9_-])personal(/|$|[^A-Za-z0-9_-])'; then
+      exit 0
+    fi
 
     # Block obvious mutation shapes against personal/.
     # Patterns intentionally conservative; they're not a security boundary.
