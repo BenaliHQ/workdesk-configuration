@@ -109,4 +109,4 @@ else
 fi
 
 gh "${GH_ARGS[@]}"
-echo "Released: https://github.com/BenaliHQ/workdesk-os/releases/tag/$TAG"
+echo "Released: https://github.com/BenaliHQ/workdesk-configuration/releases/tag/$TAG"

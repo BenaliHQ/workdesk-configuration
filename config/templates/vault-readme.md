@@ -39,5 +39,5 @@ Everything new lands in `system/_intake/` first. From there it gets processed an
 
 ## Need help
 
-- Repo: https://github.com/BenaliHQ/workdesk-os
+- Repo: https://github.com/BenaliHQ/workdesk-configuration
 - Issues: file at the repo

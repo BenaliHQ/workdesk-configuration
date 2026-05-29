@@ -5,7 +5,7 @@ description: Send feedback, bug reports, and feature requests to the WorkDesk OS
 
 # /feedback
 
-Files a GitHub issue on `BenaliHQ/workdesk-os` from inside the vault. The operator never sees the GitHub UI unless they want to. Claude is the product manager; the operator is the user being interviewed.
+Files a GitHub issue on `BenaliHQ/workdesk-configuration` from inside the vault. The operator never sees the GitHub UI unless they want to. Claude is the product manager; the operator is the user being interviewed.
 
 ## Boundaries
 

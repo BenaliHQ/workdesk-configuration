@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# file-issue.sh — submit a GitHub issue to BenaliHQ/workdesk-os from a
+# file-issue.sh — submit a GitHub issue to BenaliHQ/workdesk-configuration from a
 # vault feedback session. Wrapped by /feedback SKILL.md.
 #
 # Subcommands:
@@ -14,13 +14,13 @@
 #
 # Env:
 #   CLAUDE_PROJECT_DIR — vault root (defaults to detection from script path)
-#   FEEDBACK_REPO      — override target repo (default: BenaliHQ/workdesk-os)
+#   FEEDBACK_REPO      — override target repo (default: BenaliHQ/workdesk-configuration)
 #   FEEDBACK_LIMIT     — daily issue cap (default: 20)
 
 set -euo pipefail
 IFS=$'\n\t'
 
-REPO="${FEEDBACK_REPO:-BenaliHQ/workdesk-os}"
+REPO="${FEEDBACK_REPO:-BenaliHQ/workdesk-configuration}"
 LIMIT="${FEEDBACK_LIMIT:-20}"
 
 VAULT="${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
@@ -148,7 +148,7 @@ Usage:
       Create the issue. Defaults to label \`enhancement\`. Always adds
       \`from-vault\` label. Outputs the issue URL on success.
 
-Env: CLAUDE_PROJECT_DIR, FEEDBACK_REPO (default BenaliHQ/workdesk-os),
+Env: CLAUDE_PROJECT_DIR, FEEDBACK_REPO (default BenaliHQ/workdesk-configuration),
      FEEDBACK_LIMIT (default 20).
 EOF
     ;;

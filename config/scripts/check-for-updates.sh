@@ -22,7 +22,7 @@
 set -euo pipefail
 IFS=$'\n\t'
 
-REPO="${WORKDESK_REPO:-BenaliHQ/workdesk-os}"
+REPO="${WORKDESK_REPO:-BenaliHQ/workdesk-configuration}"
 LATEST_URL="https://api.github.com/repos/$REPO/releases/latest"
 TIMEOUT="${WORKDESK_UPDATE_TIMEOUT:-2}"
 

@@ -8,7 +8,7 @@ description: Pulls the latest WorkDesk OS configuration release (skills, rules, 
 Updates the WorkDesk OS **configuration** (`config/` — skills, rules, scripts, hooks, schema) to the latest release. Operator-facing skill — most users won't be technical, so Claude leads with plain-language narration. The bash engine (`config/scripts/migrate.sh`) owns invariants; this skill orchestrates the conversation.
 
 > [!info] What this updates vs. what it doesn't
-> **This skill updates the configuration only** — the agent-side rules, skills, hooks, and scripts that live inside the vault's `config/` directory. Source: `BenaliHQ/workdesk-os` releases.
+> **This skill updates the configuration only** — the agent-side rules, skills, hooks, and scripts that live inside the vault's `config/` directory. Source: `BenaliHQ/workdesk-configuration` releases.
 >
 > **This skill does NOT update the WorkDesk desktop plugin/app.** That's a separate Obsidian plugin (source: `BenaliHQ/workdesk-operating-system`) installed and updated through its own channel — not through `/update`.
 

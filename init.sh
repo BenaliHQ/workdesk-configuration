@@ -11,7 +11,7 @@
 # appearance, etc.) opt-in via BRAT from inside Obsidian.
 #
 # Invocation:
-#   curl -fsSL https://raw.githubusercontent.com/BenaliHQ/workdesk-os/v1.1.0/init.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/BenaliHQ/workdesk-configuration/v1.1.0/init.sh | bash
 #
 # All optional inputs via env vars; no flags read from stdin (curl-pipe safe):
 #   WORKDESK_VAULT_PATH   path to install vault   (default: ~/Workdesk-OS/)

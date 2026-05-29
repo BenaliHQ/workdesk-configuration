@@ -35,7 +35,7 @@ Three steps, each one-click:
 3. Run the install:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/BenaliHQ/workdesk-os/main/init.sh | bash
+curl -fsSL https://raw.githubusercontent.com/BenaliHQ/workdesk-configuration/main/init.sh | bash
 ```
 
 Defaults: vault at `~/Workdesk-OS/`. Configure via env vars:
@@ -54,7 +54,7 @@ Other plugins (workdesk-terminal, surface appearance, calendar, periodic-notes, 
 Preview without writing anything:
 
 ```bash
-WORKDESK_INIT_DRYRUN=1 curl -fsSL https://raw.githubusercontent.com/BenaliHQ/workdesk-os/main/init.sh | bash
+WORKDESK_INIT_DRYRUN=1 curl -fsSL https://raw.githubusercontent.com/BenaliHQ/workdesk-configuration/main/init.sh | bash
 ```
 
 `bootstrap.sh` remains as the lower-level primitive — advanced users can invoke it directly with a path argument — but `init.sh` is the V1.1 user-visible install.

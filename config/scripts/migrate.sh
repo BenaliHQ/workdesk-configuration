@@ -26,7 +26,7 @@ IFS=$'\n\t'
 
 # ---- Constants ----------------------------------------------------------------
 
-REPO="BenaliHQ/workdesk-os"
+REPO="BenaliHQ/workdesk-configuration"
 RELEASES_LATEST="https://api.github.com/repos/$REPO/releases/latest"
 
 VAULT="${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
