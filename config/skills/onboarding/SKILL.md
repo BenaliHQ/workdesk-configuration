@@ -152,7 +152,7 @@ If "none" or "skip," continue. Transcript-processing skill's first-run will hand
 
 Mark phase 2 complete.
 
-### Phase 3 — Zone tour (5 short turns)
+### Phase 3 — Zone tour (6 short turns)
 
 **Purpose:** name each zone and how to add to it. Briefly. Tutorial videos handle depth.
 
@@ -162,29 +162,33 @@ After Phase 2 completes, send the first zone message. Operator doesn't need to r
 
 **3a — `personal/`:**
 
-> *"`personal/` is your space — daily notes, journal, reading, anything you write. Claude or any other agent never writes in `personal/`, and you should never want me to. You'll add to it most by running your daily note."*
+> *"`personal/` is your space — daily notes, journal, reading, anything you write. Claude or any other agent never writes in `personal/`, and you should never want me to. You'll add to it most by running your daily note. ▶ Watch (2 min): https://supercut.ai/share/benali/L7AMBy2jCo2GPqw2S66eRU"*
 
 The lock language is deliberate. Do not soften it to "unless you ask." The PreToolUse hook enforces the boundary at runtime; this teaches it conceptually.
 
 **3b — `atlas/`:**
 
-> *"`atlas/` is what you manage — people, decisions, meetings. When something has its own identity worth tracking, it goes here."*
+> *"`atlas/` is what you manage — people, decisions, meetings. When something has its own identity worth tracking, it goes here. ▶ Watch (2 min): https://supercut.ai/share/benali/o8GxKPEpYFDBmSxuP79vR"*
 
 **3c — `GTD/`:**
 
-> *"`GTD/` is for actions and projects — standard getting-things-done shape, like David Allen recommends."*
+> *"`GTD/` is for actions and projects — standard getting-things-done shape, like David Allen recommends. ▶ Watch (2 min): https://supercut.ai/share/benali/tTmAzLhiuqHSuE2v1FdINX"*
 
 **3d — `intel/`:**
 
-> *"`intel/` is what I observe — daily briefings, research, vault improvements. Lower trust than `atlas/` because I write it independently."*
+> *"`intel/` is what I observe — daily briefings, research, vault improvements. Lower trust than `atlas/` because I write it independently. ▶ Watch (2 min): https://supercut.ai/share/benali/Sb94l7TDegwgPHsoniOZZT"*
 
 **3e — `system/`:**
 
-> *"`system/` is your sources — transcripts, bookmarks, session logs. Everything that comes in lands in `_intake/` first, gets processed, and once processed moves to the right folder. Objects in `atlas/` get updated or created from there."*
+> *"`system/` is your sources — transcripts, bookmarks, session logs. Everything that comes in lands in `_intake/` first, gets processed, and once processed moves to the right folder. Objects in `atlas/` get updated or created from there. ▶ Watch (2 min): https://supercut.ai/share/benali/vlxgd2Vpz9pQCjuUeS0x79"*
 
-**Closing line** (after 3e):
+**3f — `config/`:**
 
-> *"All five tutorial videos live in your vault README — open it whenever you want to rewatch."*
+> *"`config/` is the harness — the skills, hooks, templates, and state that make WorkDesk run. It stays out of your way by default and you rarely touch it directly, but it's worth seeing once so you know what's under the hood. ▶ Watch (2 min): https://supercut.ai/share/benali/dBzNlZl8Yvwk3JT877kJ4F"*
+
+**Closing line** (after 3f):
+
+> *"All six tutorial videos live in your vault README — open it whenever you want to rewatch."*
 
 Mark phase 3 complete.
 
