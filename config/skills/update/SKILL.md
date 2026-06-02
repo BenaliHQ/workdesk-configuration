@@ -141,6 +141,31 @@ This applies on the **next natural Obsidian launch** — no toggle, no restart p
 
 If the operator says they want the change to take effect immediately in their current Obsidian session, point them at: `Settings → Core plugins → toggle "Daily notes" off, then on`. That re-reads the config without an app restart. But this is a rare ask — for most operators, "next launch" is fine.
 
+### 4c. Refresh the vault README
+
+The vault-root `README.md` is materialized from `config/templates/vault-readme.md` at onboarding, but it lives outside `config/`, so the engine's apply step never refreshes it. This step keeps it current after each update — without clobbering an operator who hand-edited theirs.
+
+The apply result JSON gives you `backup_id`. Three files matter:
+
+- **prior template** — `<vault>/.workdesk-backups/<backup_id>/templates/vault-readme.md` (what the README was last generated from — the backup is a snapshot of `config/`, so the template is under it)
+- **new template** — `<vault>/config/templates/vault-readme.md` (just applied)
+- **current README** — `<vault>/README.md`
+
+Decide in this order:
+
+1. If the **new template equals the current README** → already current. Do nothing.
+2. If the **current README is absent** → write it from the new template. (Same as onboarding's first-run behavior.)
+3. If the **current README equals the prior template** → the operator never customized it. Snapshot it (below), then overwrite with the new template. This is the auto-replace path — silent, no prompt.
+4. Otherwise (**current README differs from the prior template**) → the operator customized it. Do **not** overwrite. Tell them once: *"Your vault README differs from the shipped one, and there's an updated version (e.g. new tutorial videos). Want me to replace it? Your current README is backed up either way."* Replace only on an explicit yes; otherwise leave it untouched.
+
+Before any overwrite (case 3, and case 4 on an explicit yes), snapshot the current README into the backup dir first, per [[no-silent-destruction]]:
+
+```bash
+cp "<vault>/README.md" "<vault>/.workdesk-backups/<backup_id>/README.md.vault-root"
+```
+
+If the prior-template baseline is missing (the operator last updated from a release older than this feature, so the backup has no `templates/vault-readme.md`), you can't tell customized from clean — treat it as case 4 and prompt rather than assuming.
+
 ### 5. Confirm and close
 
 On success, tell the operator:
