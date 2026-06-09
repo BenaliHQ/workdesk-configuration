@@ -37,7 +37,7 @@ Single file at `atlas/people/{slug}.md`. No subfolder. Heavy contacts (long hist
 
 - 10-section structure (in order): Identity · Relationship · Affiliations · Contact · Communication channels & cadence · Active engagements · Interactions · Personal · Notes & watch-outs · Sources. The note is the senior-teammate cold-pickup doc — populated enough that any new Claude session or human teammate can orient on who this person is and why they matter.
 - Wikilinks to companies, businesses, clients, projects, meetings, and decisions per [[double-entry-knowledge]]. When a target note doesn't exist yet (e.g., `atlas/companies/` schema not defined), use plain text and log the gap as a [[matching]] open item.
-- **Per-claim provenance via inline footnotes**, per [[source-documentation]]. Specific claims accumulated across meetings cite their source: `Champion for the selections workflow.[^1]` followed by `[^1]: [[atlas/meetings/2026-04-23-byrd-decisions]]`. The Sources section at the bottom captures the broader audit trail (what informed the note overall); inline footnotes attach to specific claims.
+- **Per-claim provenance via inline footnotes**, per [[source-documentation]]. Specific claims accumulated across meetings cite their source: `Champion for the selections workflow.[^1]` followed by `[^1]: [[atlas/meetings/2026-04-23-acme-corp-decisions]]`. The Sources section at the bottom captures the broader audit trail (what informed the note overall); inline footnotes attach to specific claims.
 - Naming: `{first-name}-{last-name}` kebab-case. When last name is unknown, use `{first-name}` only; rename via Obsidian when the last name surfaces. Obsidian's **"Automatically update internal links"** setting (Settings → Files & Links) must be ON so the rename propagates wikilinks vault-wide. Without it, renames break references.
 - Disambiguator for first-name collisions: add last-name or qualifier (e.g., `sarah-chen`, `sarah-rodriguez`).
 
@@ -98,7 +98,7 @@ Triggered by: any detection-clause trigger + operator confirmation, OR operator 
 
 ### 0. Check legacy vault for existing context
 
-Per [[instance-scaffolding]] — if `~/khalils-vault/atlas/people/{slug}.md` exists, read it as DRAFT, surface findings, capture corrections before scaffolding.
+Per [[instance-scaffolding]] — if `~/<primary-vault>/atlas/people/{slug}.md` exists, read it as DRAFT, surface findings, capture corrections before scaffolding.
 
 ### 1. Confirm the trigger
 
@@ -119,8 +119,8 @@ Ask operator for enough to populate the full note at minimum. The senior-teammat
 
 - **Identity facts** — full name (or first only if last unknown), current role + primary affiliation, 1-sentence framing
 - **Relationship** — how operator and person are connected. Origin (who introduced, when met, primary context). Current frame for the relationship.
-- **Affiliations** — company/business/team links with role(s) per affiliation. Multi-role on one line per affiliation (e.g., Dava: Owner; Director of Design at Byrd).
-- **Contact** *(optional at scaffolding; structured per V1.2)* — three canonical fields: **Email**, **Mobile**, **Mailing address**. Plus optional "Other channels" addendum (LinkedIn, Telegram, Slack handle, etc.). Always preserve the three field labels even when values are TBD — this is what makes the section scannable and operator-fillable later. Inline annotations welcome (e.g., `Email: u_contractor@gmail.com *(preferred; never accesses byrdbuilding.com)*`). Per [[no-fabrication]], do not invent.
+- **Affiliations** — company/business/team links with role(s) per affiliation. Multi-role on one line per affiliation (e.g., Dana: Owner; Director of Design at Acme Corp).
+- **Contact** *(optional at scaffolding; structured per V1.2)* — three canonical fields: **Email**, **Mobile**, **Mailing address**. Plus optional "Other channels" addendum (LinkedIn, Telegram, Slack handle, etc.). Always preserve the three field labels even when values are TBD — this is what makes the section scannable and operator-fillable later. Inline annotations welcome (e.g., `Email: contractor@example.com *(preferred; never accesses acme-corp.com)*`). Per [[no-fabrication]], do not invent.
 - **Communication channels & cadence** *(optional at scaffolding)* — preferred channels (Slack/email/text), meeting rhythm, response norms; populate what's known.
 - **Active engagements** *(optional at scaffolding)* — projects/clients/businesses currently in flight involving this person; often empty for new contacts.
 - **Personal** *(optional at scaffolding)* — family, hobbies, things to remember at the relational level; honor no-fabrication. Most populated for `personal-contact` relationship-type; varies for others.

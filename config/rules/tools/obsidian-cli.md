@@ -34,7 +34,7 @@ CLI binary: `OBS="/Applications/Obsidian.app/Contents/MacOS/Obsidian"`
 
 ## Fallback
 
-If Obsidian CLI is unavailable (app not running), fall back to Read/Glob/Grep for vault files at `~/khalils-vault/`.
+If Obsidian CLI is unavailable (app not running), fall back to Read/Glob/Grep for vault files at `~/<primary-vault>/`.
 
 ## Authentication
 

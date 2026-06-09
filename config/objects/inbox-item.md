@@ -18,8 +18,8 @@ Lightweight pointer to something that needs operator attention. Pointers, not co
 ---
 type: inbox-item
 prefix: REVIEW                                          # REVIEW | ACTION | QUESTION | AWARENESS
-target: "[[atlas/decisions/2026-04-23-dudley-scope-change]]"
-source: "[[atlas/meetings/2026-04-23-dudley-weekly]]"
+target: "[[atlas/decisions/2026-04-23-acme-corp-scope-change]]"
+source: "[[atlas/meetings/2026-04-23-acme-corp-weekly]]"
 created: 2026-04-26
 ---
 One-line description of why this needs review.

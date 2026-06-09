@@ -224,7 +224,7 @@ if ! gws_state_rendered; then
 fi
 
 if ! gws drive about get --params '{"fields": "user(emailAddress)"}' >/dev/null 2>&1; then
-  log "ERROR  gws auth failed — run \`gws auth login --account khalil@benali.com\`"
+  log "ERROR  gws auth failed — run \`gws auth login --account you@example.com\`"
   prev_fails="$(read_state_field "consecutive_failures" "0")"
   new_fails=$(( prev_fails + 1 ))
   write_state "$(jq -n \
@@ -378,7 +378,7 @@ write_intake_for_doc() {
     printf -- 'pulled-at: %s\n' "$pulled_at"
     printf -- '---\n\n'
     printf -- '# %s — %s (raw transcript)\n\n' "$event_title" "$local_date"
-    printf -- 'Verbatim transcript extracted from the "Notes by Gemini" Google Doc, **Transcript** tab. Speakers are name-resolved by Google (e.g., "Khalil Benalioulhaj: ..."). The Gemini-generated summary on the Notes tab is intentionally NOT pulled per [[../../config/rules/source-processing-pattern]] — synthesis happens at processing time from the verbatim, not from another system'"'"'s summary.\n\n'
+    printf -- 'Verbatim transcript extracted from the "Notes by Gemini" Google Doc, **Transcript** tab. Speakers are name-resolved by Google (e.g., "Jane Doe: ..."). The Gemini-generated summary on the Notes tab is intentionally NOT pulled per [[../../config/rules/source-processing-pattern]] — synthesis happens at processing time from the verbatim, not from another system'"'"'s summary.\n\n'
     printf -- '## Transcript\n\n'
     printf -- '%s' "$transcript_text"
     printf -- '\n'

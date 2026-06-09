@@ -30,6 +30,7 @@ WorkDesk OS has two locations for the same logical artifact:
 |---|---|---|
 | `.claude/skills/*` | `config/skills/*` | Yes |
 | `.claude/rules/*` | `config/rules/*` | Yes |
+| `.claude/rules/writing-style.md` | (operator-owned — seeded from `config/templates/writing-style.md`, never shipped) | No — write directly |
 | `.claude/objects/*` | `config/objects/*` | Yes |
 | `.claude/sources/*` | `config/sources/*` | Yes |
 | `.claude/practices/*` | `config/practices/*` | Yes |
@@ -40,12 +41,14 @@ WorkDesk OS has two locations for the same logical artifact:
 
 If your artifact belongs in an operator zone, write directly. If it belongs anywhere else, plan for `/release` from the start.
 
+**Operator-owned config files.** `writing-style.md` is the exception in `config/rules/`: it holds the operator's personal voice, words-to-avoid list, and formatting preferences (the Stop hook appends `[STYLE]` corrections to it). Shipping it would broadcast one operator's preferences to all operators AND risk `/update` overwriting accumulated preferences. So it is **not shipped** — `config/templates/writing-style.md` is the generic seed, `/onboarding` materializes it once if absent, and the `/update` engine then classifies the operator's copy as `operator-only` (preserved silently). Never re-add `writing-style.md` to the shipped `config/rules/` tree. If another config file turns out to be operator-personal in the same way, give it the same treatment: generic template in `config/templates/`, seeded by onboarding, absent from the shipped rules.
+
 ### 2. Write vault-local first for immediate effect, then release upstream
 
 Two-step pattern that works for both immediate iteration AND durability:
 
 1. **Iterate in vault.** Create the file in `.claude/skills/X/`, `.claude/rules/X.md`, etc. for fast iteration. Test it end-to-end in the current session.
-2. **Release upstream once it works.** Copy the file into the upstream repo at `/Users/khalilbenali/code/workdesk-os/config/<subdir>/`, run `/release` (PR → CI → merge → cut release → smoke against canary).
+2. **Release upstream once it works.** Copy the file into the upstream repo at `~/code/workdesk-os/config/<subdir>/`, run `/release` (PR → CI → merge → cut release → smoke against canary).
 
 Until step 2 completes, treat the artifact as ephemeral. Don't depend on it from other skills, don't reference it in rules, don't onboard the operator to using it.
 
@@ -74,7 +77,7 @@ Example from 2026-06-02: `config/scripts/pre-tool-use-personal-lock.sh` in the v
 ## What NOT to do
 
 - **Don't iterate exclusively in vault and assume it persists.** Even if your specific path has survived several `/update` runs, behavior across paths is inconsistent. Plan for `/release` as part of the same task that creates the artifact, not as a separate cleanup pass later.
-- **Don't `/release` before iteration is done.** Releasing half-baked work upstream pollutes the baseline for all operators (currently just Khalil, but the discipline matters). Iterate in vault until the artifact passes its own acceptance test (skill runs end-to-end, rule's example holds, script's smoke-check passes), THEN release.
+- **Don't `/release` before iteration is done.** Releasing half-baked work upstream pollutes the baseline for all operators (currently just the owner, but the discipline matters). Iterate in vault until the artifact passes its own acceptance test (skill runs end-to-end, rule's example holds, script's smoke-check passes), THEN release.
 - **Don't release vault-local-only items in bulk without auditing them first.** Some vault-local items are operator-specific by design (e.g., `benali-deck` is a Benali-specific specialization that the operator wants to keep vault-local). Release deliberate; ask if any are intentional before bundling them into a rescue release.
 - **Don't skip the canary smoke** at the end of a `/release` cycle, even for small additive changes. The smoke is what catches `/update` behavior changes that affect future operators.
 - **Don't reference a vault-local-only file by path from an upstream-tracked one.** One-way dependency: upstream can know about other upstream, vault can know about both, but upstream can't know about vault-local-only. Broken references cascade.

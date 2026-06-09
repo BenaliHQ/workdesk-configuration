@@ -46,7 +46,7 @@ The `email`, `infisical-project-id`, and `infisical-key-suffix` frontmatter fiel
 | Field | What | Example |
 |---|---|---|
 | `email` | Primary operator email. Used as the macOS Keychain account, and as the gws account label. | `you@example.com` |
-| `infisical-project-id` | UUID of your "personal" Infisical project (the one holding your non-client static keys). | `df755029-00a8-4374-b195-43eeb3268430` |
-| `infisical-key-suffix` | Uppercase identifier appended to per-account secret names (e.g. `PERSONAL_GWS_CREDENTIALS_<SUFFIX>_ENC_B64`). Usually the uppercase local part of your email. | `KHALIL` |
+| `infisical-project-id` | UUID of your "personal" Infisical project (the one holding your non-client static keys). | `00000000-0000-0000-0000-000000000000` |
+| `infisical-key-suffix` | Uppercase identifier appended to per-account secret names (e.g. `PERSONAL_GWS_CREDENTIALS_<SUFFIX>_ENC_B64`). Usually the uppercase local part of your email. | `JANE` |
 
 Run `bash config/scripts/bootstrap-infisical.sh` to populate these interactively and complete the rest of the Infisical setup.

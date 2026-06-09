@@ -29,7 +29,7 @@ If detected, propose a promotion to the operator. Do not apply automatically.
 |---|---|---|
 | Voice / writing style correction | `.claude/rules/writing-style.md` (append to `[STYLE]` section) | "don't use 'leverage'" |
 | Process / workflow correction applying across workflows | New or updated `.claude/rules/{rule-name}.md` | "always check project status before planning" |
-| Vault-level architectural correction | `~/khalils-vault/CLAUDE.md` | "always read index.md first on session start" |
+| Vault-level architectural correction | the primary vault's CLAUDE.md | "always read index.md first on session start" |
 | Recurring correction within a single skill | Promote to skill's `SKILL.md` body (not a rule) | "/daily-ops always starts with calendar check" |
 
 ## Proposal flow

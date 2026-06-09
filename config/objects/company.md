@@ -77,7 +77,7 @@ When a new company note lands or is updated, the following notes update in the s
 
 - **`atlas/people/{slug}`** for each affiliated person — `primary-affiliation` linked; Leadership & team section here lists those people via wikilinks
 - **`atlas/clients/{slug}`** — if this company has a client folder (active or archived), bidirectional link confirmed
-- **`atlas/businesses/{owner-business}`** — if relationship-type is `competitor`, the relevant Benali business unit's strategic context may be touched (operator-discretion, not auto)
+- **`atlas/businesses/{owner-business}`** — if relationship-type is `competitor`, the relevant business unit's strategic context may be touched (operator-discretion, not auto)
 - **Meeting and decision notes** that reference this company — bidirectional wikilinks confirmed
 
 When a company transitions `relationship-type` (e.g., prospect → former-client), the body narrative reflects the transition with date + reason. The note is NEVER deleted or moved.
@@ -103,7 +103,7 @@ Triggered by: any detection-clause trigger + operator confirmation, OR operator 
 
 ### 0. Check legacy vault for existing context
 
-Per [[instance-scaffolding]] — if `~/khalils-vault/atlas/companies/{slug}.md` exists, read it as DRAFT, surface findings, capture corrections before scaffolding. Skip if no legacy note.
+Per [[instance-scaffolding]] — if the operator's primary vault has `atlas/companies/{slug}.md`, read it as DRAFT, surface findings, capture corrections before scaffolding. Skip if no legacy note.
 
 ### 1. Confirm the trigger
 

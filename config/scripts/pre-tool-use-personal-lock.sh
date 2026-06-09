@@ -51,7 +51,7 @@ case "$tool" in
 
     # Allow the command unless it references `personal` as a path component
     # (i.e., with a word boundary on both sides — NOT as part of a longer
-    # token like `personal-khalil`, `infisical-personal-foo`, etc.).
+    # token like `personal-jane`, `infisical-personal-foo`, etc.).
     # Word chars here include hyphen so identifier-style tokens are excluded.
     if ! printf '%s' "$cmd" | grep -Eq '(^|[^A-Za-z0-9_-])personal(/|$|[^A-Za-z0-9_-])'; then
       exit 0

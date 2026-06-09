@@ -1,6 +1,6 @@
 ---
 name: deck
-description: Produce a shareable, brand-correct HTML deck through a disciplined recon → confirm → build → git-deploy loop. Never improvises brand, repo, or deploy pattern. Use when the operator asks to "make a deck", "build a presentation", "create slides", "build a pitch deck", "build an explainer deck", or similar. For Benali-branded decks specifically, use /benali-deck instead (Benali brand source is hardcoded there).
+description: Produce a shareable, brand-correct HTML deck through a disciplined recon → confirm → build → git-deploy loop. Never improvises brand, repo, or deploy pattern. Use when the operator asks to "make a deck", "build a presentation", "create slides", "build a pitch deck", "build an explainer deck", or similar.
 ---
 
 # /deck
@@ -17,7 +17,7 @@ Generate a shareable web deck the right way. The skill exists because building a
 - A shareable HTML artifact is the deliverable (not a doc, not a one-pager, not a video)
 - Not the right skill for: speaker-only slides that won't be shared, PDF-only output, video presentations (those route to /frontend-slides or /hyperframes)
 
-If the operator says "Benali deck" or the context is a Benali-branded artifact, **invoke `/benali-deck` instead** — that skill hardcodes the Benali brand source and saves you the recon step.
+If the operator has a brand-specific deck skill for a recurring brand (a brand-hardcoded specialization), **invoke that instead** — it hardcodes the brand source and saves you the recon step.
 
 ## Intake (Phase 1)
 
@@ -44,7 +44,7 @@ Locate the brand's design system. The skill must find at minimum:
 - Logo assets
 
 Default search paths to try in order:
-1. `~/Projects/<brand>-shelf-os/brands/<brand>/` (matches the Benali pattern)
+1. `~/Projects/<brand>-shelf-os/brands/<brand>/` (a `<brand>-shelf-os` brand-package layout)
 2. `~/Projects/<brand>-website/src/styles/` (live-site tokens)
 3. `~/code/<brand>/brand/` or `~/code/<brand>-brand/`
 4. The brand's published design-system URL
@@ -143,9 +143,9 @@ Subsequent revisions: `git push` and Vercel redeploys automatically. Return the 
 
 - [[no-silent-scaffolding]] — the operator-permission gate this skill operates under
 - [[type-scaffolding]] — schema design discipline
-- `/benali-deck` — Benali-hardcoded variant; use that when the brand is Benali (skips the brand recon step)
+- A brand-hardcoded deck variant, if one exists for a recurring brand — use it when working in that brand to skip the recon step
 - `/frontend-slides` (gstack) — generic HTML slide generator; this skill borrows its viewport-fitting substrate but replaces its deploy and brand assumptions
 
 ## Source
 
-- Operator instruction 2026-05-28 — scaffolded after an incident where a Benali-branded deck was created with: a silent vault folder, CLI-uploaded Vercel deploy, and brand details reconstructed from memory instead of adapting from the canonical `brands/benali/snippets/`. Full audit and resolution in the originating Claude session.
+- Operator instruction 2026-05-28 — scaffolded after an incident where a branded deck was created with: a silent vault folder, CLI-uploaded Vercel deploy, and brand details reconstructed from memory instead of adapting from the canonical brand snippets. Full audit and resolution in the originating Claude session.

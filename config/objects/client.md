@@ -24,7 +24,7 @@ The client folder is the operator's working surface for everything tied to a spe
 type: client
 slug: {kebab-slug}
 status: active                  # active | paused | archived
-business-owner: benali          # which Benali entity owns this engagement: benali | growthkits | demandcast
+business-owner: acme-consulting # which business owns this engagement: acme-consulting | acme-studio | acme-media
 company: {company-slug}         # links to atlas/companies/{slug} — stub created if missing
 start-date: YYYY-MM-DD          # when engagement began
 created: YYYY-MM-DD             # when this client folder was created
@@ -82,7 +82,7 @@ When a new client lands, the following notes update in the same processing pass 
 
 - **`atlas/people/{slug}`** for each primary contact — created if missing, updated with role + client link if existing
 - **`atlas/companies/{company-slug}`** — the company entity gets linked; created as a stub if missing (the client IS a company; the company note may have already existed as a prospect/lead)
-- **`atlas/businesses/{business-owner}`** — the Benali entity owning this engagement gets its `_status.md` updated to reflect the new client
+- **`atlas/businesses/{business-owner}`** — the business owning this engagement gets its `_status.md` updated to reflect the new client
 
 When a client transitions status (active → paused, paused → archived):
 
@@ -112,7 +112,7 @@ Triggered by: operator says "add a new client", "scaffold X as a client", "we ju
 
 ### 0. Check legacy vault for existing context
 
-Per [[instance-scaffolding]] — if `~/khalils-vault/atlas/clients/{slug}/` exists, read it as DRAFT, surface findings to operator, capture corrections before scaffolding. Skip if no legacy folder.
+Per [[instance-scaffolding]] — if the operator's primary vault has `atlas/clients/{slug}/`, read it as DRAFT, surface findings to operator, capture corrections before scaffolding. Skip if no legacy folder.
 
 ### 1. Confirm the trigger
 
@@ -124,8 +124,8 @@ Ask operator for enough to populate the full brief at minimum. The principle: a 
 
 **Frontmatter / structural fields:**
 
-- **Slug** — kebab-case derived from the company name (e.g., "Byrd Building Co" → `byrd-building`). Confirm if non-obvious.
-- **Business-owner** — which Benali entity owns this engagement: `benali` | `growthkits` | `demandcast`
+- **Slug** — kebab-case derived from the company name (e.g., "Acme Corp" → `acme-corp`). Confirm if non-obvious.
+- **Business-owner** — which business owns this engagement: `acme-consulting` | `acme-studio` | `acme-media`
 - **Company slug** — should match an existing `atlas/companies/{slug}` entry if one exists; otherwise note "stub will be created"
 - **Start-date** — when the engagement began (rough date acceptable; `TBD` accepted)
 - **Initial status** — almost always `active` for a new client; `paused` only if paused-from-the-start
