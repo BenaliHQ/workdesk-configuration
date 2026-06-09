@@ -6,7 +6,7 @@ location: atlas/clients/
 shape: container
 folder-structure: custom (8-item — see Format below)
 naming: kebab-slug
-version: 1.0
+version: 1.1
 ---
 
 # Object Type: client
@@ -52,6 +52,7 @@ atlas/clients/{slug}/
 
 - `_brief.md` — 10-section structure (in order): Who they are · Origin · Engagement model · Why we're engaged · Primary contacts (their team) · Assigned team · Active work · Working style · Strategic context · Sources. The brief is the senior-team-member onboarding doc — populated enough that any new Claude session or human teammate can pick up cold.
 - `_status.md` — narrative status + recent meetings list (each `[[atlas/meetings/{slug}]]`) + open items
+- `terms.md` — 6-section structure (in order): **Agreement · Scope & pricing · Payment terms · Current commercial status · Notes & watch-outs · Sources**, opened by a one-line `> [!info] Commercial status` callout. The note answers "what did we agree, what's it worth, what's been paid, what's next" at a glance. Full section spec in [§ Creating an instance → step 4](#4-populate-frontmatter-and-content).
 - People are captured via wikilinks to `atlas/people/`, NOT a separate `team.md` file. Both their team (their employees) and the assigned team (our side) reference `atlas/people/` entries when they exist.
 - Meetings stay in `atlas/meetings/`; client folder only holds links
 
@@ -180,7 +181,20 @@ For `_brief.md` and `_status.md`:
 - Recent activity (last 14 days; meeting links via `[[atlas/meetings/{slug}]]`)
 - Open items (decisions pending, action items, things being tracked)
 
-**`deliverables.md` and `terms.md`:** populate if operator supplied detail; otherwise create with `TBD — not yet captured` and note where the info will come from when known.
+**`deliverables.md`:** populate if operator supplied detail; otherwise create with `TBD — not yet captured` and note where the info will come from when known.
+
+**`terms.md` body sections (in this order):** open with a one-line `> [!info] Commercial status` callout summarizing the current commercial state (e.g., "Phase 0 active; deposit paid; remainder due on completion"). Then:
+
+1. **Agreement** — table of the contract frame: **Type** (master / SOW / retainer / project), **Effective** date, **Term/duration**, **Signatory**, **Termination** terms, **Governing law** + dispute resolution, **Source document** (link or path to the signed agreement). For agreements that live only in the legacy vault or an external system, reference the path/system in plain text — do not create a broken wikilink per [[double-entry-knowledge]].
+2. **Scope & pricing** — the fee structure. For phased engagements, a `Phase | Scope | Amount | Activation` table; for retainer/project work, the equivalent `Workstream | Scope | Fee | Status` shape. State amounts as agreed; mark any unconfirmed figure explicitly per [[no-fabrication]].
+3. **Payment terms** — payment structure (deposit / milestones / monthly), **invoicing channel** (e.g., HubSpot, Stripe, QBO), and any method/surcharge notes. Where the signed agreement and current practice differ, record both and flag the difference.
+4. **Current commercial status** — dated snapshot of what's active, what's been **paid**, what's **outstanding**, and what's **next** (e.g., "Phase 0 active; $3,000 deposit paid; $3,000 due on completion; Phases 1–3 priced, not yet activated").
+5. **Notes & watch-outs** — scope-creep risks, gating model (e.g., SOW-gated phase activation), baselines/overage triggers, and any contract caveats.
+6. **Sources** — provenance per [[source-documentation]]: each entry dates the source (signed agreement, operator instruction, proposal, legacy carry-forward) and what it contributed.
+
+**`terms.md` frontmatter:** `type: client-terms`, `slug`, `created`, `last_updated`, plus optional `agreement-type`, `agreement-effective` (YYYY-MM-DD), and `billing-channel` when known.
+
+If no commercial detail is available at scaffolding, still create `terms.md` with the six headers in place and `TBD — not yet captured` under each, plus a note on where the info will come from — never omit the structure.
 
 ### 5. Apply matching rule
 
