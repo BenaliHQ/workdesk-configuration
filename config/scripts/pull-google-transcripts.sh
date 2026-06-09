@@ -83,7 +83,8 @@ parse_meet_filename() {
     local y="${BASH_REMATCH[2]}"
     local m="${BASH_REMATCH[3]}"
     local d="${BASH_REMATCH[4]}"
-    printf '%s|%04d-%02d-%02d' "$title" "$y" "$m" "$d"
+    # Force base-10: bash printf reads leading-zero values (08, 09) as octal and errors.
+    printf '%s|%04d-%02d-%02d' "$title" "$((10#$y))" "$((10#$m))" "$((10#$d))"
   else
     # Fallback: no date in filename, use whole stripped as title, today as date
     printf '%s|%s' "$stripped" "$(date "+%Y-%m-%d")"
@@ -189,6 +190,33 @@ mkdir -p "$INTAKE_DIR" "$(dirname "$STATE_FILE")"
 if ! command -v gws >/dev/null 2>&1; then
   log "ERROR  gws CLI not on PATH"
   exit 2
+fi
+
+# ── Ramdisk readiness gate ──────────────────────────────────────────────────
+# gws reads OAuth state from ~/Library/Application Support/gws, a symlink to the
+# Infisical-rendered ramdisk. At boot/login the Infisical Agent renders those
+# files asynchronously; a cron firing before the render (e.g. the 06:10 daily
+# run vs. a later login) sees a dangling symlink. That is infra-not-ready, NOT
+# an auth failure — wait briefly for the render, then skip cleanly without
+# bumping consecutive_failures, so STALE only ever reflects genuine auth death.
+GWS_STATE_DIR="$HOME/Library/Application Support/gws"
+gws_state_rendered() {
+  local f
+  for f in "$GWS_STATE_DIR"/credentials.*.enc; do
+    [[ -e "$f" ]] || return 1   # unmatched glob stays literal → no creds rendered
+    break
+  done
+  [[ -s "$GWS_STATE_DIR/client_secret.json" ]]
+}
+if ! gws_state_rendered; then
+  for _ in 1 2 3 4 5 6; do
+    sleep 10
+    gws_state_rendered && break
+  done
+fi
+if ! gws_state_rendered; then
+  log "INFO   gws state not rendered on ramdisk yet (Infisical Agent not ready) — skipping; will retry next run"
+  exit 0
 fi
 
 # Smoke-check that gws auth is alive
