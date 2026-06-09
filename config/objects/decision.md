@@ -11,7 +11,7 @@ version: 1.1
 # Object Type: decision
 
 > [!info] Schema discipline
-> Per [[type-scaffolding]], this object's schema must be designed intentionally and revised via [[iterate-instance-then-propagate-schema]]. V1.1 was derived from three instances created 2026-05-17 ([[../../atlas/decisions/2026-05-15-benali-direction-reframe]], [[../../atlas/decisions/2026-05-15-benali-team-restructuring-30-60-90]], [[../../atlas/decisions/2026-05-15-coe-workshops-as-qualification-funnel]]) plus legacy decision notes sampled from `~/khalils-vault/atlas/decisions/`. Future revisions should follow the same instance-grounded pattern.
+> Per [[type-scaffolding]], this object's schema must be designed intentionally and revised via [[iterate-instance-then-propagate-schema]]. V1.1 was derived from three instances created 2026-05-17 ([[../../atlas/decisions/2026-05-15-acme-consulting-direction-reframe]], [[../../atlas/decisions/2026-05-15-acme-consulting-team-restructuring-30-60-90]], [[../../atlas/decisions/2026-05-15-coe-workshops-as-qualification-funnel]]) plus legacy decision notes sampled from the operator's prior vault. Future revisions should follow the same instance-grounded pattern.
 
 A decision is a choice made — with rationale, sourced to where it was made, with explicit reversal conditions where applicable. Decisions live separately from the meetings that produced them when they're standalone-worthy (strategic, durable, cross-project, or framework-shaping). Routine meeting-level decisions stay inline on the meeting note.
 
@@ -29,7 +29,7 @@ Decisions are atomic notes (one file per decision). Universal — ships pre-buil
 | `status` | enum | See [§ Lifecycle](#lifecycle) |
 | `date` | `YYYY-MM-DD` | When the decision was made (not when the note was written) |
 | `source` | wikilink or string | The meeting, session, or interaction where the decision was made. Almost always a `[[../meetings/{slug}]]` link; occasionally `operator-direct` for decisions made outside any captured interaction |
-| `participants` | list | Decision-maker + others in the conversation. Wikilinks for participants with `atlas/people/` notes; plain strings otherwise. Khalil himself does NOT get a self-wikilink (same discipline as the meeting type) |
+| `participants` | list | Decision-maker + others in the conversation. Wikilinks for participants with `atlas/people/` notes; plain strings otherwise. The operator does NOT get a self-wikilink (same discipline as the meeting type) |
 | `created` | `YYYY-MM-DD` | When the decision note was created |
 | `last_updated` | `YYYY-MM-DD` | Last edit |
 | `author` | string | `claude` or `operator` |
@@ -72,7 +72,7 @@ A decision merits its own note in `atlas/decisions/` (vs staying inline on the s
 - **Future-self rationale dependency** — reading the decision in 6 months would require the rationale to make sense
 - **Operator says "this is a decision"** — explicit flag during conversation
 
-Routine meeting-level decisions ("Khalil to facilitate next Tuesday's meeting," "send the docs by Friday") stay inline on the meeting note's Decisions section. Don't promote them.
+Routine meeting-level decisions ("the operator to facilitate next Tuesday's meeting," "send the docs by Friday") stay inline on the meeting note's Decisions section. Don't promote them.
 
 ## Body sections
 
@@ -127,7 +127,7 @@ When operator declares a decision in conversation without a captured meeting:
 When operator dictates a decision from reflection outside any specific interaction (e.g., overnight thinking that produces a conclusion):
 
 1. Operator declares the decision and its source ("I've been thinking about X all weekend; I've decided Y")
-2. Claude creates the note with `source: operator-direct` and `participants: [Khalil Benalioulhaj]` (just Khalil)
+2. Claude creates the note with `source: operator-direct` and `participants: [the operator]` (just the operator)
 3. The Context section captures the deliberation arc, since no meeting documents it
 4. Matching applied
 
@@ -203,10 +203,10 @@ This V1.1 schema deepening derived from:
 
 - Operator instruction, 2026-05-17 Claude Code session (desk-setup project, decision-schema deepening pass following the meeting-schema deepening)
 - Three instances created 2026-05-17 during the meeting-matching pass — the dogfood that surfaced the patterns codified here:
-  - [[../../atlas/decisions/2026-05-15-benali-direction-reframe]]
-  - [[../../atlas/decisions/2026-05-15-benali-team-restructuring-30-60-90]]
+  - [[../../atlas/decisions/2026-05-15-acme-consulting-direction-reframe]]
+  - [[../../atlas/decisions/2026-05-15-acme-consulting-team-restructuring-30-60-90]]
   - [[../../atlas/decisions/2026-05-15-coe-workshops-as-qualification-funnel]]
-- Legacy decision notes sampled: `~/khalils-vault/atlas/decisions/2026-01-08-growthkits-2026-plan-six-week-rocks.md` (surfaced the optional "People Involved" and "Team Memo" body sections, plus the `business:` frontmatter scoping pattern), `2026-01-05-growthkits-membership-and-oa-terms.md`, `2026-01-12-benali-team-development-structure.md`
+- Legacy decision notes sampled from the operator's prior vault — surfaced the optional "People Involved" and "Team Memo" body sections, plus the `business:` frontmatter scoping pattern
 - V1.0 stub of this file (2026-05-09 era) — preserved core body sections and matching clause; V1.1 extends with lifecycle table, standalone-worthy criteria, creation workflow paths, confidentiality conventions, and Creating-an-instance workflow
 - [[type-scaffolding]] — schema design discipline
 - [[instance-scaffolding]] — conditional-matching pattern

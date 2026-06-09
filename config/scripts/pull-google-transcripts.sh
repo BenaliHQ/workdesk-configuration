@@ -221,7 +221,7 @@ fi
 
 # Smoke-check that gws auth is alive
 if ! gws drive about get --params '{"fields": "user(emailAddress)"}' >/dev/null 2>&1; then
-  log "ERROR  gws auth failed — run \`gws auth login --account khalil@benali.com\`"
+  log "ERROR  gws auth failed — run \`gws auth login --account you@example.com\`"
   prev_fails="$(read_state_field "consecutive_failures" "0")"
   new_fails=$(( prev_fails + 1 ))
   write_state "$(jq -n \

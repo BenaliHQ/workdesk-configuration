@@ -17,7 +17,7 @@ This rule is the operator-permission gate. Sister rules [[type-scaffolding]] and
 ## What to do
 
 - **Default action when in doubt: ASK.** A one-sentence "Where should X live?" before creating is always cheaper than relocating later.
-- **Recon first.** Before proposing a location for a new artifact, scan the operator's existing repos and Vercel projects for the established pattern. Match the convention; don't invent one. (For Benali deck work, the per-repo-per-deck convention is visible in `BenaliHQ/bob-moore-demo`, `knowledge-base-demo`, `workspace-architecture`, etc.)
+- **Recon first.** Before proposing a location for a new artifact, scan the operator's existing repos and Vercel projects for the established pattern. Match the convention; don't invent one. (For deck work, the established convention is one repo per deck across the operator's existing demo repos.)
 - **Surface the gap honestly.** When you find yourself wanting structure that doesn't exist, say so explicitly: "I'd want a folder for X — should I add it, and if so where?" Don't quietly create it.
 - **Generated artifacts go to code repos, not the vault.** Deck source, site source, generated PDFs, presentation HTML — all live in dedicated repos (or properly-defined client deliverable folders), never loose in `system/` or anywhere else in the knowledge layer.
 - **Canonical assets stay canonical.** Reference brand logos / tokens / fonts from their source repo (e.g., `benali-shelf-os/brands/benali/`), don't duplicate them into the consuming project.

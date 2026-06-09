@@ -47,8 +47,8 @@
           "owner": {"type": "string", "description": "Person responsible. Use the full name from attendees_present."},
           "owner_category": {
             "type": "string",
-            "enum": ["khalil_or_benali_team", "client_team", "client_client", "unknown"],
-            "description": "khalil_or_benali_team = Khalil personally or Luciano/Gaby/Jenny/Yvette/Nick Jr/Arra/Reese. client_team = the client's employees. client_client = the client's clients (homeowners, prospects). Routes to gtd/inbox vs inline."
+            "enum": ["operator_or_team", "client_team", "client_client", "unknown"],
+            "description": "operator_or_team = the operator personally or a member of the operator's own team. client_team = the client's employees. client_client = the client's clients (end customers, prospects). Routes to gtd/inbox vs inline."
           },
           "due": {"type": "string", "description": "Due date if stated, empty string otherwise. ISO format if possible."}
         },

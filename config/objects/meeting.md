@@ -11,7 +11,7 @@ version: 1.1
 # Object Type: meeting
 
 > [!info] Schema discipline
-> Per [[type-scaffolding]], this object's schema must be designed intentionally and revised via [[iterate-instance-then-propagate-schema]]. V1.1 was derived from the 2026-05-15 Khalil ↔ Oliver coaching meeting dogfood. Future revisions should follow the same instance-grounded pattern.
+> Per [[type-scaffolding]], this object's schema must be designed intentionally and revised via [[iterate-instance-then-propagate-schema]]. V1.1 was derived from an external-coaching meeting dogfood (2026-05). Future revisions should follow the same instance-grounded pattern.
 
 A meeting is a single record of a real interaction with one or more other people. Always traceable to a transcript, a live session, or an operator-direct dictation. The atlas/meetings/ folder is the canonical record of "what was said and decided" — every other zone (atlas/people, atlas/decisions, gtd/inbox, atlas/businesses) draws context from here.
 
@@ -39,7 +39,7 @@ Meetings are atomic notes (one file per meeting). Universal — ships pre-built 
 |---|---|---|
 | `transcript` | wikilink | Link to `[[system/transcripts/{slug}]]` when a verbatim transcript exists. Distinct from `source` — `transcript` is the verbatim record; `source` is what triggered the meeting note's creation (they often point at the same file but not always — e.g., calendar+confirmation has no transcript). |
 | `client` | wikilink | `[[atlas/clients/{slug}]]` when the meeting is client-related |
-| `business` | wikilink | `[[atlas/businesses/{slug}]]` when the meeting is business-owned (e.g., internal Benali meetings) |
+| `business` | wikilink | `[[atlas/businesses/{slug}]]` when the meeting is business-owned (e.g., internal Acme Consulting meetings) |
 | `companies` | list | Wikilinks to `atlas/companies/{slug}` (or plain strings if no company schema yet) when multiple non-client companies are involved |
 | `sensitive` | boolean | Default `false`. Set `true` for meetings discussing personnel decisions, financials, client-confidential information, or other content requiring [§ Confidentiality](#confidentiality) conventions on derived output |
 
@@ -52,7 +52,7 @@ Meetings are atomic notes (one file per meeting). Universal — ships pre-built 
 | `did-not-occur` | Meeting was scheduled but didn't happen; preserved as record with reason | (terminal) |
 | `partial` | Meeting happened but was cut short or aborted; record reflects what was covered | (terminal) |
 
-`did-not-occur` meetings still get a note — they document the non-occurrence and reason (per the 2026-04-22 Khalil + Vivek 1on1 legacy precedent). Body is minimal but the record exists.
+`did-not-occur` meetings still get a note — they document the non-occurrence and reason (per the 2026-04-22 operator + Alex 1on1 legacy precedent). Body is minimal but the record exists.
 
 ## Meeting-type enum
 
@@ -60,13 +60,13 @@ The `meeting-type` field captures the **relational context** of the meeting (who
 
 | Value | Definition |
 |---|---|
-| `client-1on1` | One-on-one with a single client contact (e.g., Khalil + Rick Byrd) |
-| `client-group` | Meeting with multiple client team members; collaborative, often recurring (e.g., Khalil + Byrd Building design team) |
-| `client-session` | Facilitated session WITH a client — workshop, training, presentation (e.g., Dudley AI Workshop Executive Group) |
-| `internal-1on1` | One-on-one within Khalil's own team / [[benali]] (e.g., Khalil + Yvette) |
-| `internal-team` | Khalil's team-wide meeting (e.g., Benali Check-In) |
+| `client-1on1` | One-on-one with a single client contact (e.g., operator + Jordan Lee) |
+| `client-group` | Meeting with multiple client team members; collaborative, often recurring (e.g., operator + Acme Corp design team) |
+| `client-session` | Facilitated session WITH a client — workshop, training, presentation (e.g., Acme Corp AI Workshop Executive Group) |
+| `internal-1on1` | One-on-one within the operator's own team / [[acme-consulting]] (e.g., operator + Sam) |
+| `internal-team` | The operator's team-wide meeting (e.g., Acme Consulting Check-In) |
 | `external` | Meeting with an external party that's not a client — networking, vendor, prospect, peer |
-| `external-coaching` | Recurring coaching session with an external coach or mentor (e.g., Khalil ↔ Oliver Villwock) |
+| `external-coaching` | Recurring coaching session with an external coach or mentor (e.g., operator ↔ Pat Morgan) |
 | `workshop` | Group session for non-client audience (e.g., COE workshop, conference talk) |
 
 When in doubt, pick the most specific applicable value. If none fits, propose a new enum value through a schema revision — don't silently invent a one-off.
@@ -87,10 +87,10 @@ When `transcript:` is set, `source:` usually points at the same wikilink. When t
 
 Attendees go in frontmatter as a YAML list. Per [[double-entry-knowledge]] and [[no-fabrication]]:
 
-- **Wikilinks** for attendees with existing notes in `atlas/people/` — e.g., `"[[rick-byrd]]"`
-- **Plain strings** for attendees without notes — e.g., `"Oliver Villwock"`
+- **Wikilinks** for attendees with existing notes in `atlas/people/` — e.g., `"[[jordan-lee]]"`
+- **Plain strings** for attendees without notes — e.g., `"Pat Morgan"`
 - **Never fabricate wikilinks** to person notes that don't exist. Plain strings upgrade to wikilinks when the person note is later created.
-- **Khalil himself** is always an attendee but does NOT get a wikilink to himself (no `[[khalil-benalioulhaj]]` note in operating vault; he's the operator, not a tracked person entity).
+- **The operator** is always an attendee but does NOT get a self-wikilink (no operator self-note in operating vault; they're the operator, not a tracked person entity).
 
 Don't include attendees in the body unless the frontmatter list is incomplete or needs annotation (e.g., legacy practice of listing them under `## Attendees` with role notes). For most meetings, frontmatter is sufficient.
 
@@ -149,7 +149,7 @@ When operator pastes a transcript or describes a meeting in a Claude Code sessio
 
 For `did-not-occur`, notes-only meetings, or meetings without recordings:
 
-1. Operator references a calendar event ("the Vivek 1:1 yesterday")
+1. Operator references a calendar event ("the Alex 1:1 yesterday")
 2. Claude creates `atlas/meetings/{date}-{slug}.md` with `source: calendar-event+operator-confirmation`
 3. `transcript: none` in frontmatter
 4. Body is minimal — Summary + Source are required; Decisions / Action Items / others as applicable
@@ -228,8 +228,8 @@ If matching surfaces gaps requiring operator attention (e.g., missing person not
 This V1.1 schema deepening derived from:
 
 - Operator instruction, 2026-05-17 Claude Code session (desk-setup project, meeting-schema dogfood)
-- [[../../atlas/meetings/2026-05-15-khalil-oliver-pure-power]] — the dogfood meeting note that surfaced all the discipline above (attendee handling for non-vault people, `external-coaching` enum value, optional-section pattern, transient matching-impacts section, confidentiality rule application)
-- Legacy meeting notes sampled: `~/khalils-vault/atlas/meetings/2026-04-09-growthkits-byrd-building.md`, `2026-04-22 Khalil + Vivek 1on1.md`, `2026-02-23-benali-check-in.md`, `2026-04-22 Dudley AI Workshop Executive Group.md`
+- [[../../atlas/meetings/2026-05-15-acme-consulting-coaching]] — the dogfood meeting note that surfaced all the discipline above (attendee handling for non-vault people, `external-coaching` enum value, optional-section pattern, transient matching-impacts section, confidentiality rule application)
+- Legacy meeting notes sampled from the operator's prior vault (2026-01 through 2026-04)
 - [[type-scaffolding]] — schema design discipline (iterate-instance-then-propagate-schema)
 - [[instance-scaffolding]] — conditional-matching pattern for entities without notes yet
 - [[matching]] — cross-update discipline at processing time

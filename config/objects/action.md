@@ -19,9 +19,9 @@ Single-session unit of work. The atom of GTD. Anything multi-session is a projec
 type: action
 status: next                                           # next | waiting | someday | done
 context: [work, calls, errands]                        # GTD context tags
-parent: "[[gtd/projects/dudley-msa-review/_brief]]" # polymorphic, see below
+parent: "[[gtd/projects/acme-corp-msa-review/_brief]]" # polymorphic, see below
 waiting-on: "[[atlas/people/...]]"                     # only if status: waiting
-source: "[[atlas/meetings/2026-04-22-dudley-weekly]]"  # logged session OR processed material
+source: "[[atlas/meetings/2026-04-22-acme-corp-weekly]]"  # logged session OR processed material
 created: 2026-04-26
 ---
 ```
@@ -47,7 +47,7 @@ If the operator has added other container types via `/define-object` (e.g. `atla
 ## Detection
 
 Surface `[REVIEW]` proposals to create an action when:
-- Processing a transcript and a sentence contains a clear ask directed at the operator ("Khalil will send the proposal", "I need to follow up with X")
+- Processing a transcript and a sentence contains a clear ask directed at the operator ("the operator will send the proposal", "I need to follow up with X")
 - Confidence ≥0.7 (per inbox flood guard)
 - Below threshold: ask inline or stay silent
 

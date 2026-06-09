@@ -2,7 +2,7 @@
 
 When scaffolding a new instance of any atlas object type (client, business, person, company, project, decision, meeting, etc.), follow two patterns: (1) check the legacy vault for existing context before asking the operator from scratch, and (2) handle matching-rule targets conditionally based on whether their schemas and folders exist yet.
 
-These patterns surfaced during the byrd-building client scaffold (2026-05-09) and applied immediately to the business object workflow. They generalize across all object types.
+These patterns surfaced during the first client scaffold (2026-05-09) and applied immediately to the business object workflow. They generalize across all object types.
 
 ## When this applies
 
@@ -14,7 +14,7 @@ These patterns surfaced during the byrd-building client scaffold (2026-05-09) an
 
 ### 1. Check legacy vault before asking from scratch
 
-If `~/khalils-vault/{matching-path}/{slug}/` exists (operator's archive vault), read it BEFORE asking the operator to dictate from memory:
+If `~/<primary-vault>/{matching-path}/{slug}/` exists (operator's archive vault), read it BEFORE asking the operator to dictate from memory:
 
 - Pull forward what's still relevant: identity, current state, primary contacts, recent activity, strategy artifacts (if applicable to the object type)
 - **Treat legacy data as DRAFT, not gospel.** Surface findings to the operator and ask them to confirm or correct each piece — roles change, attributions shift, strategy evolves
@@ -25,7 +25,7 @@ If `~/khalils-vault/{matching-path}/{slug}/` exists (operator's archive vault), 
 
 If no legacy folder exists, gather from operator-direct dictation.
 
-**Why:** legacy vault has accumulated real context. Operator-validate-then-carry-forward is faster than rebuild-from-memory and reduces fabrication risk per [[no-fabrication]]. Validated 2026-05-09 with byrd-building (caught a stale CAD Review role attribution).
+**Why:** legacy vault has accumulated real context. Operator-validate-then-carry-forward is faster than rebuild-from-memory and reduces fabrication risk per [[no-fabrication]]. Validated 2026-05-09 with the first client scaffold (caught a stale role attribution).
 
 ### 2. Conditional matching
 
@@ -43,7 +43,7 @@ The matching rule for an object type names other notes that update when an insta
 - Convert plain-text references to wikilinks
 - Remove the corresponding open item from `_status.md`
 
-**Why:** prevents fabricating schemas we haven't designed. Open items track what's deferred so we can do clean fix-ups when the target schemas arrive. Validated 2026-05-09 with byrd-building (atlas/people, atlas/companies, atlas/businesses schemas all undefined; client folder shipped with explicit open items rather than speculative stubs).
+**Why:** prevents fabricating schemas we haven't designed. Open items track what's deferred so we can do clean fix-ups when the target schemas arrive. Validated 2026-05-09 with the first client scaffold (atlas/people, atlas/companies, atlas/businesses schemas all undefined; client folder shipped with explicit open items rather than speculative stubs).
 
 ## What NOT to do
 

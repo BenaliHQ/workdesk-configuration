@@ -134,7 +134,7 @@ Frontmatter:
 Update each touched entity in the same pass per [[../../rules/matching]]:
 
 - **Attendees with vault notes** — add substantive new context from `people_observations[]` with inline footnote citation to the meeting note. For attendees without a vault note, decide per the network-scope filter in [[../../objects/person]]:
-  - Person is in Khalil's direct network and meets ≥3-mention threshold → propose `[REVIEW]` for person note creation
+  - Person is in the operator's direct network and meets ≥3-mention threshold → propose `[REVIEW]` for person note creation
   - Person is a clients'-client / homeowner / tertiary mention → mention by name in the meeting body; do NOT propose a person note
 - **Decisions** — durable decisions (`durability: "durable"` from Gemini) get standalone `atlas/decisions/{date}-{slug}.md` notes. Routine ones stay inline.
 - **Client / business `_status.md`** — substantive new context warrants an update.
@@ -145,12 +145,12 @@ Use Gemini's `owner_category` enum:
 
 | `owner_category` | Where it goes |
 |---|---|
-| `khalil_or_benali_team` | `gtd/inbox/[ACTION] {slug}.md` — one file per commitment, no cap |
-| `client_team` | Stays inline in the meeting note's `## Action Items` section. If material, also add to the client's `_status.md` under a "Byrd-side open items" / equivalent section. **Do NOT create inbox entries.** |
+| `operator_or_team` | `gtd/inbox/[ACTION] {slug}.md` — one file per commitment, no cap |
+| `client_team` | Stays inline in the meeting note's `## Action Items` section. If material, also add to the client's `_status.md` under a "client-side open items" / equivalent section. **Do NOT create inbox entries.** |
 | `client_client` | Inline only; no inbox, no client status. |
 | `unknown` | Inline + create a `[QUESTION]` inbox item asking the operator to clarify ownership |
 
-The meeting note's `## Action Items` section captures the **full record** — every commitment made in the room, regardless of owner. The inbox is Khalil's GTD surface only.
+The meeting note's `## Action Items` section captures the **full record** — every commitment made in the room, regardless of owner. The inbox is the operator's GTD surface only.
 
 The `[REVIEW]` flood-guard cap (≤7 per session) applies to `[REVIEW]` proposals (uncertain inferences). It does NOT apply to `[ACTION]` items.
 
@@ -200,7 +200,7 @@ The subagent prompt MUST be fully self-contained — it sees zero of the main se
 
 1. **The intake file paths.**
 2. **Operator-confirmed attendee list** (if known) — the actual people in the room, not just the calendar invitees.
-3. **Calendar invitees who should NOT be treated as present** (e.g., Rick on Byrd design-group meetings).
+3. **Calendar invitees who should NOT be treated as present** (e.g., a calendar-only invitee on a client design-group meeting).
 4. **Existing person-note paths** for attendees, so the agent knows which wikilinks resolve.
 5. **Client folder and active-project folder paths** for matching cross-updates.
 6. **Rule files to read** — `config/objects/meeting.md`, `config/rules/source-processing-pattern.md`, `config/rules/matching.md`, `config/rules/no-fabrication.md`, `config/rules/double-entry-knowledge.md`, `config/rules/writing-style.md`, plus this skill.
@@ -235,7 +235,7 @@ If the meeting note carries `sensitive: true` (set by Gemini or by operator flag
 - **Don't guess speaker names when Gemini returned `low` confidence.** Plain `Speaker X (unidentified)` + `[REVIEW]` beats fabrication.
 - **Don't create person notes for clients' clients** (homeowners, prospects, tertiary mentions). Per [[../../objects/person]] network-scope filter.
 - **Don't create inbox `[ACTION]` items for `client_team` commitments.** Per [[../../objects/action]] ownership filter and Gemini's owner_category enum.
-- **Don't apply the `[REVIEW]` flood-guard cap to `[ACTION]` items** — every Khalil/Benali-team commitment becomes its own file.
+- **Don't apply the `[REVIEW]` flood-guard cap to `[ACTION]` items** — every operator/team commitment becomes its own file.
 - **Don't process a transcript without operator confirmation in interactive mode.**
 - **Don't synthesize from Gemini's Tab-1 Notes summary or any pre-baked summary** — the pipeline runs against the verbatim only. Per [[../../rules/source-processing-pattern]].
 - **Don't move the transcript out of `system/intake/`** until every downstream artifact is produced AND verified clean.

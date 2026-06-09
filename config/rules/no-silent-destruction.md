@@ -8,7 +8,7 @@ A mechanical PreToolUse hook at `~/.claude/hooks/destructive-guard.sh` enforces 
 
 Anytime you're about to run an operation that destroys, removes, overwrites, or makes a non-trivially-reversible change to:
 
-- Files or directories in operator-owned areas (`~/Workdesk-OS/`, `~/khalils-vault/`, `~/Projects/`, `~/code/`, `~/.claude/`)
+- Files or directories in operator-owned areas (`~/Workdesk-OS/`, `~/<primary-vault>/`, `~/Projects/`, `~/code/`, `~/.claude/`)
 - Skills, plugins, or marketplaces (`npx skills remove`, `npm uninstall -g`, plugin removal)
 - Git history (`git reset --hard`, `git push --force`, `git clean -fdx`, force-deleted branches/tags/refs)
 - Vercel projects, deployments, or other live services (`vercel remove`, `vercel rm`, dashboard deletions performed via API)

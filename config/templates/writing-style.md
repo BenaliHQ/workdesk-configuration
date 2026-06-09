@@ -2,6 +2,9 @@
 
 Global writing preferences from operator feedback. These apply across all skills and workflows — not just the skill where the correction was made.
 
+> [!info] This file is yours
+> `writing-style.md` is **operator-owned**. It is seeded once from this template and then belongs to you — `/update` never overwrites it. Your voice, your words-to-avoid list, your formatting preferences, and any `[STYLE]` entries the Stop hook appends all accumulate here and stay private to your vault.
+
 ## When this applies
 
 - Writing any content on behalf of the operator (emails, proposals, content drafts, summaries)
@@ -11,15 +14,17 @@ Global writing preferences from operator feedback. These apply across all skills
 ## Voice
 
 - Short, warm, direct. No filler.
-- **Brief conversational updates by default.** Walls of text overwhelm the operator's context window. Default to 2-3 sentence updates that state results, decisions, or findings; expand only when explicitly asked or genuinely necessary. Long structured deliverables (architecture docs, classification tables) are fine when the work warrants them — but the in-conversation summary of that work stays short. *([STYLE] entry promoted 2026-05-09 desk-setup session — pattern recurred 2-3 times before the operator named it explicitly.)*
-- Pull actual writing voice from Gmail history before drafting external communications.
+- **Brief conversational updates by default.** Walls of text overwhelm the operator's context window. Default to 2-3 sentence updates that state results, decisions, or findings; expand only when explicitly asked or genuinely necessary. Long structured deliverables (architecture docs, classification tables) are fine when the work warrants them — but the in-conversation summary of that work stays short.
+- Pull actual writing voice from sent-mail history before drafting external communications.
 - Match the operator's tone — professional but not corporate, confident but not arrogant.
 
 ## Words and phrases to avoid
 
-- "leverage" — use "use" or "apply"
+*(Empty at seed. Add words the operator dislikes as they surface. The Stop hook appends `[STYLE]` entries here.)*
 
-*(This list grows from operator corrections. The Stop hook appends [STYLE] entries here.)*
+## Email formatting
+
+*(Empty at seed — the operator's email formatting preferences accumulate here from their corrections. Example of the kind of rule that lands in this section: "one sentence per line; a blank line between distinct ideas." Leave blank until the operator establishes a preference.)*
 
 ## Terminal output — file references
 
@@ -37,17 +42,15 @@ When referencing vault files in terminal output (summaries, reports, audit resul
 
 The `vault=` parameter must match the Obsidian display name registered for the vault you are currently operating in — NOT a hardcoded value. To find it:
 
-1. **Default rule:** the vault name is the basename of the current working directory (e.g., operating in `/Users/khalilbenali/Workdesk-OS` → `vault=Workdesk-OS`).
+1. **Default rule:** the vault name is the basename of the current working directory (e.g., operating in `/Users/you/your-vault` → `vault=your-vault`).
 2. **Authoritative source if needed:** Obsidian's vault registry at `~/Library/Application Support/obsidian/obsidian.json` maps vault hash → `path`. The display name is the path's basename.
-3. **Never hardcode** a specific vault name in this rule's examples below or in any output. The operating vault changes by context.
+3. **Never hardcode** a specific vault name in this rule's examples or in any output. The operating vault changes by context.
 
-**Examples (using `Workdesk-OS` as the operating vault — substitute as appropriate):**
+**Examples (substitute your operating vault's name for `your-vault`):**
 
-- `[taylor-doe](obsidian://open?vault=Workdesk-OS&file=atlas/people/taylor-doe)`
-- `[2026-03-28-daily-plan](obsidian://open?vault=Workdesk-OS&file=intel/briefings/daily/2026-03-28-daily-plan)`
-- `[hudson-method](obsidian://open?vault=Workdesk-OS&file=intel/concepts/hudson-method)`
-
-**Common mistake:** A global rule (e.g., a personal `~/.claude/CLAUDE.md`) might document URI examples using the operator's primary vault name. Those examples are illustrative — they do NOT mean every URI should use that vault. When operating inside a different vault, use that vault's name.
+- `[taylor-doe](obsidian://open?vault=your-vault&file=atlas/people/taylor-doe)`
+- `[2026-03-28-daily-plan](obsidian://open?vault=your-vault&file=intel/briefings/daily/2026-03-28-daily-plan)`
+- `[some-concept](obsidian://open?vault=your-vault&file=intel/concepts/some-concept)`
 
 This applies to ALL terminal output — daily plans displayed in conversation, audit reports, entity matching summaries, processing reports, status updates. Every file reference should be clickable.
 

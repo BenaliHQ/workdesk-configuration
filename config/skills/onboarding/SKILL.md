@@ -78,6 +78,8 @@ Mark phase 0 complete in `config/onboarding-state.md`.
 
 **Pre-step (silent):** if `<vault>/README.md` does not exist, write the vault-root README from the template at `<vault>/config/templates/vault-readme.md`. Do not overwrite an existing README — operators who customized theirs keep their version.
 
+**Pre-step (silent) — seed writing-style:** if `<vault>/config/rules/writing-style.md` does not exist, materialize it from `<vault>/config/templates/writing-style.md`. This file is operator-owned — it is seeded once here and never shipped in releases, so `/update` always preserves it (the Stop hook appends the operator's `[STYLE]` corrections to it over time). Do not overwrite an existing `writing-style.md` — an operator who already has one keeps their accumulated preferences.
+
 **Opening message** (single short paragraph, exact text):
 
 > *"Let's get your WorkDesk set up. Five quick steps — environment check (done), a few questions about you, a quick tour of your vault, and then we'll either plan a project together or start today's daily note. I'll go one thing at a time. You can bail anytime — we pick up where we left off. Sound good?"*

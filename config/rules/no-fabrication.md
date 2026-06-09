@@ -10,7 +10,7 @@ Never invent, assume, or infer information that is not explicitly present in the
 
 - Use exactly the information you have. If you know a first name but not a last name, write "Tiger" not `[[tiger-lastname]]`. If you know a company was mentioned but not its full name, write the partial name in plain text.
 - When information is missing, say so explicitly. "Attendees not captured in transcript" is better than guessing from the calendar. "Company name not confirmed" is better than inferring from an email domain.
-- When synthesizing across sources, distinguish between what was said and what you inferred. "Khalil said X" is sourced. "This suggests Y" is inference — label it as such.
+- When synthesizing across sources, distinguish between what was said and what you inferred. "The operator said X" is sourced. "This suggests Y" is inference — label it as such.
 - When creating wikilinks, verify the target exists. A wikilink is an assertion that a note exists, not a guess that it might. If you're not sure, use plain text.
 - When a pattern appears across multiple sources, present the evidence and let the operator draw the conclusion. Do not state the pattern as fact unless the evidence is unambiguous.
 

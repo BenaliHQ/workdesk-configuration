@@ -11,9 +11,9 @@ version: 1.0
 
 # Object Type: business
 
-A business is an entity the operator owns and operates (or is actively building toward). Distinct from `client` (companies we're paid to work for) and from `company` (generic external entities). Businesses are the operator's own product/service vehicles — currently three: benali, growthkits, demandcast. The schema also supports businesses that are ideas-not-yet-started, via the `inactive` status.
+A business is an entity the operator owns and operates (or is actively building toward). Distinct from `client` (companies we're paid to work for) and from `company` (generic external entities). Businesses are the operator's own product/service vehicles — for example: acme-consulting, acme-studio, acme-media. The schema also supports businesses that are ideas-not-yet-started, via the `inactive` status.
 
-The business folder is a focus-discipline tool: it isolates the business's identity (mission, brand, ICP, offerings, goals, org) from client work or personal projects, so Claude can pick up business context without contamination. When the operator works on a Benali project, the AI sees Benali context cleanly.
+The business folder is a focus-discipline tool: it isolates the business's identity (mission, brand, ICP, offerings, goals, org) from client work or personal projects, so Claude can pick up business context without contamination. When the operator works on an Acme Consulting project, the AI sees Acme Consulting context cleanly.
 
 ## Format
 
@@ -107,7 +107,7 @@ When a business transitions status (active → inactive, or inactive → active)
 
 The frontmatter `status` doesn't distinguish idea-phase from wound-down — that nuance lives in `_status.md` body narrative. Acceptable trade-off because:
 - It's a personal vault; scan time is fine
-- Single-state inactive avoids decision-paralysis on "is this paused or archived?" mid-debate (e.g., GrowthKits 2026-05)
+- Single-state inactive avoids decision-paralysis on "is this paused or archived?" mid-debate (e.g., Acme Studio 2026-05)
 
 The folder is NOT deleted when status flips to inactive — historical reference preserved.
 
@@ -117,7 +117,7 @@ Triggered by: operator says "add a new business", "scaffold X as a business", or
 
 ### 0. Check legacy vault for existing context
 
-Per [[instance-scaffolding]] — if `~/khalils-vault/atlas/businesses/{slug}/` exists, read it as DRAFT, surface findings to operator, capture corrections before scaffolding. Skip if no legacy folder.
+Per [[instance-scaffolding]] — if the operator's primary vault has `atlas/businesses/{slug}/`, read it as DRAFT, surface findings to operator, capture corrections before scaffolding. Skip if no legacy folder.
 
 ### 1. Confirm the trigger
 
@@ -129,7 +129,7 @@ Ask operator for enough to populate the full brief at minimum. The principle: a 
 
 **Frontmatter / structural fields:**
 
-- **Slug** — kebab-case (e.g., `benali`, `growthkits`, `demandcast`)
+- **Slug** — kebab-case (e.g., `acme-consulting`, `acme-studio`, `acme-media`)
 - **Status** — `active` or `inactive` (idea-phase OR wound-down)
 - **Incorporated date** — legal entity formation date if known (TBD if pre-incorporation or unknown)
 
@@ -141,7 +141,7 @@ Ask operator for enough to populate the full brief at minimum. The principle: a 
 - **Values** — *optional at scaffolding.* What the business believes about how the work should be done. Same TBD discipline.
 - **Brand overview** — *optional at scaffolding.* TLDR pointer to `brand-voice.md` and `brand-design.md`. If brand files are themselves TBD, brief notes this.
 - **Origin & history** — how the business started, key pivots that shaped its current shape
-- **Operating model** — TLDR of the service or product model (e.g., "four pillars" for benali). Brief carries the TLDR; `offerings.md` carries the detail.
+- **Operating model** — TLDR of the service or product model (e.g., "four pillars" for acme-consulting). Brief carries the TLDR; `offerings.md` carries the detail.
 - **Team** — operator + partners/contractors/contributors, with roles. Distinguish status flags where relevant (e.g., "moved from X 2026-04-20"; "assigned but hasn't started").
 - **Active work** — current focus narrative + active engagements (clients) + active business projects. One coherent section, not three.
 - **Legacy work** — *optional if no legacy.* Past projects/initiatives that aren't being recreated as folders unless reactivated. List with brief one-line descriptions.

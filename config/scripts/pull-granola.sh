@@ -5,7 +5,7 @@
 # granola-note-id across system/intake/ and system/transcripts/).
 #
 # Reads the Granola public API key from Infisical (PERSONAL_GRANOLA_API_KEY
-# in the personal-khalil project). For each note in the lookback window, fetches
+# in the operator's personal Infisical project). For each note in the lookback window, fetches
 # the verbatim transcript via /v1/notes/{id}?include=transcript and writes a
 # markdown file conforming to the transcript source seed.
 #
