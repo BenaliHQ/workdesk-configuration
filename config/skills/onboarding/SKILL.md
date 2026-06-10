@@ -170,7 +170,7 @@ The lock language is deliberate. Do not soften it to "unless you ask." The PreTo
 
 **3b — `atlas/`:**
 
-> *"`atlas/` is what you manage — people, decisions, meetings. When something has its own identity worth tracking, it goes here. ▶ Watch (2 min): https://supercut.ai/share/benali/o8GxKPEpYFDBmSxuP79vR"*
+> *"`atlas/` is what you manage — people, decisions, meetings. When something has its own identity worth tracking, it goes here. ▶ Watch (2 min): https://supercut.ai/share/benali/o8GxKPEpYFDBmSxuP79vRW"*
 
 **3c — `GTD/`:**
 

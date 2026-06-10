@@ -9,7 +9,7 @@ If you haven't yet, run `/onboarding` in the terminal panel to get oriented. It'
 Six short videos — one per zone. Watch in order, or jump to any.
 
 - [`personal/` — your space](https://supercut.ai/share/benali/L7AMBy2jCo2GPqw2S66eRU)
-- [`atlas/` — what you manage](https://supercut.ai/share/benali/o8GxKPEpYFDBmSxuP79vR)
+- [`atlas/` — what you manage](https://supercut.ai/share/benali/o8GxKPEpYFDBmSxuP79vRW)
 - [`GTD/` — actions and projects](https://supercut.ai/share/benali/tTmAzLhiuqHSuE2v1FdINX)
 - [`intel/` — what Claude observes](https://supercut.ai/share/benali/Sb94l7TDegwgPHsoniOZZT)
 - [`system/` — sources and intake](https://supercut.ai/share/benali/vlxgd2Vpz9pQCjuUeS0x79)
