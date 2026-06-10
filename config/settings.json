@@ -1,4 +1,9 @@
 {
+  "tui": "fullscreen",
+  "statusLine": {
+    "type": "command",
+    "command": "input=$(cat); dir=$(printf '%s' \"$input\" | /usr/bin/python3 -c 'import sys,json;print(json.load(sys.stdin).get(\"workspace\",{}).get(\"project_dir\") or \"\")' 2>/dev/null); s=\"$dir/config/statusline/statusline.sh\"; if [ -n \"$dir\" ] && [ -f \"$s\" ]; then printf '%s' \"$input\" | /bin/bash \"$s\"; fi"
+  },
   "hooks": {
     "SessionStart": [
       {
