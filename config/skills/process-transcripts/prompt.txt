@@ -12,7 +12,12 @@ CRITICAL RULES:
 
 5. Action items: only include explicit commitments. Vague "we should..." is not an action. The `due` field must ALWAYS be present — set it to "" if no due date was stated.
 
-6. Owner category routing matters — Khalil is khalil@benali.com; the Benali team is Luciano, Gaby, Jenny, Yvette, Nick Nance Jr, Arra, Reese (Brasileño). Anyone else speaking is presumably client_team or client_client — judge from context.
+6. Owner category routing matters. Assign owner_category per action:
+   - "operator" — the action is the operator's own to do. The operator is Khalil (khalil@benali.com).
+   - "team" — owned by a member of the operator's own team: Luciano, Gaby, Jenny, Yvette, Nick Nance Jr, Arra, Reese (Brasileño). For these, ALSO set blocks_operator: true ONLY if the operator cannot make their own forward progress until this delegated item is done (a hard dependency). Default blocks_operator to false — most delegated work does not block the operator.
+   - "client_team" — the client's own employees. "client_client" — the client's clients (end customers, prospects).
+   - "unknown" — owner unclear from context.
+   Only "operator" and blocking "team" items reach the operator's GTD; everything else is recorded inline on the meeting note. Do not route routine delegated team work to the operator.
 
 7. Speaker resolution confidence is about HOW you obtained the names, NOT whether your inference happens to be correct:
    - "high" — ONLY when the transcript literally contains the speaker's full name as the turn prefix (e.g., "Khalil Benalioulhaj: ..."). Name-resolved by the source system.
