@@ -5,10 +5,16 @@ role: ""
 work-mode: ""
 daily-planning-style: "morning"
 week-start: "monday"
+daily-plan:
+  calendar-scope: own
+  calendar-lookahead-days: 7
+  daily-note-lookback-days: 7
+  action-email-label: ""
+  exclude-calendars: []
 first-30-days-mode: active
 created: ""
 last_updated: ""
-version: 1.2
+version: 1.3
 infisical-project-id: ""
 infisical-key-suffix: ""
 ---
@@ -34,6 +40,18 @@ Durable areas the operator focuses on — domains (finance, ops, design), topics
 ## Tools in use
 
 Wikilinks to `config/tools/<slug>.md` for each tool the operator named in onboarding. New tools are added via `/define-tool`, which writes a tool note and updates this section. Tool notes track connection state separately (`connected: true|false`).
+
+## daily-plan preferences
+
+Operator-owned settings the `daily-plan` signal (`/daily-ops`) reads to scope its sources. All have sane defaults — leave a field unset and the signal uses the default. The signal logic ships in the WorkDesk OS release; these values are yours and survive `/update`.
+
+| Field | What | Default | Notes |
+|---|---|---|---|
+| `calendar-scope` | `own` = only your primary calendar (the `email` above); `all` = every calendar shared with you. | `own` | `own` excludes shared/subscribed calendars. Implemented as `--calendar <email>`. |
+| `calendar-lookahead-days` | How many days ahead to scan for items needing action *today* (prep, replies, scheduling). | `7` | Today is always the focus; the lookahead only surfaces things that need a today-action to be ready. |
+| `daily-note-lookback-days` | How many days of `personal/daily/` notes to read for carry-over context. | `7` | Today's note is weighted most heavily; days with no note are skipped. |
+| `action-email-label` | Gmail label whose threads are pulled in as action candidates. | `""` (skip) | Empty → no email pull. Set to your label's exact name (e.g. `Actions`). Confirm the name via `gws gmail users labels list` — display name ≠ what you call it. |
+| `exclude-calendars` | Explicit calendar names/IDs to always exclude, even under `calendar-scope: all`. | `[]` | Optional. |
 
 ## first-30-days-mode
 

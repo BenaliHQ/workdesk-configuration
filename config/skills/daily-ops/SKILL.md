@@ -27,13 +27,22 @@ Read `config/state/session-entry.md`. Note the counts:
 
 Follow `config/signals/daily-plan.md`:
 
-1. Resolve anchors (today's calendar via `gws calendar +agenda --today` if enabled, today's daily note, active project `_status.md`, due recurring items, unread inbox)
+0. **Read config** from `config/operator-profile.md` (`email` + `daily-plan:` block) — see the signal's `## Configuration` table. Defaults: scope `own`, lookahead `7`, lookback `7`, email-label empty (skip). All of the below substitute these values.
+1. Resolve anchors:
+   - Calendar — scoped per `calendar-scope` (default `own` = `{email}` only, shared calendars excluded), **today + next `{lookahead}` days**: `gws calendar +agenda --today --calendar {email}` and `gws calendar +agenda --days {lookahead} --calendar {email}`
+   - Daily notes — **last `{lookback}` days** of `personal/daily/`, today weighted most (read-only)
+   - Email — the **`{action-email-label}`** Gmail label *if set* (default empty → skip): `gws gmail users messages list --params '{"userId":"me","q":"label:{label}","maxResults":25}'` then fetch each id's metadata headers
+   - Active project `_status.md` across **all three locations**: `gtd/projects/`, `atlas/clients/*/projects/`, `atlas/businesses/*/projects/`
+   - Actions: `gtd/actions/next/` and `gtd/actions/waiting/`
+   - Due recurring items, inbox
 2. Traverse:
    - For each person on today's calendar, fetch their atlas/people note + last meeting
    - For each project referenced today, fetch `_status` + recent meetings
    - Surface stale work where `today - last-touched > 1.5 × expected-cadence`
-3. Apply sparse-data fallback chain (skip layers with no data)
-4. Apply tonality from `operator-profile.role` and `operator-profile.work-mode`. If `first-30-days-mode: active`, lean toward setup-oriented framing; otherwise neutral. If either field is empty (early state), default to neutral.
+   - For each `gtd/actions/waiting/` item, check whether it's unblocked or needs a nudge
+3. **Reason — GTD triage.** Assign every candidate a disposition (do-now / prioritize / delegate / defer / delete) and lead the plan with the 1–3 items that truly require the operator. See the signal's `## Reasoning — focus & GTD triage`.
+4. Apply sparse-data fallback chain (skip layers with no data)
+5. Apply tonality from `operator-profile.role` and `operator-profile.work-mode`. If `first-30-days-mode: active`, lean toward setup-oriented framing; otherwise neutral. If either field is empty (early state), default to neutral.
 
 Write to `intel/briefings/daily/{YYYY-MM-DD}-daily-plan.md` with the signal frontmatter:
 
