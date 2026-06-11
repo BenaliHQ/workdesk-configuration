@@ -145,12 +145,17 @@ Use Gemini's `owner_category` enum:
 
 | `owner_category` | Where it goes |
 |---|---|
-| `operator_or_team` | `gtd/inbox/[ACTION] {slug}.md` — one file per commitment, no cap |
+| `operator` | `gtd/inbox/[ACTION] {slug}.md` — one file per commitment, no cap. This is the operator's own work; the inbox is where they clarify it out to `actions/next/` or a project. |
+| `team` + `blocks_operator: true` | `gtd/actions/waiting/[WAITING] {slug}.md` — the operator is genuinely blocked on this delegated item. Keep waiting/ sparse: only hard blockers on the operator's forward progress qualify. Also stays inline on the meeting note. |
+| `team` + `blocks_operator: false` (default) | **Inline on the meeting note only. Do NOT create an inbox entry.** Delegated team work is the team's to track, not the operator's GTD surface. The meeting note is the record. |
 | `client_team` | Stays inline in the meeting note's `## Action Items` section. If material, also add to the client's `_status.md` under a "client-side open items" / equivalent section. **Do NOT create inbox entries.** |
 | `client_client` | Inline only; no inbox, no client status. |
 | `unknown` | Inline + create a `[QUESTION]` inbox item asking the operator to clarify ownership |
 
-The meeting note's `## Action Items` section captures the **full record** — every commitment made in the room, regardless of owner. The inbox is the operator's GTD surface only.
+The meeting note's `## Action Items` section captures the **full record** — every commitment made in the room, regardless of owner. The inbox is the operator's GTD surface only: their own actions, plus the rare delegated item that hard-blocks them.
+
+> [!warning] Delegated ≠ the operator's inbox
+> The single biggest source of inbox bloat is routing every `team` commitment into the operator's inbox. Don't. The operator does not track their team's task lists. A `team` item only reaches them when `blocks_operator: true` — and that goes to `waiting/`, not the inbox. When in genuine doubt about whether something blocks them, default to inline-only (false); a missed blocker resurfaces naturally, an over-eager inbox does not self-clean.
 
 The `[REVIEW]` flood-guard cap (≤7 per session) applies to `[REVIEW]` proposals (uncertain inferences). It does NOT apply to `[ACTION]` items.
 
@@ -234,8 +239,8 @@ If the meeting note carries `sensitive: true` (set by Gemini or by operator flag
 - **Don't fill timeline gaps.** If the transcript jumps topics, don't reconstruct what was missed.
 - **Don't guess speaker names when Gemini returned `low` confidence.** Plain `Speaker X (unidentified)` + `[REVIEW]` beats fabrication.
 - **Don't create person notes for clients' clients** (homeowners, prospects, tertiary mentions). Per [[../../objects/person]] network-scope filter.
-- **Don't create inbox `[ACTION]` items for `client_team` commitments.** Per [[../../objects/action]] ownership filter and Gemini's owner_category enum.
-- **Don't apply the `[REVIEW]` flood-guard cap to `[ACTION]` items** — every operator/team commitment becomes its own file.
+- **Don't create inbox `[ACTION]` items for `client_team`, `client_client`, or non-blocking `team` commitments.** Per [[../../objects/action]] ownership filter and Gemini's owner_category enum. Only `operator` items create inbox `[ACTION]`s; blocking `team` items create a `waiting/` entry.
+- **Don't apply the `[REVIEW]` flood-guard cap to `[ACTION]` items** — every operator commitment becomes its own file.
 - **Don't process a transcript without operator confirmation in interactive mode.**
 - **Don't synthesize from Gemini's Tab-1 Notes summary or any pre-baked summary** — the pipeline runs against the verbatim only. Per [[../../rules/source-processing-pattern]].
 - **Don't move the transcript out of `system/intake/`** until every downstream artifact is produced AND verified clean.
