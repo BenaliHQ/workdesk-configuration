@@ -13,6 +13,16 @@ On the first use in a conversation, briefly introduce the skill:
 
 > I can keep this repo work isolated from other sessions. I will put this task in its own private copy, leave the main copy alone, and hand it off for review when it is ready.
 
+## Engine path (resolve once, before anything else)
+
+The engine lives in the vault, but most of this skill's work happens inside a private copy of some OTHER repo — where a relative `config/scripts/...` path does not exist. Resolve the absolute path ONCE from the vault root (the session's starting directory) and reuse it in every mode:
+
+```bash
+ENGINE="$(pwd)/config/scripts/repo-session.sh"   # run from the vault root, before any cd
+```
+
+Every command below uses `"$ENGINE"`, never a relative path.
+
 ## Modes
 
 ### `/workon <repo> <task>`
@@ -22,7 +32,7 @@ Also applies to conversational equivalents like "work on WorkDesk OS multi-sessi
 1. Run:
 
    ```bash
-   config/scripts/repo-session.sh start <repo> <task>
+   "$ENGINE" start <repo> <task>
    ```
 
 2. Read the final `WORKTREE=<path>` line from the output.
@@ -40,7 +50,7 @@ If the script warns about another session's unsaved or unshared work, relay the 
 Run:
 
 ```bash
-config/scripts/repo-session.sh status
+"$ENGINE" status
 ```
 
 Relay the table conversationally. Say "private copy" for each workspace and "in use by another session" for held resources.
@@ -54,7 +64,7 @@ Also applies when the operator says they are finished, asks to hand this off, or
 3. Run:
 
    ```bash
-   config/scripts/repo-session.sh finish <task>
+   "$ENGINE" finish <task>
    ```
 
 4. Tell the operator the work was handed off for review. If the script prints a review URL, include it.
@@ -73,7 +83,7 @@ Use zero Git vocabulary with the operator:
 
 ## What NOT to do
 
-- Never work directly in `~/code/<repo>` when a multi-session scenario is possible. Always run `config/scripts/repo-session.sh start` first.
+- Never work directly in `~/code/<repo>` when a multi-session scenario is possible. Always run `"$ENGINE" start` first.
 - Never commit to `main` or `master` in any shared repo. The main copy only moves when finished work is reviewed and merged.
 - Never base work on the shared checkout's local state. The script guarantees work starts from the shared version; do not bypass it.
 - If the script warns about another session's unshared work, relay the warning in plain words and leave that session alone.
