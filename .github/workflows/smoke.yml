@@ -16,3 +16,5 @@ jobs:
         run: ./tests/init-smoke.sh
       - name: obsidian-defaults paths
         run: ./tests/obsidian-defaults-paths.sh
+      - name: repo-session hermetic test
+        run: ./tests/repo-session-test.sh
