@@ -69,6 +69,20 @@ Also applies when the operator says they are finished, asks to hand this off, or
 
 4. Tell the operator the work was handed off for review. If the script prints a review URL, include it.
 
+### `/workon abandon`
+
+Also applies when the operator says to drop, scrap, or forget a task — they don't want it handed off.
+
+1. Confirm with the operator: anything not yet committed in that private copy will be discarded.
+2. Run:
+
+   ```bash
+   "$ENGINE" cleanup --days 0
+   ```
+
+   This removes idle private copies immediately. It refuses to remove a copy holding unsaved work — if the operator truly wants that work gone too, discard the changes inside the copy first, then re-run.
+3. Tell the operator the private copy is gone and nothing was handed off. (Quietly: any branch already created stays local and harmless; the weekly sweep and `git worktree prune` keep things tidy.)
+
 ## Operator voice
 
 Use zero Git vocabulary with the operator:
