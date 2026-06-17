@@ -114,6 +114,8 @@ Before closing the processing pass:
 - [[matching]]: every entity with substantive new info gets its note updated in this same pass. Don't defer.
 - [[source-documentation]]: every produced note traces to the source via wikilink chain. Provenance preserved.
 
+When processing fans out across parallel workers (see [[matching]] § Parallel source processing), shared-note updates are deferred as durable findings and applied by a single consolidation writer — but the run is not complete, and a source is not archived, until consolidation and verification have finished. A source landing in its archive folder is not by itself proof of completion.
+
 ### 8. Move source to its archive folder
 
 After all artifacts are produced and cross-linked:
