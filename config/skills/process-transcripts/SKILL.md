@@ -64,10 +64,11 @@ Pre-load vault context that downstream phases need (do this BEFORE the Gemini ca
 
 ### 2. Gemini extraction
 
-Run the extraction script:
+Run the extraction script, capturing to a **unique** temp file (never a shared fixed path like `/tmp/extraction.json` — under Parallel backlog mode below, concurrent agents would clobber each other):
 
 ```bash
-bash config/scripts/extract-transcript-gemini.sh {transcript-path} > /tmp/extraction.json
+EXTRACT_JSON=$(mktemp /tmp/extraction-XXXXXX.json)
+bash config/scripts/extract-transcript-gemini.sh {transcript-path} > "$EXTRACT_JSON"
 ```
 
 The script:
@@ -214,6 +215,29 @@ The subagent prompt MUST be fully self-contained — it sees zero of the main se
 9. **Final-report shape** — speaker resolution summary, files produced/updated, anything unexpected, open items.
 
 The main session's role after dispatch: read both meeting notes end-to-end, spot-check matching, verify check-wikilinks ran clean.
+
+### Parallel backlog mode
+
+The delegation above runs **one** subagent at a time (or sequentially). When the backlog is large — **≥10 unprocessed transcripts, or explicit operator request** — fan out to multiple subagents in parallel. Parallel writers with no file locking means last-writer-wins clobbering is a real hazard, so this mode trades raw parallelism for a strict ownership boundary. Do NOT use it for the normal interactive one-at-a-time flow — that stays simple and same-pass.
+
+**1. Partition into disjoint clusters.** Group the transcripts so no two clusters are expected to touch the same entity (e.g. all of one client's meetings in one cluster; each team member's 1:1s in their own cluster). Build a quick preflight entity map (Glob `atlas/people/*`, `atlas/clients/*`, `gtd/projects/*`) so the partition is grounded, not guessed.
+
+**2. Ownership is a path denylist, not an entity inference.** Each parallel agent owns — and may write — only files **uniquely** produced by its cluster:
+- its meeting notes (`atlas/meetings/{date}-{slug}.md`)
+- its uniquely-named inbox/waiting items (`[ACTION]`/`[REVIEW]`/`[QUESTION]`/`[WAITING]`)
+- standalone decision notes with unique slugs
+- its own transcripts' frontmatter + the `mv` into `system/transcripts/` (after verification)
+
+Everything else is **shared and off-limits while fanning out** — by path, regardless of whether the agent thinks it "owns" the entity (agents can be wrong about identity):
+- any `atlas/clients/*/_status.md`, `atlas/businesses/*/_status.md`, `gtd/projects/*/_status.md`, any `_brief.md`
+- any person note that more than one cluster could touch
+- any shared index/state/log file
+
+**3. Shared updates come back as durable findings — not chat.** A parallel agent NEVER edits a shared file. It writes each needed change as a structured finding to a durable file (e.g. `system/_processing/findings/{run-id}/{agent}-{n}.md`), not just its final report — if the consolidation step dies, chat-only findings are lost. Each finding carries: `target_path`, `entity`, `source_meeting`, `source_transcript`, `date`, `proposed_text`, `reason`, `confidence`. If an agent discovers a cross-cluster entity mid-run (the partition was wrong), it stops writing that shared file and emits a finding flagging the overlap.
+
+**4. One sequential consolidation pass.** After ALL parallel agents finish, a single agent (or the main session) applies every finding — one file at a time, **chronological by source-meeting date per target file** (per [[../../rules/matching]] § Conflicting information), deduping findings that target the same file + same source + same claim, and preserving genuine conflicts with source attribution (create a `[QUESTION]` only when state is actually ambiguous). Make it **idempotent**: each applied addition carries its source wikilink, so a re-run skips what's already present. Then run `check-wikilinks.sh` on every touched file.
+
+**5. Manifest + reconciliation — "moved" ≠ "done".** Each agent returns a per-transcript manifest (processed / files created / files moved / findings emitted / verification result). Before declaring the run complete, reconcile by scanning BOTH `system/intake/` and `system/transcripts/`: a transcript counts as done only when `processed: true`, `processed-into:` is populated, its meeting note exists, and check-wikilinks passed — not merely because it landed in the archive folder. An agent that died mid-cluster can leave a note written but not moved, or moved with an incomplete `processed-into:` — the reconciliation scan is what catches it; re-dispatch the stragglers.
 
 ## Confidentiality
 
