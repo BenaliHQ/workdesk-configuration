@@ -59,6 +59,22 @@ chmod 600 "${INF_DIR}/client-id" "${INF_DIR}/client-secret"
 # Scrub from this shell's memory.
 unset CID CSEC
 
+# Pre-create every render target's parent directory on the freshly-mounted
+# ramdisk. The Infisical Agent's template engine does NOT mkdir parents — it
+# opens the destination path directly. Because the ramdisk is recreated empty
+# at each login, the first render of any tool layer (e.g. /Volumes/wd-ramdisk/
+# gws/) fails with "no such file or directory" until something makes the dir.
+# Derive the dirs from the agent config's destination-path entries so this stays
+# tool-agnostic, and only ever mkdir under the ramdisk root (safety).
+while IFS= read -r dest; do
+  d=$(dirname "${dest}")
+  case "${d}" in
+    "${VOL_PATH}"/*)
+      mkdir -p "${d}" && chmod 700 "${d}" || true
+      ;;
+  esac
+done < <(grep -oE 'destination-path:[[:space:]]*"[^"]+"' "${AGENT_CONFIG}" | sed -E 's/.*"(.*)"/\1/')
+
 echo "$(date -u +%FT%TZ) starting infisical agent with ${AGENT_CONFIG}" >> "${LOG}"
 
 # Start agent in background so we can run the post-init sweep alongside it.

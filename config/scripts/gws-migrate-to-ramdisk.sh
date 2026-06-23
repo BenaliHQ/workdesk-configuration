@@ -1,18 +1,40 @@
 #!/usr/bin/env bash
-# gws-migrate-to-ramdisk.sh — replace ~/Library/Application Support/gws with a
-# symlink to /Volumes/wd-ramdisk/gws so all gws state lives in RAM.
+# gws-migrate-to-ramdisk.sh — replace gws's real data dir with a symlink to
+# /Volumes/wd-ramdisk/gws so all gws state lives in RAM.
 #
-# Safe to re-run. On first run it backs up the existing dir to
-# ~/Library/Application Support/gws.bak.<timestamp>/.
+# Safe to re-run. On first run it backs up the existing dir alongside itself as
+# <data-dir>.bak.<timestamp>/.
 #
 # DOES NOT push state to Infisical — that's gws-push-tokens-to-infisical.sh.
 # Run that AFTER you've authenticated against the ramdisk for the first time.
+#
+# gws's data dir is NOT hardcoded: older builds used
+# ~/Library/Application Support/gws, but current googleworkspace-cli (≥0.22.5)
+# uses the XDG path ~/.config/gws. We ask gws where it actually keeps state
+# (via `gws auth status`) so the symlink lands on the dir gws really reads —
+# symlinking the wrong dir leaves real creds on the SSD and the ramdisk orphaned.
 
 set -euo pipefail
 
-REAL_DIR="${HOME}/Library/Application Support/gws"
+# Resolve gws's real data dir. Prefer what gws reports; fall back to an existing
+# dir; default to the XDG path used by current builds.
+detect_gws_dir() {
+  local cfg
+  cfg=$(gws auth status 2>/dev/null | sed -nE 's/.*"client_config":[[:space:]]*"([^"]+)".*/\1/p' | head -1)
+  if [[ -n "${cfg}" ]]; then
+    dirname "${cfg}"
+  elif [[ -d "${HOME}/.config/gws" ]]; then
+    echo "${HOME}/.config/gws"
+  elif [[ -d "${HOME}/Library/Application Support/gws" ]]; then
+    echo "${HOME}/Library/Application Support/gws"
+  else
+    echo "${HOME}/.config/gws"
+  fi
+}
+
+REAL_DIR="$(detect_gws_dir)"
 RAMDISK_DIR="/Volumes/wd-ramdisk/gws"
-BACKUP="${HOME}/Library/Application Support/gws.bak.$(date +%Y%m%d-%H%M%S)"
+BACKUP="${REAL_DIR}.bak.$(date +%Y%m%d-%H%M%S)"
 
 if ! mount | grep -q "on /Volumes/wd-ramdisk "; then
   echo "ERROR: ramdisk not mounted. Run config/scripts/ramdisk-mount.sh first." >&2
