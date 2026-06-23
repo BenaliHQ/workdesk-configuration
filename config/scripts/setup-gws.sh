@@ -15,7 +15,8 @@
 #                     (skipped on re-run if already present)
 #   4. Reload agent — restart the Infisical Agent LaunchAgent so it picks up
 #                     the new templates
-#   5. Migrate gws  — symlink ~/Library/Application Support/gws to the ramdisk
+#   5. Migrate gws  — symlink gws's real data dir (auto-detected: ~/.config/gws
+#                     on current builds) to the ramdisk
 #   6. Operator     — print the two manual steps the operator runs next
 #                     (`gws auth login` + `gws-push-tokens-to-infisical.sh`)
 
