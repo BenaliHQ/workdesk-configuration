@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 1.22.1 → 1.23.0: retire the Infisical machine-identity + RAM-disk pattern.
+# 1.22.1 → 2.0.0: retire the Infisical machine-identity + RAM-disk pattern.
 #
 # WorkDesk's Infisical layer now authenticates exclusively via the operator's
 # `infisical login` user session, and tool auth state (gws, and any other tool
