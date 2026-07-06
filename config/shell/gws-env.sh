@@ -7,15 +7,17 @@
 #
 # This defines a `gws` shell function that wraps the real binary. For normal
 # API calls (`gws gmail ...`, `gws calendar ...`), gws reads its OAuth state
-# from /Volumes/wd-ramdisk/gws/ (rendered by the Infisical Agent), so no env
-# vars are needed. The wrapper still exists for one case: `gws auth login`
-# uses GOOGLE_WORKSPACE_CLI_CLIENT_ID / _CLIENT_SECRET env vars to mint a new
+# from ~/Library/Application Support/gws/ (real directory on the SSD as of
+# 2026-07-06; the ramdisk/agent pattern is retired), so no env vars are
+# needed. The wrapper still exists for one case: `gws auth login` uses
+# GOOGLE_WORKSPACE_CLI_CLIENT_ID / _CLIENT_SECRET env vars to mint a new
 # refresh token. The wrapper pulls those from Infisical only when `auth login`
-# is invoked, never for routine calls.
+# is invoked, never for routine calls (requires an active `infisical login`
+# user session).
 #
 # After every `gws auth login`, also re-run:
 #   bash /path/to/Workdesk-OS/config/scripts/gws-push-tokens-to-infisical.sh
-# otherwise the next reboot reverts to the stale token.
+# so Infisical's stored copy stays current.
 #
 # IMPORTANT: the function must be fully self-contained — no references to
 # variables set at source time. Some environments (e.g. Claude Code shell

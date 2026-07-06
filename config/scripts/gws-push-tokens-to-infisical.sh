@@ -9,7 +9,7 @@ set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/operator-config.sh"
 
 ENV="prod"
-GWS_DIR="/Volumes/wd-ramdisk/gws"
+GWS_DIR="${HOME}/Library/Application Support/gws"
 ENC_FILE="${GWS_DIR}/credentials.${OPERATOR_EMAIL_B64}.enc"
 KEY_FILE="${GWS_DIR}/.encryption_key"
 ACCTS_FILE="${GWS_DIR}/accounts.json"
@@ -25,12 +25,9 @@ for f in "${ENC_FILE}" "${KEY_FILE}" "${ACCTS_FILE}"; do
   fi
 done
 
-# Use the agent's UA access token instead of relying on shell-CLI auth state.
-TOKEN_FILE="/Volumes/wd-ramdisk/infisical/access-token"
-if [[ -s "${TOKEN_FILE}" ]]; then
-  INFISICAL_TOKEN="$(cat "${TOKEN_FILE}")"
-  export INFISICAL_TOKEN
-fi
+# Auth: relies on the operator's `infisical login` user session (machine
+# identities retired 2026-07-06). If the session has expired, pushes fail and
+# are logged — re-run `infisical login`, then this script.
 
 push_if_stale() {
   local src="$1" name="$2" transform="$3"

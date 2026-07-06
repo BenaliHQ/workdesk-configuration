@@ -175,22 +175,16 @@ if ! command -v infisical >/dev/null 2>&1; then
   exit 2
 fi
 
-# Fall back to the Infisical Agent's machine-identity (UA) token rendered onto
-# the ramdisk when no interactive login session exists (cron, or an expired
-# `infisical login`). Mirrors config/scripts/infisical-names.sh. Without this,
-# `infisical secrets get` falls through to the interactive browser-login path
-# and fails in any non-interactive context.
-INFISICAL_TOKEN_FILE="/Volumes/wd-ramdisk/infisical/access-token"
-if [[ -z "${INFISICAL_TOKEN:-}" && -s "$INFISICAL_TOKEN_FILE" ]]; then
-  INFISICAL_TOKEN="$(cat "$INFISICAL_TOKEN_FILE")"
-  export INFISICAL_TOKEN
-fi
+# Auth: the operator's `infisical login` user session (or an INFISICAL_TOKEN
+# already exported by the caller). </dev/null on the fetch below keeps the CLI
+# from dropping into its interactive wizard in non-interactive contexts
+# (cron, agents) — it fails fast instead, and the error path says to re-login.
 
 GRANOLA_API_KEY="$(infisical secrets get PERSONAL_GRANOLA_API_KEY \
-  --projectId="$PERSONAL_PROJ_ID" --env="$INFISICAL_ENV" --plain 2>/dev/null)" || true
+  --projectId="$PERSONAL_PROJ_ID" --env="$INFISICAL_ENV" --plain </dev/null 2>/dev/null)" || true
 
 if [[ -z "$GRANOLA_API_KEY" || "${GRANOLA_API_KEY:0:4}" != "grn_" ]]; then
-  log "ERROR  could not read PERSONAL_GRANOLA_API_KEY from Infisical (or wrong shape) — run \`infisical login\` or ensure the Infisical Agent has rendered \$INFISICAL_TOKEN_FILE"
+  log "ERROR  could not read PERSONAL_GRANOLA_API_KEY from Infisical (or wrong shape) — run \`infisical login\` (user sessions expire every few weeks)"
   # Update state with failure
   prev_fails="$(read_state_field "consecutive_failures" "0")"
   new_fails=$(( prev_fails + 1 ))

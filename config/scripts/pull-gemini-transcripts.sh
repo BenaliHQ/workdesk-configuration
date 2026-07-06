@@ -196,31 +196,23 @@ if ! command -v gws >/dev/null 2>&1; then
   exit 2
 fi
 
-# ── Ramdisk readiness gate ──────────────────────────────────────────────────
-# gws reads OAuth state from ~/Library/Application Support/gws, a symlink to the
-# Infisical-rendered ramdisk. At boot/login the Infisical Agent renders those
-# files asynchronously; a cron firing before the render (e.g. the 06:10 daily
-# run vs. a later login) sees a dangling symlink. That is infra-not-ready, NOT
-# an auth failure — wait briefly for the render, then skip cleanly without
-# bumping consecutive_failures, so STALE only ever reflects genuine auth death.
+# ── gws state gate ──────────────────────────────────────────────────────────
+# gws reads OAuth state from ~/Library/Application Support/gws — a normal
+# directory on disk. If the state files are missing, gws was never set up on
+# this machine (or its state was wiped): that's a configuration error, not a
+# transient condition — surface it instead of skipping silently.
 GWS_STATE_DIR="$HOME/Library/Application Support/gws"
-gws_state_rendered() {
+gws_state_present() {
   local f
   for f in "$GWS_STATE_DIR"/credentials.*.enc; do
-    [[ -e "$f" ]] || return 1   # unmatched glob stays literal → no creds rendered
+    [[ -e "$f" ]] || return 1   # unmatched glob stays literal → no creds present
     break
   done
   [[ -s "$GWS_STATE_DIR/client_secret.json" ]]
 }
-if ! gws_state_rendered; then
-  for _ in 1 2 3 4 5 6; do
-    sleep 10
-    gws_state_rendered && break
-  done
-fi
-if ! gws_state_rendered; then
-  log "INFO   gws state not rendered on ramdisk yet (Infisical Agent not ready) — skipping; will retry next run"
-  exit 0
+if ! gws_state_present; then
+  log "ERROR  gws auth state missing at $GWS_STATE_DIR — run config/scripts/setup-gws.sh"
+  exit 2
 fi
 
 if ! gws drive about get --params '{"fields": "user(emailAddress)"}' >/dev/null 2>&1; then
