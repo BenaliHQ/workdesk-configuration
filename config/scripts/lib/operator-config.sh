@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # operator-config.sh — single source of truth for per-operator runtime values.
 #
-# Sourced by every script in the Infisical / ramdisk / tool-auth stack.
+# Sourced by every script in the Infisical / tool-auth stack.
 # Reads operator-profile.md frontmatter and exports:
 #
 #   OPERATOR_NAME                   from `name:`

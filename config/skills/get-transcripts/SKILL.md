@@ -119,8 +119,8 @@ and look for same-day files with overlapping titles.
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | `ERROR  could not read PERSONAL_GRANOLA_API_KEY from Infisical` | Infisical session expired | `infisical login`, then re-run |
-| `ERROR  gws auth failed` | gws token expired or ramdisk unmounted | `gws auth login --account you@example.com`, then `bash config/scripts/gws-push-tokens-to-infisical.sh` per [[../../config/rules/tools/gws]] |
-| All scripts hard-fail (exit 2) at boot | Infisical Agent hasn't rendered the ramdisk yet | Wait ~30s after login, or check `/Volumes/wd-ramdisk/` |
+| `ERROR  gws auth failed` | gws token expired | `gws auth login --account you@example.com`, then `bash config/scripts/gws-push-tokens-to-infisical.sh` per [[../../config/rules/tools/gws]] |
+| All scripts hard-fail (exit 2) | gws auth state missing at `~/Library/Application Support/gws` | Run `bash config/scripts/setup-gws.sh` |
 | `consecutive_fails > 3` | Auth has been broken for multiple cron runs | Always check `--status` first; run remediation above |
 | Gemini script reports `no_access > 0` | Meeting was organized by someone else and they didn't share the Notes-by-Gemini Doc | Expected and harmless — those transcripts live in the organizer's Drive. Ask them to share (View access is enough) and the next run picks them up. |
 | Gemini script reports `stub > 0` | Gemini transcription failed for that meeting (multilingual, silent, or under the language threshold) | The recording still exists in Drive — would need self-hosted transcription (Whisper) to recover. Out of scope for this skill. |

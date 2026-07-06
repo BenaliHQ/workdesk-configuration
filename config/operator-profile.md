@@ -59,7 +59,7 @@ Operator-owned settings the `daily-plan` signal (`/daily-ops`) reads to scope it
 
 ## Infisical integration (optional)
 
-The `email`, `infisical-project-id`, and `infisical-key-suffix` frontmatter fields are optional — required only if you use the Infisical secrets-management layer. They are read by `config/scripts/lib/operator-config.sh` and every script in the Infisical/ramdisk/tool-auth stack.
+The `email`, `infisical-project-id`, and `infisical-key-suffix` frontmatter fields are optional — required only if you use the Infisical secrets-management layer. They are read by `config/scripts/lib/operator-config.sh` and every script in the Infisical/tool-auth stack.
 
 | Field | What | Example |
 |---|---|---|
