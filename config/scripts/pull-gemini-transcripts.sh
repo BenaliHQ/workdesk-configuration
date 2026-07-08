@@ -252,7 +252,7 @@ write_intake_for_doc() {
   # Cheap idempotency check first — skip the Docs API call entirely if we
   # already have this doc on disk
   if [[ $FORCE -eq 0 || "$FORCE_DOC_ID" != "$doc_id" ]]; then
-    if grep -rlq "^gemini-doc-id: $doc_id\$" "$INTAKE_DIR" "$TRANSCRIPTS_DIR" 2>/dev/null; then
+    if grep -rlq "^gemini-doc-id: ${doc_id}[[:space:]]*\$" "$INTAKE_DIR" "$TRANSCRIPTS_DIR" 2>/dev/null; then
       log "SKIP   $doc_id already-pulled (pre-fetch)"
       return 2
     fi
@@ -318,7 +318,7 @@ write_intake_for_doc() {
 
   # Filename collision handling — different doc landing on same filename
   if [[ -e "$target_path" ]]; then
-    if grep -q "^gemini-doc-id: $doc_id\$" "$target_path" 2>/dev/null; then
+    if grep -q "^gemini-doc-id: ${doc_id}[[:space:]]*\$" "$target_path" 2>/dev/null; then
       if [[ $FORCE -eq 1 && "$FORCE_DOC_ID" == "$doc_id" ]]; then
         : # fall through, overwrite
       else
