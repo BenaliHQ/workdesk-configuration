@@ -21,14 +21,20 @@ today=$(date '+%Y-%m-%d')
 now=$(date '+%Y-%m-%d %H:%M')
 
 # --- scan unprocessed transcripts -----------------------------------------
+# Unprocessed transcripts live in system/intake/ (source-kind: transcript,
+# processed: false) per the intake → process → archive flow. system/transcripts/
+# is the post-processing archive; scan it too as a safety net for files that
+# landed there without being flipped to processed: true.
 unprocessed_transcripts=()
-if [[ -d "$VAULT/system/transcripts" ]]; then
+for dir in "$VAULT/system/intake" "$VAULT/system/transcripts"; do
+  [[ -d "$dir" ]] || continue
   while IFS= read -r f; do
-    if ! /usr/bin/grep -q '^processed: true' "$f" 2>/dev/null; then
+    if /usr/bin/grep -q '^source-kind: transcript' "$f" 2>/dev/null \
+       && ! /usr/bin/grep -q '^processed: true' "$f" 2>/dev/null; then
       unprocessed_transcripts+=("$f")
     fi
-  done < <(/usr/bin/find "$VAULT/system/transcripts" -maxdepth 2 -type f -name '*.md' 2>/dev/null)
-fi
+  done < <(/usr/bin/find "$dir" -maxdepth 2 -type f -name '*.md' 2>/dev/null)
+done
 
 # --- scan intake ----------------------------------------------------------
 intake_items=()

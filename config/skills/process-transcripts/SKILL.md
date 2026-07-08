@@ -109,6 +109,9 @@ Take the extracted JSON and convert names → wikilinks:
 | `partial` | Names with `(inferred)` marker if name didn't appear literally in the transcript text. Create a `[REVIEW]` inbox item proposing the meeting note for operator double-check. |
 | `low` | Keep diarization labels (`Speaker A`, `Speaker B`); create a `[REVIEW]` flagging the gap |
 
+> [!warning] Diarized sources: Gemini's speaker mapping is a hypothesis, not ground truth
+> On diarization-labeled transcripts (`source-format: granola-public-api`, or any source with `Speaker A/B` labels), Gemini's diarization-to-identity mapping is unreliable — a 40-transcript backlog run (2026-07-07) found it wrong or fully inverted on 3 of 4 substantive phone calls, including one where Gemini self-reported `high` confidence over utterance-level misattribution. For diarized sources: cap the effective `speaker_resolution_confidence` at `partial` regardless of what Gemini self-reports, and verify identity against vault cross-references (prior meeting notes with the same person, direct self-identifications in the verbatim, client status logs) before writing names. Name-resolved sources (Google Meet, Gemini Docs) don't need this cap.
+
 ### 5. Write the meeting note
 
 `atlas/meetings/{YYYY-MM-DD}-{topic-slug}.md` per [[../../objects/meeting]]. Build from the extracted JSON:
@@ -219,6 +222,8 @@ The main session's role after dispatch: read both meeting notes end-to-end, spot
 ### Parallel backlog mode
 
 The delegation above runs **one** subagent at a time (or sequentially). When the backlog is large — **≥10 unprocessed transcripts, or explicit operator request** — fan out to multiple subagents in parallel. Parallel writers with no file locking means last-writer-wins clobbering is a real hazard, so this mode trades raw parallelism for a strict ownership boundary. Do NOT use it for the normal interactive one-at-a-time flow — that stays simple and same-pass.
+
+**0. Extraction order is a hard sequence, stated per transcript.** Each parallel agent's prompt (or shared protocol file) must state the extraction order explicitly: attempt `extract-transcript-gemini.sh` first, retry once on failure, and only then fall back to direct synthesis — and must require the agent's manifest to report which path ran (`extraction: gemini | fallback`) so deviations are visible in review. Left implicit, agents read the fallback as optional-first and synthesize directly at roughly 5x the per-transcript cost (observed 2026-07-07: 1 of 10 agents skipped Gemini entirely).
 
 **1. Partition into disjoint clusters.** Group the transcripts so no two clusters are expected to touch the same entity (e.g. all of one client's meetings in one cluster; each team member's 1:1s in their own cluster). Build a quick preflight entity map (Glob `atlas/people/*`, `atlas/clients/*`, `gtd/projects/*`) so the partition is grounded, not guessed.
 
