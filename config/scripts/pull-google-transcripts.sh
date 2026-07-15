@@ -265,7 +265,7 @@ write_intake_for_doc() {
 
   # Collision handling
   if [[ -e "$target_path" ]]; then
-    if grep -q "^google-drive-file-id: $file_id\$" "$target_path" 2>/dev/null; then
+    if grep -q "^google-drive-file-id: ${file_id}[[:space:]]*\$" "$target_path" 2>/dev/null; then
       if [[ $FORCE -eq 1 && "$FORCE_FILE_ID" == "$file_id" ]]; then
         : # fall through, overwrite
       else
@@ -282,7 +282,7 @@ write_intake_for_doc() {
 
   # Idempotency vs archive
   if [[ $FORCE -eq 0 || "$FORCE_FILE_ID" != "$file_id" ]]; then
-    if grep -rlq "^google-drive-file-id: $file_id\$" "$TRANSCRIPTS_DIR" 2>/dev/null; then
+    if grep -rlq "^google-drive-file-id: ${file_id}[[:space:]]*\$" "$TRANSCRIPTS_DIR" 2>/dev/null; then
       log "SKIP   $file_id already-processed (in transcripts/) → $filename"
       return 2
     fi
@@ -427,7 +427,7 @@ while IFS=$'\t' read -r file_id fname created_at; do
   # Pre-fetch idempotency: skip without exporting if file_id is already on disk
   # in intake/ or transcripts/. Handles suffix-renamed collisions that the
   # in-function check below would miss.
-  if [[ $FORCE -eq 0 ]] && grep -rlq "^google-drive-file-id: $file_id\$" "$INTAKE_DIR" "$TRANSCRIPTS_DIR" 2>/dev/null; then
+  if [[ $FORCE -eq 0 ]] && grep -rlq "^google-drive-file-id: ${file_id}[[:space:]]*\$" "$INTAKE_DIR" "$TRANSCRIPTS_DIR" 2>/dev/null; then
     log "SKIP   $file_id already-pulled (pre-fetch)"
     skipped=$((skipped + 1))
     continue

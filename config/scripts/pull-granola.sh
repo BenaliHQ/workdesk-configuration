@@ -253,7 +253,7 @@ write_intake_for_note() {
 
   # Collision: same filename but not from us (no matching granola-note-id)
   if [[ -e "$target_path" ]]; then
-    if grep -q "^granola-note-id: $note_id\$" "$target_path" 2>/dev/null; then
+    if grep -q "^granola-note-id: ${note_id}[[:space:]]*\$" "$target_path" 2>/dev/null; then
       if [[ $FORCE -eq 1 && "$FORCE_NOTE_ID" == "$note_id" ]]; then
         : # fall through and overwrite
       else
@@ -272,7 +272,7 @@ write_intake_for_note() {
 
   # Idempotency check against transcripts/ archive
   if [[ $FORCE -eq 0 || "$FORCE_NOTE_ID" != "$note_id" ]]; then
-    if grep -rlq "^granola-note-id: $note_id\$" "$TRANSCRIPTS_DIR" 2>/dev/null; then
+    if grep -rlq "^granola-note-id: ${note_id}[[:space:]]*\$" "$TRANSCRIPTS_DIR" 2>/dev/null; then
       log "SKIP   $note_id already-processed (in transcripts/) → $filename"
       return 2
     fi
@@ -400,7 +400,7 @@ while :; do
 
     # Pre-fetch idempotency (cheap): if already in intake or transcripts, skip
     # without hitting the per-note endpoint.
-    if grep -rlq "^granola-note-id: $note_id\$" "$INTAKE_DIR" "$TRANSCRIPTS_DIR" 2>/dev/null; then
+    if grep -rlq "^granola-note-id: ${note_id}[[:space:]]*\$" "$INTAKE_DIR" "$TRANSCRIPTS_DIR" 2>/dev/null; then
       skipped=$((skipped + 1))
       continue
     fi
