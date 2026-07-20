@@ -285,13 +285,17 @@ write_intake_for_doc() {
     return 3
   fi
 
-  # Export the doc as text to a temp file
-  local body_tmp; body_tmp="$(mktemp)"
-  if ! gws drive files export \
+  # Export the doc as text to a temp file.
+  # gws (>=0.22.5) rejects --output paths that resolve outside the current
+  # working directory, so export from inside a dedicated temp dir using a
+  # relative filename. Robust regardless of the caller's cwd.
+  local body_dir; body_dir="$(mktemp -d)"
+  local body_tmp="$body_dir/export.txt"
+  if ! ( cd "$body_dir" && gws drive files export \
         --params "$(jq -n --arg id "$file_id" '{fileId: $id, mimeType: "text/plain"}')" \
-        --output "$body_tmp" >/dev/null 2>&1; then
+        --output "export.txt" >/dev/null 2>&1 ); then
     log "ERROR  $file_id export failed"
-    rm -f "$body_tmp"
+    rm -rf "$body_dir"
     return 4
   fi
 
@@ -350,7 +354,7 @@ write_intake_for_doc() {
   } > "$tmp"
 
   mv "$tmp" "$target_path"
-  rm -f "$body_tmp"
+  rm -rf "$body_dir"
 
   local size; size="$(wc -c < "$target_path" | tr -d ' ')"
   log "PULL   $file_id → $filename (${size}b) \"$title\""
