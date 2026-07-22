@@ -56,6 +56,16 @@ Infisical is the backup/restore layer, not the runtime dependency: day-to-day `g
 | `gws <svc> <res> <method> --params '...'` | Generic Google API call | `gws calendar events list --params '{"calendarId":"primary"}'` |
 | `gws schema <svc>.<res>.<method>` | Inspect API surface | `gws schema gmail.users.messages.list` |
 
+### Creating drafts / sending with a request body or attachment
+
+Generic write calls (`drafts create`, `messages send`, `messages insert`) need the request body and any media passed through the **right flags** — `--params` is query-string only:
+
+- `--json '<JSON>'` — the request **body** (e.g. the Draft resource: `{"message":{"raw":"<base64url-MIME>","threadId":"..."}}`).
+- `--upload <path>` — a local file to attach as **media** (multipart upload).
+- `--params '{"userId":"me"}'` — URL/query params only.
+
+Putting the body in `--params` sends an empty body and Google returns **`411 Length Required`**. To draft a reply with an attachment: build a multipart MIME message (text part + attachment part) in code, base64url-encode it as `raw`, set `threadId` (plus `In-Reply-To`/`References` headers) for threading, and pass the whole Draft resource via `--json`. Drafting is always allowed; the *send* stays gated on the operator's code phrase (see the outbound-communications rule).
+
 ## When to re-run `gws-push-tokens-to-infisical.sh`
 
 The script at `config/scripts/gws-push-tokens-to-infisical.sh` mirrors the local refresh-token state into Infisical (via your `infisical login` session). Re-run when:
@@ -80,6 +90,8 @@ If you skip the push, local gws keeps working — but Infisical's synced copy go
 - **Re-authenticating without re-running `gws-push-tokens-to-infisical.sh`.** Local state gets the new token, but Infisical still has the old one — a future restore hands back a dead token. Always pair `gws auth login` with the push script.
 - **Setting `GOOGLE_WORKSPACE_CLI_CLIENT_ID` permanently in `~/.zshrc` instead of via the wrapper.** Puts the value in plaintext in your shell history and dotfiles. Use the wrapper at `config/shell/gws-env.sh`.
 - **Treating `~/Library/Application Support/gws/` as disposable.** It's the only live copy of your auth state; Infisical holds a synced backup only as current as the last successful push. Check `system/log/gws-push.log` before wiping it.
+- **Passing a request body in `--params`.** `--params` is query-only; the body goes in `--json` (and media in `--upload`). Body-in-`--params` returns `411 Length Required`. Bit us building a Gmail draft-with-attachment on 2026-07-21.
+- **Trusting `gws auth status`/`gws auth export` as proof of auth.** They can report `storage: none` / "no encrypted credentials found" while ordinary calls authenticate fine, because the credential is stored per-account (`credentials.<b64email>.enc`) and those subcommands look at the non-account-specific path. Confirm with a real read (`gws calendar +agenda --today`) before concluding auth is broken.
 
 ## Detection clause
 
