@@ -15,6 +15,14 @@
 # is invoked, never for routine calls (requires an active `infisical login`
 # user session).
 #
+# Multi-org (2026-07-24): each Google Workspace org has its own OAuth app in
+# Infisical, keyed by the uppercase first label of the account's email domain:
+#   khalil@benali.com     → PERSONAL_GOOGLE_WORKSPACE_BENALI_CLIENT_ID / _CLIENT_SECRET
+#   khalil@demandcast.co  → PERSONAL_GOOGLE_WORKSPACE_DEMANDCAST_CLIENT_ID / _CLIENT_SECRET
+# The wrapper derives the suffix from the `--account` argument to `gws auth
+# login` (falling back to the operator-profile `email:` when --account is
+# omitted) and injects that org's client credentials.
+#
 # After every `gws auth login`, also re-run:
 #   bash /path/to/Workdesk-OS/config/scripts/gws-push-tokens-to-infisical.sh
 # so Infisical's stored copy stays current.
@@ -57,10 +65,37 @@ gws() {
       echo "Run config/scripts/bootstrap-infisical.sh first." >&2
       return 1
     fi
+    # Which org's OAuth app? Take the email from --account, falling back to
+    # the operator-profile `email:`. Suffix = uppercase first label of the
+    # email domain (khalil@benali.com → BENALI).
+    local __acct="" __prev="" __arg
+    for __arg in "$@"; do
+      if [[ "${__prev}" = "--account" ]]; then __acct="${__arg}"; break; fi
+      __prev="${__arg}"
+    done
+    if [[ -z "${__acct}" ]]; then
+      __acct="$(
+        awk '
+          /^---[[:space:]]*$/ { c++; if (c==1) {fm=1; next}; if (c==2) exit }
+          fm && /^email:/ {
+            sub(/^email:[[:space:]]*/, "")
+            gsub(/^"|"$/, "")
+            print; exit
+          }
+        ' "${__root}/config/operator-profile.md" 2>/dev/null
+      )"
+    fi
+    if [[ "${__acct}" != *@*.* ]]; then
+      echo "ERROR: cannot determine account email for gws auth login (pass --account EMAIL)." >&2
+      return 1
+    fi
+    local __dom="${__acct#*@}"
+    local __sfx
+    __sfx="$(printf '%s' "${__dom%%.*}" | tr '[:lower:]' '[:upper:]' | tr -cd 'A-Z0-9_')"
     /opt/homebrew/bin/infisical run \
       --projectId="${__pid}" \
       --env=prod \
-      --command="GOOGLE_WORKSPACE_CLI_CLIENT_ID=\$PERSONAL_GOOGLE_WORKSPACE_CLIENT_ID GOOGLE_WORKSPACE_CLI_CLIENT_SECRET=\$PERSONAL_GOOGLE_WORKSPACE_CLIENT_SECRET ${__real} $(printf '%q ' "$@")"
+      --command="GOOGLE_WORKSPACE_CLI_CLIENT_ID=\$PERSONAL_GOOGLE_WORKSPACE_${__sfx}_CLIENT_ID GOOGLE_WORKSPACE_CLI_CLIENT_SECRET=\$PERSONAL_GOOGLE_WORKSPACE_${__sfx}_CLIENT_SECRET ${__real} $(printf '%q ' "$@")"
     return $?
   fi
   "${__real}" "$@"

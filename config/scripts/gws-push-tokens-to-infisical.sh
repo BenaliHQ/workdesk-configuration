@@ -1,8 +1,14 @@
 #!/usr/bin/env bash
 # gws-push-tokens-to-infisical.sh — push current gws per-user state (encrypted
-# refresh token, encryption key, accounts.json) to Infisical so the next reboot
-# renders the fresh value. Idempotent: mtime markers prevent no-op pushes when
-# called from a daemon or shell wrapper after every auth.
+# refresh tokens, encryption key, accounts.json) to Infisical so the next
+# restore renders the fresh values. Idempotent: mtime markers prevent no-op
+# pushes when called from a daemon or shell wrapper after every auth.
+#
+# Multi-account (2026-07-24): every credentials.<b64-email>.enc file in the
+# gws state dir is pushed. The Infisical key suffix is the uppercase first
+# label of the account's email domain:
+#   khalil@benali.com    → PERSONAL_GWS_CREDENTIALS_BENALI_ENC_B64
+#   khalil@demandcast.co → PERSONAL_GWS_CREDENTIALS_DEMANDCAST_ENC_B64
 
 set -euo pipefail
 
@@ -10,20 +16,37 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib/operator-config.sh"
 
 ENV="prod"
 GWS_DIR="${HOME}/Library/Application Support/gws"
-ENC_FILE="${GWS_DIR}/credentials.${OPERATOR_EMAIL_B64}.enc"
 KEY_FILE="${GWS_DIR}/.encryption_key"
 ACCTS_FILE="${GWS_DIR}/accounts.json"
 LOG="${WORKDESK_ROOT}/system/log/gws-push.log"
 
 mkdir -p "$(dirname "${LOG}")"
 
-# Source files must exist (script can be called proactively, so bail quietly).
-for f in "${ENC_FILE}" "${KEY_FILE}" "${ACCTS_FILE}"; do
+# Shared state files must exist (script can be called proactively, so bail quietly).
+for f in "${KEY_FILE}" "${ACCTS_FILE}"; do
   if [[ ! -f "${f}" ]]; then
     echo "$(date -u +%FT%TZ) skip: missing ${f}" >> "${LOG}"
     exit 0
   fi
 done
+
+# Derive the Infisical key suffix from an account email: uppercase first
+# label of the domain, non-alphanumerics stripped.
+suffix_for_email() {
+  local dom="${1#*@}"
+  printf '%s' "${dom%%.*}" | tr '[:lower:]' '[:upper:]' | tr -cd 'A-Z0-9_'
+}
+
+# Decode the b64-email component of a credentials filename (padding stripped
+# by gws; restore it before decoding).
+email_from_b64() {
+  local b64="$1"
+  case $(( ${#b64} % 4 )) in
+    2) b64="${b64}==" ;;
+    3) b64="${b64}=" ;;
+  esac
+  printf '%s' "${b64}" | /usr/bin/base64 -D 2>/dev/null
+}
 
 # Auth: relies on the operator's `infisical login` user session (machine
 # identities retired 2026-07-06). If the session has expired, pushes fail and
@@ -51,6 +74,18 @@ push_if_stale() {
   unset val
 }
 
-push_if_stale "${ENC_FILE}"   "PERSONAL_GWS_CREDENTIALS_${OPERATOR_KEY_SUFFIX}_ENC_B64" base64
-push_if_stale "${KEY_FILE}"   "PERSONAL_GWS_ENCRYPTION_KEY"                              raw
-push_if_stale "${ACCTS_FILE}" "PERSONAL_GWS_ACCOUNTS_JSON"                               raw
+# Push every registered account's encrypted credential.
+for enc in "${GWS_DIR}"/credentials.*.enc; do
+  [[ -f "${enc}" ]] || continue
+  b64part="${enc##*/credentials.}"
+  b64part="${b64part%.enc}"
+  email="$(email_from_b64 "${b64part}")"
+  if [[ "${email}" != *@*.* ]]; then
+    echo "$(date -u +%FT%TZ) skip: cannot decode account email from ${enc}" >> "${LOG}"
+    continue
+  fi
+  push_if_stale "${enc}" "PERSONAL_GWS_CREDENTIALS_$(suffix_for_email "${email}")_ENC_B64" base64
+done
+
+push_if_stale "${KEY_FILE}"   "PERSONAL_GWS_ENCRYPTION_KEY" raw
+push_if_stale "${ACCTS_FILE}" "PERSONAL_GWS_ACCOUNTS_JSON"  raw

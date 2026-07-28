@@ -25,10 +25,24 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib/operator-config.sh"
 
 SCRIPT_DIR="${WORKDESK_ROOT}/config/scripts"
 GWS_DIR="${HOME}/Library/Application Support/gws"
-ENC_FILE="${GWS_DIR}/credentials.${OPERATOR_EMAIL_B64}.enc"
 KEY_FILE="${GWS_DIR}/.encryption_key"
 ACCTS_FILE="${GWS_DIR}/accounts.json"
 CLIENT_FILE="${GWS_DIR}/client_secret.json"
+
+# Infisical key suffix for an account email: uppercase first label of the
+# domain (khalil@benali.com → BENALI, khalil@demandcast.co → DEMANDCAST).
+# One OAuth app + one credentials key per Workspace org.
+suffix_for_email() {
+  local dom="${1#*@}"
+  printf '%s' "${dom%%.*}" | tr '[:lower:]' '[:upper:]' | tr -cd 'A-Z0-9_'
+}
+
+# gws names credential files credentials.<b64-email-no-padding>.enc
+b64_for_email() {
+  printf '%s' "$1" | /usr/bin/base64 | tr -d '=\n'
+}
+
+PRIMARY_SUFFIX="$(suffix_for_email "${OPERATOR_EMAIL}")"
 
 export INFISICAL_DISABLE_UPDATE_CHECK=true
 
@@ -54,7 +68,8 @@ fetch_secret() {
 }
 
 have_local_auth() {
-  [[ -f "${ENC_FILE}" && -f "${KEY_FILE}" && -f "${ACCTS_FILE}" ]]
+  [[ -f "${KEY_FILE}" && -f "${ACCTS_FILE}" ]] || return 1
+  compgen -G "${GWS_DIR}/credentials.*.enc" >/dev/null
 }
 
 # ─── Step 1: Preflight ──────────────────────────────────────────────────────
@@ -144,26 +159,43 @@ if have_local_auth; then
   ok "existing local gws auth state found"
 else
   say "  No local auth state — trying to restore the synced copy from Infisical."
-  enc_b64="$(fetch_secret "PERSONAL_GWS_CREDENTIALS_${OPERATOR_KEY_SUFFIX}_ENC_B64" || true)"
   enc_key="$(fetch_secret "PERSONAL_GWS_ENCRYPTION_KEY" || true)"
   accounts="$(fetch_secret "PERSONAL_GWS_ACCOUNTS_JSON" || true)"
 
-  if [[ -n "${enc_b64}" && -n "${enc_key}" && -n "${accounts}" ]]; then
-    printf '%s' "${enc_b64}" | /usr/bin/base64 -D -o "${ENC_FILE}"
+  if [[ -n "${enc_key}" && -n "${accounts}" ]]; then
     printf '%s'  "${enc_key}"  > "${KEY_FILE}"
     printf '%s\n' "${accounts}" > "${ACCTS_FILE}"
-    ok "restored encrypted credentials, encryption key, accounts.json"
+    # Restore each account listed in accounts.json from its per-org key.
+    restored=0
+    for acct_email in $(printf '%s' "${accounts}" | /usr/bin/python3 -c 'import json,sys; print("\n".join(json.load(sys.stdin).get("accounts", {}).keys()))' 2>/dev/null); do
+      acct_sfx="$(suffix_for_email "${acct_email}")"
+      enc_b64="$(fetch_secret "PERSONAL_GWS_CREDENTIALS_${acct_sfx}_ENC_B64" || true)"
+      if [[ -n "${enc_b64}" ]]; then
+        printf '%s' "${enc_b64}" | /usr/bin/base64 -D -o "${GWS_DIR}/credentials.$(b64_for_email "${acct_email}").enc"
+        ok "restored credentials for ${acct_email}"
+        restored=$((restored + 1))
+      else
+        warn "no synced credentials for ${acct_email} (PERSONAL_GWS_CREDENTIALS_${acct_sfx}_ENC_B64) — re-auth with: gws auth login --account ${acct_email}"
+      fi
+    done
+    if (( restored == 0 )); then
+      warn "no account credentials could be restored — a browser login is needed."
+      HAVE_NO_AUTH=1
+    fi
   else
     warn "Infisical has no synced gws state yet — a browser login is needed."
     HAVE_NO_AUTH=1
   fi
 fi
 
-# client_secret.json — rebuilt from the three OAuth-app keys whenever missing.
+# client_secret.json — rebuilt from the primary org's OAuth-app keys whenever
+# missing. (Each account's encrypted credential carries its own client, so the
+# client file only matters for fresh `gws auth login` runs — the shell wrapper
+# injects the right org's client per --account for those.)
 if [[ ! -f "${CLIENT_FILE}" ]]; then
-  g_cid="$(fetch_secret PERSONAL_GOOGLE_WORKSPACE_CLIENT_ID || true)"
-  g_pid="$(fetch_secret PERSONAL_GOOGLE_WORKSPACE_PROJECT_ID || true)"
-  g_sec="$(fetch_secret PERSONAL_GOOGLE_WORKSPACE_CLIENT_SECRET || true)"
+  g_cid="$(fetch_secret "PERSONAL_GOOGLE_WORKSPACE_${PRIMARY_SUFFIX}_CLIENT_ID" || true)"
+  g_pid="$(fetch_secret "PERSONAL_GOOGLE_WORKSPACE_${PRIMARY_SUFFIX}_PROJECT_ID" || true)"
+  g_sec="$(fetch_secret "PERSONAL_GOOGLE_WORKSPACE_${PRIMARY_SUFFIX}_CLIENT_SECRET" || true)"
   if [[ -n "${g_cid}" && -n "${g_pid}" && -n "${g_sec}" ]]; then
     cat > "${CLIENT_FILE}" <<JSON
 {
@@ -178,16 +210,16 @@ if [[ ! -f "${CLIENT_FILE}" ]]; then
   }
 }
 JSON
-    ok "rebuilt client_secret.json from Infisical OAuth-app keys"
+    ok "rebuilt client_secret.json from Infisical OAuth-app keys (${PRIMARY_SUFFIX})"
   else
-    warn "PERSONAL_GOOGLE_WORKSPACE_* keys not all present in Infisical — client_secret.json not built"
+    warn "PERSONAL_GOOGLE_WORKSPACE_${PRIMARY_SUFFIX}_* keys not all present in Infisical — client_secret.json not built"
     say  "    Store CLIENT_ID / PROJECT_ID / CLIENT_SECRET in your personal project, then re-run."
   fi
   unset g_cid g_pid g_sec
 fi
 
 # Lock down perms on everything sensitive.
-for f in "${KEY_FILE}" "${ACCTS_FILE}" "${CLIENT_FILE}" "${ENC_FILE}"; do
+for f in "${KEY_FILE}" "${ACCTS_FILE}" "${CLIENT_FILE}" "${GWS_DIR}"/credentials.*.enc; do
   [[ -f "${f}" ]] && chmod 600 "${f}"
 done
 

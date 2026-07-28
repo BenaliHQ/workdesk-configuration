@@ -41,6 +41,7 @@ Idempotent — re-run any time (including after a session expires) to recover.
 | `bash config/scripts/infisical-names.sh` | List secret NAMES from your personal project without leaking values into the shell | `bash config/scripts/infisical-names.sh` |
 | `infisical secrets get <KEY> --projectId=... --env=prod --plain` | Fetch one secret value, no table formatting | `infisical secrets get PERSONAL_STRIPE_API_KEY --projectId=$INFISICAL_PERSONAL_PROJECT_ID --env=prod --plain </dev/null` |
 | `infisical secrets set <KEY>=<value> --projectId=... --env=prod` | Create or update a secret | `infisical secrets set PERSONAL_STRIPE_API_KEY=rk_live_... --projectId=... --env=prod` |
+| `infisical secrets delete <KEY> --type shared --projectId=... --env=prod` | Delete a secret — `--type shared` is REQUIRED (see Common Mistakes) | `infisical secrets delete PERSONAL_OLD_KEY --type shared --projectId=... --env=prod` |
 | `infisical run --projectId=... --env=prod -- <command>` | Inject every secret as env vars into a process | `infisical run --projectId=$INFISICAL_PERSONAL_PROJECT_ID --env=prod -- claude` |
 | `infisical scan git-changes` | Scan repo / diff for leaked secrets | `infisical scan git-changes` |
 
@@ -96,6 +97,7 @@ For CLIs that authenticate via OAuth and keep their state in files on disk (gws,
 - **Running `infisical secrets` (full listing) in an agent session.** The default CLI output renders a table with values inline — every secret value lands in the agent's context. For presence checks, use `config/scripts/infisical-names.sh`. For reading one key, use `infisical secrets get <KEY> --projectId=... --env=... --plain`. Never use the bare `infisical secrets` command when an agent (or anything that retains output) is watching.
 - **Scripted calls without `</dev/null`.** An expired session turns the call into an interactive wizard that hangs the script or sprays ANSI codes into captured output. Redirect stdin from `/dev/null` so it fails fast.
 - **Creating a machine identity because a tutorial suggested it.** WorkDesk doesn't use them; see Authentication above.
+- **`infisical secrets delete` without `--type shared`.** The delete subcommand defaults to `--type personal`, but secrets created with `infisical secrets set` are shared-type — so the delete fails with a generic "Unable to complete your delete request" that looks like a permissions or network problem. Pass `--type shared` explicitly. (Bit us 2026-07-24 retiring renamed keys.)
 - **Flat naming without the `CLIENT_/PERSONAL_` prefix.** Twenty keys deep, you can't tell what belongs to whom.
 - **Treating offboarding revocation as sufficient.** When a contractor leaves, audit-log every key they had read access to and **rotate them all**. Revocation alone is theater.
 - **Big-bang migration of all existing `.env` keys.** Migrate one client end-to-end first to validate the pattern. Backfill the rest as engagements touch them.
