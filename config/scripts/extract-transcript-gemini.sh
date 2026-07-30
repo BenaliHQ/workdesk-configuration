@@ -23,12 +23,12 @@
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=config/scripts/lib/resolve-secret.sh
+source "$SCRIPT_DIR/lib/resolve-secret.sh"
 VAULT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 SKILL_DIR="$VAULT_ROOT/.claude/skills/process-transcripts"
 PROMPT_FILE="$SKILL_DIR/prompt.txt"
 SCHEMA_FILE="$SKILL_DIR/schema.json"
-PERSONAL_PROJ_ID="df755029-00a8-4374-b195-43eeb3268430"
-
 MODEL="gemini-3.1-flash-lite"
 TRANSCRIPT=""
 
@@ -55,15 +55,9 @@ if [[ ! -r "$SCHEMA_FILE" ]]; then
   exit 2
 fi
 
-# Auth: the operator's `infisical login` user session (or an INFISICAL_TOKEN
-# already exported by the caller). </dev/null on the fetch below keeps the CLI
-# from dropping into its interactive wizard in non-interactive contexts
-# (cron, agents) — it fails fast instead, and the error path says to re-login.
-
-GEMINI_API_KEY="$(infisical secrets get PERSONAL_GEMINI_API_KEY \
-  --projectId="$PERSONAL_PROJ_ID" --env=prod --plain </dev/null 2>/dev/null)"
+GEMINI_API_KEY="$(wd_resolve_secret PERSONAL_GEMINI_API_KEY 2>/dev/null)" || true
 if [[ -z "$GEMINI_API_KEY" || "${GEMINI_API_KEY:0:6}" != "AIzaSy" ]]; then
-  echo "ERROR: PERSONAL_GEMINI_API_KEY not in Infisical (or wrong shape) — run 'infisical login' (user sessions expire every few weeks)" >&2
+  echo "ERROR: No Gemini API key available. Either export PERSONAL_GEMINI_API_KEY, or configure Infisical (bash config/scripts/bootstrap-infisical.sh) and store the key there." >&2
   exit 2
 fi
 
