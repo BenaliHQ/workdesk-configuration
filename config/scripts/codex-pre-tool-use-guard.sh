@@ -75,7 +75,7 @@ print(json.dumps({'hookSpecificOutput':{
 # command reference `personal` as a path component, with a mutation shape?
 if [ -n "$CMD" ]; then
   # Does the command reference `personal` as a standalone path component
-  # (not `personal-khalil`, `infisical-personal-foo`, etc.)?
+  # (not `personal-example`, `infisical-personal-foo`, etc.)?
   if printf '%s' "$CMD" | grep -Eq '(^|[^A-Za-z0-9_-])personal(/|$|[^A-Za-z0-9_-])'; then
     case "$TOOL" in
       apply_patch|Edit|Write|MultiEdit|NotebookEdit)
@@ -155,6 +155,14 @@ done
 # ============================================================================
 # 4. GUARD — denied unless retried with the confirmation marker
 # ============================================================================
+home_re="$(printf '%s' "$HOME" | sed 's/[][\\.^$*+?(){}|]/\\&/g')"
+protected_roots_re="(${home_re}/Workdesk-OS|~/Workdesk-OS|${home_re}/Projects|~/Projects|${home_re}/code|~/code"
+if [[ -n "${CLAUDE_PROJECT_DIR:-}" ]]; then
+  project_re="$(printf '%s' "$CLAUDE_PROJECT_DIR" | sed 's/[][\\.^$*+?(){}|]/\\&/g')"
+  protected_roots_re+="|${project_re}"
+fi
+protected_roots_re+=")"
+
 GUARD_PATTERNS=(
   '(npx[[:space:]]+(--yes[[:space:]]+|-y[[:space:]]+)?)?skills[[:space:]]+remove[[:space:]].*(--all|-s[[:space:]]+["'\''"]?\*|--skill[[:space:]]+["'\''"]?\*)'
   'git[[:space:]]+push[[:space:]].*(--force([[:space:]]|$)|-f([[:space:]]|$))'
@@ -164,15 +172,12 @@ GUARD_PATTERNS=(
   'git[[:space:]]+branch[[:space:]]+-D[[:space:]]'
   'git[[:space:]]+update-ref[[:space:]]+-d'
   'git[[:space:]]+tag[[:space:]]+-d'
-  'rm[[:space:]]+-[rRf]+[[:space:]]+.*(/Users/khalilbenali/Workdesk-OS|~/Workdesk-OS)'
-  'rm[[:space:]]+-[rRf]+[[:space:]]+.*(/Users/khalilbenali/Projects|~/Projects)'
-  'rm[[:space:]]+-[rRf]+[[:space:]]+.*(/Users/khalilbenali/code|~/code)'
-  'rm[[:space:]]+-[rRf]+[[:space:]]+.*khalils-vault'
-  'find[[:space:]]+.*(/Users/khalilbenali/(Workdesk-OS|Projects|code|khalils-vault)).*-delete'
+  "rm[[:space:]]+-[rRf]+[[:space:]]+.*${protected_roots_re}"
+  "find[[:space:]]+.*${protected_roots_re}.*-delete"
   'xargs[[:space:]]+(-[0-9rIin]+[[:space:]]+)*rm'
-  '>[[:space:]]*(~/.claude/settings\.json|/Users/khalilbenali/.claude/settings\.json)'
-  '>[[:space:]]*(~/.claude/CLAUDE\.md|/Users/khalilbenali/.claude/CLAUDE\.md)'
-  '>[[:space:]]*(~/.codex/AGENTS\.md|/Users/khalilbenali/.codex/AGENTS\.md)'
+  ">[[:space:]]*(~/.claude/settings\\.json|${home_re}/\\.claude/settings\\.json)"
+  ">[[:space:]]*(~/.claude/CLAUDE\\.md|${home_re}/\\.claude/CLAUDE\\.md)"
+  ">[[:space:]]*(~/.codex/AGENTS\\.md|${home_re}/\\.codex/AGENTS\\.md)"
 )
 for pat in "${GUARD_PATTERNS[@]}"; do
   if printf '%s' "$CMD" | grep -qE "$pat"; then

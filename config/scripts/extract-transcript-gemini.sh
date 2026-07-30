@@ -69,6 +69,15 @@ fi
 
 # Read prompt + schema + transcript body (skip frontmatter)
 PROMPT_BODY="$(cat "$PROMPT_FILE")"
+operator_name="$(
+  OPERATOR_CONFIG_LENIENT=1
+  if source "$SCRIPT_DIR/lib/operator-config.sh" 2>/dev/null; then
+    printf '%s' "${OPERATOR_NAME:-}"
+  fi
+)"
+if [[ -n "$operator_name" ]]; then
+  PROMPT_BODY+=$'\n'"The operator's name is: ${operator_name}."
+fi
 SCHEMA_BODY="$(cat "$SCHEMA_FILE")"
 TRANSCRIPT_BODY="$(awk '/^---$/{c++; next} c>=2 {print}' "$TRANSCRIPT")"
 

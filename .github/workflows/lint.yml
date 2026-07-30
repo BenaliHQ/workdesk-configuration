@@ -57,6 +57,9 @@ jobs:
             tests/*.sh \
             scripts/*.sh
 
+      - name: Reject owner-specific values in shipped config
+        run: tests/genericity-check.sh
+
   settings-schema:
     runs-on: ubuntu-latest
     steps:

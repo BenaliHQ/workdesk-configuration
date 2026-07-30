@@ -42,7 +42,7 @@ When referencing vault files in terminal output (summaries, reports, audit resul
 
 The `vault=` parameter must match the Obsidian display name registered for the vault you are currently operating in — NOT a hardcoded value. To find it:
 
-1. **Default rule:** the vault name is the basename of the current working directory (e.g., operating in `/Users/you/your-vault` → `vault=your-vault`).
+1. **Default rule:** the vault name is the basename of the current working directory (e.g., operating in `~/your-vault` → `vault=your-vault`).
 2. **Authoritative source if needed:** Obsidian's vault registry at `~/Library/Application Support/obsidian/obsidian.json` maps vault hash → `path`. The display name is the path's basename.
 3. **Never hardcode** a specific vault name in this rule's examples or in any output. The operating vault changes by context.
 

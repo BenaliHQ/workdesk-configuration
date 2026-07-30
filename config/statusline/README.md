@@ -11,7 +11,7 @@ A modular, configurable status line for Claude Code.
 
 **Line 2** (environment):
 ```
-── 5h:12% | 7d:3% | 13 skills | 2 mcp | khalils-vault
+── 5h:12% | 7d:3% | 13 skills | 2 mcp | my-vault
 ```
 
 **Line 3** (optional, full mode only):
