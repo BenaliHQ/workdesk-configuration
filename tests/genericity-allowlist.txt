@@ -1,0 +1,2 @@
+supercut.ai/share/benali/ # product tutorial links
+BenaliHQ/workdesk-configuration # functional repo slug

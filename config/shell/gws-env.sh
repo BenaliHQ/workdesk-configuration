@@ -17,8 +17,8 @@
 #
 # Multi-org (2026-07-24): each Google Workspace org has its own OAuth app in
 # Infisical, keyed by the uppercase first label of the account's email domain:
-#   khalil@benali.com     → PERSONAL_GOOGLE_WORKSPACE_BENALI_CLIENT_ID / _CLIENT_SECRET
-#   khalil@demandcast.co  → PERSONAL_GOOGLE_WORKSPACE_DEMANDCAST_CLIENT_ID / _CLIENT_SECRET
+#   alex@example.com           → PERSONAL_GOOGLE_WORKSPACE_EXAMPLE_CLIENT_ID / _CLIENT_SECRET
+#   alex@client-co.example     → PERSONAL_GOOGLE_WORKSPACE_CLIENTCO_CLIENT_ID / _CLIENT_SECRET
 # The wrapper derives the suffix from the `--account` argument to `gws auth
 # login` (falling back to the operator-profile `email:` when --account is
 # omitted) and injects that org's client credentials.
@@ -67,7 +67,7 @@ gws() {
     fi
     # Which org's OAuth app? Take the email from --account, falling back to
     # the operator-profile `email:`. Suffix = uppercase first label of the
-    # email domain (khalil@benali.com → BENALI).
+    # email domain (alex@example.com → EXAMPLE).
     local __acct="" __prev="" __arg
     for __arg in "$@"; do
       if [[ "${__prev}" = "--account" ]]; then __acct="${__arg}"; break; fi

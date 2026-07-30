@@ -30,7 +30,7 @@ ACCTS_FILE="${GWS_DIR}/accounts.json"
 CLIENT_FILE="${GWS_DIR}/client_secret.json"
 
 # Infisical key suffix for an account email: uppercase first label of the
-# domain (khalil@benali.com → BENALI, khalil@demandcast.co → DEMANDCAST).
+# domain (alex@example.com → EXAMPLE, alex@client-co.example → CLIENTCO).
 # One OAuth app + one credentials key per Workspace org.
 suffix_for_email() {
   local dom="${1#*@}"

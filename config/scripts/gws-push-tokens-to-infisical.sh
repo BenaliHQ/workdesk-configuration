@@ -7,8 +7,8 @@
 # Multi-account (2026-07-24): every credentials.<b64-email>.enc file in the
 # gws state dir is pushed. The Infisical key suffix is the uppercase first
 # label of the account's email domain:
-#   khalil@benali.com    → PERSONAL_GWS_CREDENTIALS_BENALI_ENC_B64
-#   khalil@demandcast.co → PERSONAL_GWS_CREDENTIALS_DEMANDCAST_ENC_B64
+#   alex@example.com           → PERSONAL_GWS_CREDENTIALS_EXAMPLE_ENC_B64
+#   alex@client-co.example     → PERSONAL_GWS_CREDENTIALS_CLIENTCO_ENC_B64
 
 set -euo pipefail
 
