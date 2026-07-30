@@ -4,7 +4,7 @@
 # Pure ETL. No AI tokens. Idempotent (skips notes already pulled, by
 # granola-note-id across system/intake/ and system/transcripts/).
 #
-# Reads the Granola public API key from Infisical (PERSONAL_GRANOLA_API_KEY
+# Reads the Granola public API key from the environment or Infisical (PERSONAL_GRANOLA_API_KEY
 # in the operator's personal Infisical project). For each note in the lookback window, fetches
 # the verbatim transcript via /v1/notes/{id}?include=transcript and writes a
 # markdown file conforming to the transcript source seed.
@@ -27,13 +27,13 @@ set -uo pipefail
 
 # ── Constants ────────────────────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=config/scripts/lib/resolve-secret.sh
+source "$SCRIPT_DIR/lib/resolve-secret.sh"
 VAULT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 INTAKE_DIR="$VAULT_ROOT/system/intake"
 TRANSCRIPTS_DIR="$VAULT_ROOT/system/transcripts"
 STATE_FILE="$VAULT_ROOT/config/state/pull-granola.json"
 LOG_FILE="$VAULT_ROOT/system/cron-pull-granola.log"
-PERSONAL_PROJ_ID="df755029-00a8-4374-b195-43eeb3268430"
-INFISICAL_ENV="prod"
 GRANOLA_API="https://public-api.granola.ai/v1"
 SOURCE_FORMAT="granola-public-api"
 
@@ -170,21 +170,10 @@ fi
 mkdir -p "$INTAKE_DIR" "$(dirname "$STATE_FILE")"
 
 # ── Resolve API key (minimum-privilege — fetch just this one) ───────────────
-if ! command -v infisical >/dev/null 2>&1; then
-  log "ERROR  infisical CLI not on PATH"
-  exit 2
-fi
-
-# Auth: the operator's `infisical login` user session (or an INFISICAL_TOKEN
-# already exported by the caller). </dev/null on the fetch below keeps the CLI
-# from dropping into its interactive wizard in non-interactive contexts
-# (cron, agents) — it fails fast instead, and the error path says to re-login.
-
-GRANOLA_API_KEY="$(infisical secrets get PERSONAL_GRANOLA_API_KEY \
-  --projectId="$PERSONAL_PROJ_ID" --env="$INFISICAL_ENV" --plain </dev/null 2>/dev/null)" || true
+GRANOLA_API_KEY="$(wd_resolve_secret PERSONAL_GRANOLA_API_KEY 2>/dev/null)" || true
 
 if [[ -z "$GRANOLA_API_KEY" || "${GRANOLA_API_KEY:0:4}" != "grn_" ]]; then
-  log "ERROR  could not read PERSONAL_GRANOLA_API_KEY from Infisical (or wrong shape) — run \`infisical login\` (user sessions expire every few weeks)"
+  log "ERROR  No Granola API key available. Either export PERSONAL_GRANOLA_API_KEY, or configure Infisical (bash config/scripts/bootstrap-infisical.sh) and store the key there."
   # Update state with failure
   prev_fails="$(read_state_field "consecutive_failures" "0")"
   new_fails=$(( prev_fails + 1 ))
