@@ -66,6 +66,31 @@ Generic write calls (`drafts create`, `messages send`, `messages insert`) need t
 
 Putting the body in `--params` sends an empty body and Google returns **`411 Length Required`**. To draft a reply with an attachment: build a multipart MIME message (text part + attachment part) in code, base64url-encode it as `raw`, set `threadId` (plus `In-Reply-To`/`References` headers) for threading, and pass the whole Draft resource via `--json`. Drafting is always allowed; the *send* stays gated on the operator's code phrase (see the outbound-communications rule).
 
+### Drafts and the operator's signature
+
+**A draft created through the API never carries the operator's Gmail signature.** Gmail applies signatures client-side, in the compose window — an API draft is a fully-formed message, so the compose window never runs. Every agent-authored draft therefore arrives unsigned unless the signature is added deliberately, which reads as sloppy on client-facing mail.
+
+Use `config/scripts/gmail-draft.sh <spec.json>` rather than hand-building the MIME:
+
+```json
+{
+  "to": "Someone <someone@example.com>",
+  "subject": "Re: Thing",
+  "plain": "plain-text body, no signature",
+  "html": "<div dir=\"ltr\">body html, no signature</div>",
+  "cc": "optional",
+  "threadId": "optional — threaded reply",
+  "inReplyTo": "optional — Message-ID being replied to",
+  "references": "optional — space-separated Message-ID chain"
+}
+```
+
+Write the body **without** a signature; the script appends one to both MIME parts — the operator's real signature HTML on the `text/html` part, and a tag-stripped equivalent on `text/plain` for clients that block HTML.
+
+The signature comes from `gws gmail users settings sendAs list` (the `isDefault` entry's `signature` field), read **live on every draft and never cached** — so an operator editing their signature in Gmail settings sees it reflected immediately with no vault change.
+
+The script only ever drafts. Sending stays gated on the operator's code phrase.
+
 ### Large bodies and array params (limits learned 2026-07-24, Gmail message migration)
 
 - **`--json` bodies are argv-limited** (~1 MB total on macOS). A Gmail `messages.import`/`insert` whose base64url `raw` exceeds that silently fails (empty output — the exec hits `E2BIG`). For big messages, hit the upload endpoint directly with `curl`: `POST https://gmail.googleapis.com/upload/gmail/v1/users/me/messages/import?uploadType=media&internalDateSource=dateHeader` with `Content-Type: message/rfc822` and the decoded `.eml` as the body, then apply labels with a `messages.modify` call. Don't use gws `--upload` for this — it sends `application/octet-stream`, which Gmail rejects.
