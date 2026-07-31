@@ -33,6 +33,8 @@ That script:
 
 Idempotent — re-run any time to repair drift or finish a two-pass first-auth.
 
+It also **self-heals a stale `client_secret.json`**: if the file's `client_id` disagrees with Infisical's `PERSONAL_GOOGLE_WORKSPACE_CLIENT_ID`, the script backs the file up alongside itself (`client_secret.json.stale-<epoch>`) and rebuilds it. This matters because ordinary gws calls refresh their access token *through that file* — so a client_id that doesn't match the client the stored refresh token was minted under makes Google reject every background refresh with `invalid_rapt`, while an interactive `gws auth login` still succeeds (the wrapper injects the correct value from Infisical). The symptom is auth that works right after you log in and breaks again by the next morning. If the on-disk client was a deliberate migration, update the `PERSONAL_GOOGLE_WORKSPACE_*` keys in Infisical instead and re-run. If Infisical is unreachable the check is skipped — a stale file is never clobbered on a failed fetch.
+
 ## Where state lives
 
 `gws` keeps OAuth state on disk (FileVault covers encryption at rest; sensitive files are `chmod 600`). **Two layouts exist across gws versions, and the scripts auto-detect which is present.**

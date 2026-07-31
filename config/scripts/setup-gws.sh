@@ -211,9 +211,40 @@ else
   unset enc_b64
 fi
 
-# client_secret.json — rebuilt from the three OAuth-app keys whenever missing.
+# client_secret.json — rebuilt from the three OAuth-app keys when the file is MISSING,
+# or when its client_id disagrees with Infisical.
+#
+# The stale-but-present case is the dangerous one and used to be skipped entirely.
+# Ordinary gws calls refresh their access token through this file, so a client_id that
+# doesn't match the client the stored refresh token was minted under makes Google reject
+# every background refresh (`invalid_rapt`) — while an interactive `gws auth login` still
+# succeeds, because the login wrapper injects the correct value from Infisical. The result
+# is auth that works when you re-login and breaks again by the next morning, with nothing
+# obviously wrong. Infisical is the source of truth for the OAuth app, so a divergent
+# on-disk file is rebuilt (previous copy kept alongside it).
+g_cid="$(fetch_secret PERSONAL_GOOGLE_WORKSPACE_CLIENT_ID || true)"
+client_rebuild=0
+
 if [[ ! -f "${CLIENT_FILE}" ]]; then
-  g_cid="$(fetch_secret PERSONAL_GOOGLE_WORKSPACE_CLIENT_ID || true)"
+  client_rebuild=1
+elif [[ -n "${g_cid}" ]]; then
+  disk_cid="$(sed -n 's/.*"client_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' \
+                "${CLIENT_FILE}" 2>/dev/null | head -1)"
+  if [[ -n "${disk_cid}" && "${disk_cid}" != "${g_cid}" ]]; then
+    client_bak="${CLIENT_FILE}.stale-$(date +%s)"
+    cp -p "${CLIENT_FILE}" "${client_bak}"
+    chmod 600 "${client_bak}"
+    warn "client_secret.json client_id (${disk_cid%%-*}…) does not match Infisical (${g_cid%%-*}…)"
+    say  "    This silently breaks background token refresh — rebuilding from Infisical."
+    say  "    Previous file kept at ${client_bak}"
+    say  "    (If the on-disk client was a deliberate migration, update the"
+    say  "     PERSONAL_GOOGLE_WORKSPACE_* keys in Infisical instead and re-run.)"
+    client_rebuild=1
+  fi
+  unset disk_cid
+fi
+
+if (( client_rebuild )); then
   g_pid="$(fetch_secret PERSONAL_GOOGLE_WORKSPACE_PROJECT_ID || true)"
   g_sec="$(fetch_secret PERSONAL_GOOGLE_WORKSPACE_CLIENT_SECRET || true)"
   if [[ -n "${g_cid}" && -n "${g_pid}" && -n "${g_sec}" ]]; then
@@ -235,8 +266,9 @@ JSON
     warn "PERSONAL_GOOGLE_WORKSPACE_* keys not all present in Infisical — client_secret.json not built"
     say  "    Store CLIENT_ID / PROJECT_ID / CLIENT_SECRET in your personal project, then re-run."
   fi
-  unset g_cid g_pid g_sec
+  unset g_pid g_sec
 fi
+unset g_cid client_rebuild
 
 # Lock down perms on everything sensitive.
 for f in "${KEY_FILE}" "${ACCTS_FILE}" "${CLIENT_FILE}" "${ENC_FILE}"; do
