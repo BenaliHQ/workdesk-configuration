@@ -24,25 +24,31 @@ set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/operator-config.sh"
 
 SCRIPT_DIR="${WORKDESK_ROOT}/config/scripts"
-GWS_DIR="${HOME}/Library/Application Support/gws"
-KEY_FILE="${GWS_DIR}/.encryption_key"
-ACCTS_FILE="${GWS_DIR}/accounts.json"
+XDG_DIR="${HOME}/.config/gws"
+LEGACY_DIR="${HOME}/Library/Application Support/gws"
+
+# Layout: honor existing legacy state if present; otherwise use the modern xdg
+# layout (~/.config/gws), which current gws (~0.22+) uses and where a fresh
+# restore should land. (xdg keeps the encryption key in the macOS Keychain,
+# service "gws-cli", not in a .encryption_key file; and a single credentials.enc
+# with no accounts.json.)
+if [[ -f "${LEGACY_DIR}/credentials.${OPERATOR_EMAIL_B64}.enc" || -f "${LEGACY_DIR}/.encryption_key" ]]; then
+  LAYOUT="legacy"
+  GWS_DIR="${LEGACY_DIR}"
+  ENC_FILE="${GWS_DIR}/credentials.${OPERATOR_EMAIL_B64}.enc"
+  KEY_FILE="${GWS_DIR}/.encryption_key"
+  ACCTS_FILE="${GWS_DIR}/accounts.json"
+else
+  LAYOUT="xdg"
+  GWS_DIR="${XDG_DIR}"
+  ENC_FILE="${GWS_DIR}/credentials.enc"
+  TZ_FILE="${GWS_DIR}/account_timezone"
+  # Legacy-only files; define empty so the perms-lockdown loop (which references
+  # them unconditionally) safely skips them under `set -u` on the xdg layout.
+  KEY_FILE=""
+  ACCTS_FILE=""
+fi
 CLIENT_FILE="${GWS_DIR}/client_secret.json"
-
-# Infisical key suffix for an account email: uppercase first label of the
-# domain (alex@example.com → EXAMPLE, alex@client-co.example → CLIENTCO).
-# One OAuth app + one credentials key per Workspace org.
-suffix_for_email() {
-  local dom="${1#*@}"
-  printf '%s' "${dom%%.*}" | tr '[:lower:]' '[:upper:]' | tr -cd 'A-Z0-9_'
-}
-
-# gws names credential files credentials.<b64-email-no-padding>.enc
-b64_for_email() {
-  printf '%s' "$1" | /usr/bin/base64 | tr -d '=\n'
-}
-
-PRIMARY_SUFFIX="$(suffix_for_email "${OPERATOR_EMAIL}")"
 
 export INFISICAL_DISABLE_UPDATE_CHECK=true
 
@@ -68,8 +74,12 @@ fetch_secret() {
 }
 
 have_local_auth() {
-  [[ -f "${KEY_FILE}" && -f "${ACCTS_FILE}" ]] || return 1
-  compgen -G "${GWS_DIR}/credentials.*.enc" >/dev/null
+  if [[ "${LAYOUT}" == "xdg" ]]; then
+    # Existence check on the Keychain item does NOT prompt (only -w does).
+    [[ -f "${ENC_FILE}" ]] && /usr/bin/security find-generic-password -s gws-cli >/dev/null 2>&1
+  else
+    [[ -f "${ENC_FILE}" && -f "${KEY_FILE}" && -f "${ACCTS_FILE}" ]]
+  fi
 }
 
 # ─── Step 1: Preflight ──────────────────────────────────────────────────────
@@ -93,7 +103,10 @@ fi
 # (cleaner upgrade path, no node runtime needed), then npm as a fallback.
 # (Specifically AVOID `brew install gws` — that's an unrelated git-workspaces
 # tool by streakycobra. The Google CLI's brew formula is `googleworkspace-cli`.)
-if command -v gws >/dev/null 2>&1 && gws --help 2>&1 | grep -qi 'google workspace'; then
+# NB: full-read grep (no -q). Under `set -o pipefail`, `grep -q` exits on first
+# match and SIGPIPEs `gws --help`, which pipefail then reports as a failed
+# pipeline — misflagging a valid CLI as "a different tool named gws".
+if command -v gws >/dev/null 2>&1 && gws --help 2>&1 | grep -i 'google workspace' >/dev/null; then
   ok "gws CLI present ($(gws --version 2>&1 | head -1 || echo 'version unknown'))"
 elif command -v gws >/dev/null 2>&1; then
   err "A different tool named 'gws' is on PATH at $(command -v gws)."
@@ -159,43 +172,50 @@ if have_local_auth; then
   ok "existing local gws auth state found"
 else
   say "  No local auth state — trying to restore the synced copy from Infisical."
-  enc_key="$(fetch_secret "PERSONAL_GWS_ENCRYPTION_KEY" || true)"
-  accounts="$(fetch_secret "PERSONAL_GWS_ACCOUNTS_JSON" || true)"
+  mkdir -p "${GWS_DIR}"; chmod 700 "${GWS_DIR}"
+  enc_b64="$(fetch_secret "PERSONAL_GWS_CREDENTIALS_${OPERATOR_KEY_SUFFIX}_ENC_B64" || true)"
 
-  if [[ -n "${enc_key}" && -n "${accounts}" ]]; then
-    printf '%s'  "${enc_key}"  > "${KEY_FILE}"
-    printf '%s\n' "${accounts}" > "${ACCTS_FILE}"
-    # Restore each account listed in accounts.json from its per-org key.
-    restored=0
-    for acct_email in $(printf '%s' "${accounts}" | /usr/bin/python3 -c 'import json,sys; print("\n".join(json.load(sys.stdin).get("accounts", {}).keys()))' 2>/dev/null); do
-      acct_sfx="$(suffix_for_email "${acct_email}")"
-      enc_b64="$(fetch_secret "PERSONAL_GWS_CREDENTIALS_${acct_sfx}_ENC_B64" || true)"
-      if [[ -n "${enc_b64}" ]]; then
-        printf '%s' "${enc_b64}" | /usr/bin/base64 -D -o "${GWS_DIR}/credentials.$(b64_for_email "${acct_email}").enc"
-        ok "restored credentials for ${acct_email}"
-        restored=$((restored + 1))
-      else
-        warn "no synced credentials for ${acct_email} (PERSONAL_GWS_CREDENTIALS_${acct_sfx}_ENC_B64) — re-auth with: gws auth login --account ${acct_email}"
-      fi
-    done
-    if (( restored == 0 )); then
-      warn "no account credentials could be restored — a browser login is needed."
+  if [[ "${LAYOUT}" == "xdg" ]]; then
+    key_b64="$(fetch_secret "PERSONAL_GWS_ENCRYPTION_KEY_B64" || true)"
+    acct_tz="$(fetch_secret "PERSONAL_GWS_ACCOUNT_TIMEZONE" || true)"
+    if [[ -n "${enc_b64}" && -n "${key_b64}" ]]; then
+      printf '%s' "${enc_b64}" | /usr/bin/base64 -D -o "${ENC_FILE}"
+      # Restore the encryption key into the Keychain (service gws-cli). -U
+      # updates the item if it already exists. Reading (find -w) prompts; adding
+      # does not.
+      key_plain="$(printf '%s' "${key_b64}" | /usr/bin/base64 -D)"
+      /usr/bin/security add-generic-password -U -s gws-cli -a "$(whoami)" -w "${key_plain}" 2>/dev/null || \
+        warn "could not write gws-cli key to Keychain — you may need to re-auth"
+      unset key_plain
+      [[ -n "${acct_tz}" ]] && printf '%s' "${acct_tz}" > "${TZ_FILE}"
+      ok "restored credentials.enc + Keychain encryption key (+ timezone)"
+    else
+      warn "Infisical has no synced xdg gws state yet — a browser login is needed."
       HAVE_NO_AUTH=1
     fi
+    unset key_b64 acct_tz
   else
-    warn "Infisical has no synced gws state yet — a browser login is needed."
-    HAVE_NO_AUTH=1
+    enc_key="$(fetch_secret "PERSONAL_GWS_ENCRYPTION_KEY" || true)"
+    accounts="$(fetch_secret "PERSONAL_GWS_ACCOUNTS_JSON" || true)"
+    if [[ -n "${enc_b64}" && -n "${enc_key}" && -n "${accounts}" ]]; then
+      printf '%s' "${enc_b64}" | /usr/bin/base64 -D -o "${ENC_FILE}"
+      printf '%s'  "${enc_key}"  > "${KEY_FILE}"
+      printf '%s\n' "${accounts}" > "${ACCTS_FILE}"
+      ok "restored encrypted credentials, encryption key, accounts.json"
+    else
+      warn "Infisical has no synced gws state yet — a browser login is needed."
+      HAVE_NO_AUTH=1
+    fi
+    unset enc_key accounts
   fi
+  unset enc_b64
 fi
 
-# client_secret.json — rebuilt from the primary org's OAuth-app keys whenever
-# missing. (Each account's encrypted credential carries its own client, so the
-# client file only matters for fresh `gws auth login` runs — the shell wrapper
-# injects the right org's client per --account for those.)
+# client_secret.json — rebuilt from the three OAuth-app keys whenever missing.
 if [[ ! -f "${CLIENT_FILE}" ]]; then
-  g_cid="$(fetch_secret "PERSONAL_GOOGLE_WORKSPACE_${PRIMARY_SUFFIX}_CLIENT_ID" || true)"
-  g_pid="$(fetch_secret "PERSONAL_GOOGLE_WORKSPACE_${PRIMARY_SUFFIX}_PROJECT_ID" || true)"
-  g_sec="$(fetch_secret "PERSONAL_GOOGLE_WORKSPACE_${PRIMARY_SUFFIX}_CLIENT_SECRET" || true)"
+  g_cid="$(fetch_secret PERSONAL_GOOGLE_WORKSPACE_CLIENT_ID || true)"
+  g_pid="$(fetch_secret PERSONAL_GOOGLE_WORKSPACE_PROJECT_ID || true)"
+  g_sec="$(fetch_secret PERSONAL_GOOGLE_WORKSPACE_CLIENT_SECRET || true)"
   if [[ -n "${g_cid}" && -n "${g_pid}" && -n "${g_sec}" ]]; then
     cat > "${CLIENT_FILE}" <<JSON
 {
@@ -210,16 +230,16 @@ if [[ ! -f "${CLIENT_FILE}" ]]; then
   }
 }
 JSON
-    ok "rebuilt client_secret.json from Infisical OAuth-app keys (${PRIMARY_SUFFIX})"
+    ok "rebuilt client_secret.json from Infisical OAuth-app keys"
   else
-    warn "PERSONAL_GOOGLE_WORKSPACE_${PRIMARY_SUFFIX}_* keys not all present in Infisical — client_secret.json not built"
+    warn "PERSONAL_GOOGLE_WORKSPACE_* keys not all present in Infisical — client_secret.json not built"
     say  "    Store CLIENT_ID / PROJECT_ID / CLIENT_SECRET in your personal project, then re-run."
   fi
   unset g_cid g_pid g_sec
 fi
 
 # Lock down perms on everything sensitive.
-for f in "${KEY_FILE}" "${ACCTS_FILE}" "${CLIENT_FILE}" "${GWS_DIR}"/credentials.*.enc; do
+for f in "${KEY_FILE}" "${ACCTS_FILE}" "${CLIENT_FILE}" "${ENC_FILE}"; do
   [[ -f "${f}" ]] && chmod 600 "${f}"
 done
 
@@ -227,7 +247,7 @@ done
 step "4. Sync state to Infisical"
 
 if have_local_auth; then
-  if bash "${SCRIPT_DIR}/gws-push-tokens-to-infisical.sh"; then
+  if bash "${SCRIPT_DIR}/gws-push-tokens-to-infisical.sh" --include-keychain-key; then
     ok "gws state synced to Infisical"
   else
     warn "push failed — check ${WORKDESK_ROOT}/system/log/gws-push.log"
@@ -269,8 +289,8 @@ ${bold}Next steps:${rst}
   1. Append to ~/.zshrc, then open a fresh shell:
          source ${WORKDESK_ROOT}/config/shell/gws-env.sh
 
-  2. Authenticate gws (opens a browser):
-         gws auth login --account ${OPERATOR_EMAIL}
+  2. Authenticate gws (opens a browser; pick the account in-browser):
+         gws auth login
 
   3. Re-run this script — it will detect the new auth state and sync it
      to Infisical:
