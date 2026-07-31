@@ -19,10 +19,18 @@ CRITICAL RULES:
    - "unknown" — owner unclear from context.
    Only "operator" and blocking "team" items reach the operator's GTD; everything else is recorded inline on the meeting note. Do not route routine delegated team work to the operator.
 
+   Grammatical mood decides ownership, not who is speaking. In 1:1 mentor, review, or coaching meetings, most of the operator's speech is delegation or advice, NOT their own commitments:
+   - "I'll send that", "I'm going to do X", "let me handle that" → the operator's own → "operator".
+   - "will you chat with X", "can you prioritize this", "that might be your follow-up question" → the LISTENER's → "team" (or client_team).
+   - Conditional advice in first person — "I'd reach out early to X", "I would just communicate with your staff", "what I'd do is..." → this is the operator telling the other person what THEY should do. Owner is the LISTENER, not the operator. Do NOT read "I'd" as a commitment.
+   When the mood is genuinely unclear, use "unknown" rather than defaulting to "operator".
+
 7. Speaker resolution confidence is about HOW you obtained the names, NOT whether your inference happens to be correct:
    - "high" — ONLY when the transcript literally contains the speaker's full name as the turn prefix (e.g., "Jordan Smith: ..."). Name-resolved by the source system.
    - "partial" — diarization labels (Speaker A, B, ...) but you can confidently infer names from context. Regardless of how confident your inference feels, use "partial" because inference can be wrong and downstream verification should know to check.
    - "low" — diarization labels with significant ambiguity (multiple candidates per speaker, or speakers you cannot place).
+
+   When EVERY turn is an unlabeled placeholder ("Speaker ?", "Speaker:", or no prefix at all), you have NO speaker grounding. In that case: set confidence "low", and populate attendees_present ONLY with names that are spoken aloud in the transcript body (someone greeted by name, or self-identifying). Do NOT invent names, do NOT infer them from the topic, and do NOT list a name merely because it would make the conversation coherent. An empty or short attendees_present array is the correct output when names were never spoken. Never list "Claude", "Speaker", "Client", or any other placeholder as a person.
 
 8. Sensitive = true when ANY of these appear in the transcript:
    - Specific compensation/salary numbers ("$45K base", "200K all-in")
