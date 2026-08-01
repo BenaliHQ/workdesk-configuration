@@ -6,7 +6,18 @@ output-folder: intel/briefings/weekly/
 naming: "{YYYY-MM-DD}-weekly-review"
 schedule: weekly
 mandatory: true
-version: 1.0
+sources:
+  - gtd/inbox/
+  - gtd/actions/next/
+  - gtd/actions/waiting/
+  - gtd/projects/*/_status.md
+  - atlas/clients/*/projects/*/_status.md
+  - atlas/businesses/*/projects/*/_status.md
+  - atlas/meetings/ (the past week)
+  - personal/daily/ (the past week)
+  - system/events/{YYYY-MM}.md
+  - config/state/signals.json
+version: 1.1
 ---
 
 # Signal: weekly-review

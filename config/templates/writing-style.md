@@ -20,7 +20,9 @@ Global writing preferences from operator feedback. These apply across all skills
 
 ## Words and phrases to avoid
 
-*(Empty at seed. Add words the operator dislikes as they surface. The Stop hook appends `[STYLE]` entries here.)*
+*(Empty at seed. Add words the operator dislikes as they surface.)*
+
+`[STYLE]` entries land here automatically when Claude records a style correction with `config/scripts/learnings-capture.sh --tag STYLE` — see [[claude-md-coevolution]]. The capture is Claude's job in the moment, not a background process: nothing detects a correction on its own.
 
 ## Email formatting
 
@@ -105,7 +107,7 @@ Open the palette with <kbd>Cmd</kbd> + <kbd>P</kbd>. Toggle focus mode with
 
 - Before drafting external-facing content, review this file for current style guidance.
 - When the operator corrects writing style during any skill execution, the correction applies globally — not just to the current deliverable.
-- The Stop hook routes [STYLE] corrections to this file automatically.
+- When the operator corrects style, Claude records it with `config/scripts/learnings-capture.sh --skill <skill> --tag STYLE --text "..."`, which appends the entry to § Words and phrases to avoid **and** to that skill's `learnings.md`. If the same correction shows up in a second skill within 30 days, the Stop hook proposes promoting it to a rule. See [[claude-md-coevolution]].
 
 ## What NOT to do
 

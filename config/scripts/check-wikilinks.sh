@@ -32,6 +32,15 @@
 #   - */.git/*
 #   - */system/session-log/*      (historical session captures, write-once)
 #   - */system/transcripts/*      (raw inputs, write-once)
+#   - */archive/*                 (retired notes; also */_archive/*)
+#
+# Excluded-from-scanning is NOT the same as excluded-as-a-target. Everything
+# above is skipped when choosing which files to lint, but archived notes,
+# session logs, and transcripts remain valid link TARGETS — notes legitimately
+# link into them, and `source-documentation` requires Intel notes to cite their
+# session-log source. Only genuinely non-content paths (defaults/, config/source/,
+# vendor/, node_modules/, .git/, .workdesk-backups/) are excluded from the
+# target index.
 #
 # Usage:
 #   bash config/scripts/check-wikilinks.sh [-q|--quiet] <file-or-dir> [<file-or-dir> ...]
@@ -90,30 +99,40 @@ FOLDERS_FILE="$(mktemp)"
 FILES_FILE="$(mktemp)"
 trap 'rm -f "$NOTES_FILE" "$FOLDERS_FILE" "$FILES_FILE"' EXIT
 
-EXCLUDE_ARGS=(
-  -not -path '*_archive/*'
+# Two different questions, two different lists.
+#
+# NON_CONTENT_ARGS — paths that are not vault content at all. Excluded from
+# BOTH the valid-target index and the scan set.
+NON_CONTENT_ARGS=(
   -not -path '*defaults/*'
   -not -path '*config/source/*'
   -not -path '*vendor/*'
   -not -path '*node_modules/*'
   -not -path '*.git/*'
-  -not -path '*system/session-log/*'
-  -not -path '*system/transcripts/*'
   -not -path '*.workdesk-backups/*'
 )
 
-# Note basenames (markdown files in operator content)
-find "$VAULT_ROOT" -type f -name '*.md' "${EXCLUDE_ARGS[@]}" \
+# EXCLUDE_ARGS — paths that should not be LINTED, but are still perfectly
+# valid link TARGETS. Archived notes, session logs, and transcripts are
+# write-once history: nobody edits them to fix a link, but notes legitimately
+# link *into* them. `source-documentation` requires Intel notes to cite their
+# session-log source, so treating those as invalid targets would flag exactly
+# the behaviour another rule mandates.
+EXCLUDE_ARGS=(
+  "${NON_CONTENT_ARGS[@]}"
+  -not -path '*_archive/*'
+  -not -path '*/archive/*'
+  -not -path '*system/session-log/*'
+  -not -path '*system/transcripts/*'
+)
+
+# Note basenames — the valid-target index. Built from ALL vault content,
+# excluding only genuinely non-content paths.
+find "$VAULT_ROOT" -type f -name '*.md' "${NON_CONTENT_ARGS[@]}" \
   -exec basename {} .md \; | sort -u > "$NOTES_FILE"
 
-# Folder basenames — Obsidian folder-note convention
-find "$VAULT_ROOT" -type d "${EXCLUDE_ARGS[@]}" \
-  -not -path '*/_archive' \
-  -not -path '*/defaults' \
-  -not -path '*/config/source' \
-  -not -path '*/vendor' \
-  -not -path '*/node_modules' \
-  -not -path '*/.git' \
+# Folder basenames — Obsidian folder-note convention. Same reasoning.
+find "$VAULT_ROOT" -type d "${NON_CONTENT_ARGS[@]}" \
   -exec basename {} \; | sort -u > "$FOLDERS_FILE"
 
 # Collect files to scan
