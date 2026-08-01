@@ -57,6 +57,6 @@ Surface ad-hoc generation when:
 - Operator asks "what's drifting" or "audit the vault"
 - A specific failure (broken-link error in another skill) suggests a vault-wide scan would help
 
-## ## Learnings
+## Learnings
 
 (Empty.)

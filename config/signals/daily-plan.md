@@ -4,8 +4,8 @@ name: daily-plan
 shape: briefing
 output-folder: intel/briefings/daily/
 naming: "{YYYY-MM-DD}-daily-plan"
-schedule: daily
-version: 1.2
+schedule: on-demand
+version: 1.3
 ---
 
 # Signal: daily-plan
@@ -17,6 +17,23 @@ Graph-traverse from today's anchors. Two operator-configurable windows apply (se
 ## Purpose
 
 Operator opens Claude Code in the morning (or whenever they start) and the daily plan is either freshly generated or the cue to generate it.
+
+## Schedule — on-demand, deliberately
+
+This signal was declared `daily` through v1.2 and did not behave that way. It only
+produces output when the operator runs `/daily-ops`, which for a real operator
+means a few times a week at best — deep-work blocks, not a daily ritual. The
+consequence was that session entry reported `daily-plan` as a due signal on
+essentially every session, which trains the operator to skip the due-signals line
+entirely, including the times it names something that genuinely needs attention.
+
+So the declared cadence now matches the actual one: **`on-demand`**. Session entry
+no longer computes `daily-plan` as due. Run `/daily-ops` when you want a plan.
+Nothing else changed — the signal itself is unchanged and still writes
+`intel/briefings/daily/{YYYY-MM-DD}-daily-plan.md`.
+
+A signal that cries due every session is worth less than one that stays quiet
+until it means it.
 
 ## Configuration
 

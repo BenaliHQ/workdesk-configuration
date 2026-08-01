@@ -9,9 +9,16 @@ When the same correction appears in ≥2 skills' `learnings.md` within 30 days, 
 
 ## When this applies
 
-- Stop hook fires at session end
-- Scans `.claude/skills/*/learnings.md` for cross-skill patterns
-- Also invoked manually during `/weekly-review` as a fallback for patterns the hook missed
+- **A correction happens.** Claude records it immediately with
+  `config/scripts/learnings-capture.sh --skill <slug> --tag <TAG> --text "..."`.
+  This is the step that makes everything else possible — a correction that isn't
+  captured cannot be promoted, and the session transcript is not a capture.
+- **The Stop hook fires.** `config/scripts/learnings-scan.sh` reads every
+  `config/skills/*/learnings.md`, looks for the same correction in two or more
+  skills within 30 days, and writes a `[REVIEW]` inbox item proposing promotion.
+  It exits in milliseconds unless a `learnings.md` actually changed.
+- **`/weekly-review` runs** — the manual backstop for patterns the fuzzy matcher
+  missed (see § Matching, and what it can't do).
 
 ## Detection rule
 
@@ -55,9 +62,44 @@ If detected, propose a promotion to the operator. Do not apply automatically.
 
 The hook surfaces candidates. It does not force promotion.
 
+## Matching, and what it can't do
+
+`learnings-scan.sh` compares corrections by **fuzzy token overlap** — the overlap
+coefficient over normalised, stop-worded tokens — not by semantic similarity.
+
+It catches the shape this rule was written for: *"don't use leverage"* against
+*"avoid leverage in drafts"*. It will **not** catch two corrections that mean the
+same thing in entirely different words. That's a real ceiling, and `/weekly-review`
+is the named backstop for it.
+
+False positives are the cheaper error and the matcher is tuned accordingly. Every
+proposal is operator-reviewed, nothing is ever auto-applied, and a cluster the
+operator declines is recorded in `config/state/learnings-scan.json` and never
+surfaced again.
+
 ## Implementation
 
-Stop hook logic is implemented in the skills plan. This rule file is the constraint. For the full framework, see `atlas/projects/vault-architecture/deliverables/karpathy-mechanics/claude-md-coevolution-spec.md`.
+| Piece | File | Role |
+|---|---|---|
+| Capture | `config/scripts/learnings-capture.sh` | Claude calls it when a correction happens. Appends to the skill's `learnings.md`; `STYLE` entries also land in `config/rules/writing-style.md`. |
+| Scan | `config/scripts/learnings-scan.sh` | Stop hook. Cross-skill clustering → `[REVIEW]` inbox proposal. |
+| Wiring | `config/settings.json` → `hooks.Stop` | Runs alongside `stop-session-snapshot.sh`. |
+| State | `config/state/learnings-scan.json` | `last-scan`, `proposed`, `rejected`. |
+
+Entry format in `learnings.md` is load-bearing — `learnings-scan.sh` parses it:
+
+```markdown
+- 2026-08-01 `[STYLE]` don't use the word leverage in drafts
+```
+
+Tags: `STYLE`, `PROCESS`, `TOOL`, `FACT`, `OTHER`.
+
+> [!warning] The capture step is not automatic
+> Nothing detects a correction on its own. A hook sees tool calls, not intent —
+> only Claude knows the operator just corrected something. If Claude doesn't call
+> `learnings-capture.sh`, the correction is lost at end of session and the scan has
+> nothing to find. Treat capture as part of responding to a correction, not as
+> cleanup for later.
 
 ## What NOT to do
 
@@ -65,3 +107,8 @@ Stop hook logic is implemented in the skills plan. This rule file is the constra
 - Do not promote single-skill corrections — those stay in `learnings.md`.
 - Do not promote before 2 skills show the same correction. One skill, one correction = local, not cross-cutting.
 - Do not re-propose clusters the operator has rejected.
+- Do not let a correction pass without capturing it. This rule described an
+  automatic Stop-hook mechanism for months while no `learnings.md` existed
+  anywhere and the configured Stop hook had no learnings logic — every correction
+  in that window was lost. A documented mechanism that doesn't run is worse than
+  an honest manual one, because nobody goes looking.

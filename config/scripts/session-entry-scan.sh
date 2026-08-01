@@ -57,13 +57,14 @@ fi
 # --- check signal staleness ----------------------------------------------
 due_signals=()
 if [[ -f "$SIGNALS_STATE" ]]; then
-  daily_last=$(printf '%s' "$(cat "$SIGNALS_STATE")" | "$JSON_GET" daily-plan.last-fired 2>/dev/null || echo "")
   weekly_last=$(printf '%s' "$(cat "$SIGNALS_STATE")" | "$JSON_GET" weekly-review.last-fired 2>/dev/null || echo "")
   vimp_supp=$(printf '%s' "$(cat "$SIGNALS_STATE")" | "$JSON_GET" vault-improvements.suppressed-until 2>/dev/null || echo "")
 
-  if [[ -z "$daily_last" || "$daily_last" < "$today" ]]; then
-    due_signals+=("daily-plan")
-  fi
+  # daily-plan is deliberately NOT computed here. It is an on-demand signal
+  # (config/signals/daily-plan.md § Schedule) — it only produces output when the
+  # operator runs /daily-ops, so reporting it as "due" fired on essentially every
+  # session and trained operators to ignore the due-signals line. Run /daily-ops
+  # when a plan is wanted.
 
   dow=$(date '+%u')   # 1=Mon..7=Sun
   if [[ "$dow" == "1" || "$dow" == "7" ]]; then
