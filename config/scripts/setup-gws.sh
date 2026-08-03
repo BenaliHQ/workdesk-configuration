@@ -128,6 +128,38 @@ else
   fi
 fi
 
+# ─── Step 1b: Storage-layout gate ───────────────────────────────────────────
+# gws 0.22 changed the storage model: state moved to ~/.config/gws with a
+# single credentials.enc, and the encryption key moved into the macOS
+# Keychain (service "gws-cli"). The restore flow below is built for the
+# pre-0.22 layout — restoring those files into a 0.22+ install would write
+# blobs the CLI can't read (and the Keychain key can't be restored from
+# Infisical at all). On 0.22+, browser login is the only correct first-auth;
+# the push script keeps Infisical's copy of credentials.enc current after.
+source "${SCRIPT_DIR}/lib/gws-layout.sh"
+wd_gws_detect_layout
+gws_ver="$(gws --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+(\.[0-9]+)?' | head -1 || true)"
+gws_ver_maj="${gws_ver%%.*}"
+gws_ver_rest="${gws_ver#*.}"
+gws_ver_min="${gws_ver_rest%%.*}"
+if [[ "${GWS_LAYOUT}" == "xdg" ]] || { [[ -n "${gws_ver}" ]] && { (( gws_ver_maj > 0 )) || (( gws_ver_min >= 22 )); }; }; then
+  step "gws ${gws_ver:-0.22+} uses the ~/.config/gws layout"
+  if [[ -s "${XDG_CONFIG_HOME:-${HOME}/.config}/gws/credentials.enc" ]]; then
+    ok "local auth state present at ${XDG_CONFIG_HOME:-${HOME}/.config}/gws"
+  else
+    warn "no local auth state yet — Infisical restore is not possible on this layout"
+    say "    (the 0.22+ encryption key lives in this machine's Keychain, so a"
+    say "    credential blob from another machine cannot be decrypted here)"
+    say ""
+    say "    Run:  gws auth login --account ${OPERATOR_EMAIL}"
+    say "    (through config/shell/gws-env.sh so the OAuth app creds are injected)"
+  fi
+  say ""
+  say "  After any login, sync the fresh state to Infisical:"
+  say "    bash ${SCRIPT_DIR}/gws-push-tokens-to-infisical.sh"
+  exit 0
+fi
+
 # ─── Step 2: State directory ────────────────────────────────────────────────
 step "2. gws state directory"
 

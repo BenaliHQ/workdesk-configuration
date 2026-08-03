@@ -92,10 +92,15 @@ gws() {
     local __dom="${__acct#*@}"
     local __sfx
     __sfx="$(printf '%s' "${__dom%%.*}" | tr '[:lower:]' '[:upper:]' | tr -cd 'A-Z0-9_')"
+    # Fall back to the unsuffixed key names when the domain-suffixed pair is
+    # absent. Vaults provisioned before the 2026-07-24 multi-org change store
+    # the OAuth app as PERSONAL_GOOGLE_WORKSPACE_CLIENT_ID/_CLIENT_SECRET, so
+    # a suffixed-only lookup resolves empty and `gws auth login` fails with an
+    # opaque OAuth error. (Field-reported and verified end-to-end 2026-08-03.)
     /opt/homebrew/bin/infisical run \
       --projectId="${__pid}" \
       --env=prod \
-      --command="GOOGLE_WORKSPACE_CLI_CLIENT_ID=\$PERSONAL_GOOGLE_WORKSPACE_${__sfx}_CLIENT_ID GOOGLE_WORKSPACE_CLI_CLIENT_SECRET=\$PERSONAL_GOOGLE_WORKSPACE_${__sfx}_CLIENT_SECRET ${__real} $(printf '%q ' "$@")"
+      --command="GOOGLE_WORKSPACE_CLI_CLIENT_ID=\${PERSONAL_GOOGLE_WORKSPACE_${__sfx}_CLIENT_ID:-\$PERSONAL_GOOGLE_WORKSPACE_CLIENT_ID} GOOGLE_WORKSPACE_CLI_CLIENT_SECRET=\${PERSONAL_GOOGLE_WORKSPACE_${__sfx}_CLIENT_SECRET:-\$PERSONAL_GOOGLE_WORKSPACE_CLIENT_SECRET} ${__real} $(printf '%q ' "$@")"
     return $?
   fi
   "${__real}" "$@"

@@ -193,21 +193,15 @@ if ! command -v gws >/dev/null 2>&1; then
 fi
 
 # ── gws state gate ──────────────────────────────────────────────────────────
-# gws reads OAuth state from ~/Library/Application Support/gws — a normal
-# directory on disk. If the state files are missing, gws was never set up on
-# this machine (or its state was wiped): that's a configuration error, not a
+# gws reads OAuth state from disk — location and file layout depend on the
+# CLI version (pre-0.22: ~/Library/Application Support/gws with per-account
+# credentials; 0.22+: ~/.config/gws with a single credentials.enc). If the
+# state files are missing under either layout, gws was never set up on this
+# machine (or its state was wiped): that's a configuration error, not a
 # transient condition — surface it instead of skipping silently.
-GWS_STATE_DIR="$HOME/Library/Application Support/gws"
-gws_state_present() {
-  local f
-  for f in "$GWS_STATE_DIR"/credentials.*.enc; do
-    [[ -e "$f" ]] || return 1   # unmatched glob stays literal → no creds present
-    break
-  done
-  [[ -s "$GWS_STATE_DIR/client_secret.json" ]]
-}
-if ! gws_state_present; then
-  log "ERROR  gws auth state missing at $GWS_STATE_DIR — run config/scripts/setup-gws.sh"
+source "$SCRIPT_DIR/lib/gws-layout.sh"
+if ! wd_gws_state_present; then
+  log "ERROR  gws auth state missing (checked ~/Library/Application Support/gws and ~/.config/gws) — run config/scripts/setup-gws.sh"
   exit 2
 fi
 

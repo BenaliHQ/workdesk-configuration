@@ -77,7 +77,7 @@ If you maintain a cross-project index, put it at `config/state/infisical-project
 
 For CLIs that authenticate via OAuth and keep their state in files on disk (gws, qbo, codex), the pattern is:
 
-1. **State lives in the tool's normal on-disk location** (`~/Library/Application Support/gws/`, `~/.codex/auth.json`, …). FileVault provides encryption at rest; sensitive files get `chmod 600`.
+1. **State lives in the tool's normal on-disk location** (`~/Library/Application Support/gws/` or `~/.config/gws/` depending on gws version, `~/.codex/auth.json`, …). FileVault provides encryption at rest; sensitive files get `chmod 600`.
 2. **Infisical holds a synced copy.** Each tool layer ships a `*-push-to-infisical.sh` script that mirrors the current state (base64-encoding binary blobs) into the operator's personal project. Shell wrappers fire the push after any call that rotates a token; a periodic `wd-state-sync` pass (where installed) catches rotations that happen outside the wrapper.
 3. **Restore on demand.** A new machine (or wiped state) restores by running the tool's setup script (e.g. `setup-gws.sh`), which pulls the synced copy from Infisical via your user session — no browser OAuth redo unless Infisical's copy is missing or stale.
 4. **Re-push after re-auth.** After every `<tool> auth login`, run the tool's push script so the stored value doesn't go stale. Without it, every re-auth silently desyncs Infisical from local state — and a future restore hands you a dead token.

@@ -9,26 +9,43 @@
 # label of the account's email domain:
 #   alex@example.com           → PERSONAL_GWS_CREDENTIALS_EXAMPLE_ENC_B64
 #   alex@client-co.example     → PERSONAL_GWS_CREDENTIALS_CLIENTCO_ENC_B64
+#
+# Layout-aware (2026-08-03): gws 0.22+ moved state to ~/.config/gws with a
+# single credentials.enc and the encryption key in the macOS Keychain. On
+# that layout only credentials.enc is pushed (the Keychain key never leaves
+# the machine, so a cross-machine restore still needs one `gws auth login`).
+# Pre-0.22 keeps the full multi-account push. See lib/gws-layout.sh.
 
 set -euo pipefail
 
 source "$(dirname "${BASH_SOURCE[0]}")/lib/operator-config.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/gws-layout.sh"
 
 ENV="prod"
-GWS_DIR="${HOME}/Library/Application Support/gws"
-KEY_FILE="${GWS_DIR}/.encryption_key"
-ACCTS_FILE="${GWS_DIR}/accounts.json"
 LOG="${WORKDESK_ROOT}/system/log/gws-push.log"
 
 mkdir -p "$(dirname "${LOG}")"
 
-# Shared state files must exist (script can be called proactively, so bail quietly).
-for f in "${KEY_FILE}" "${ACCTS_FILE}"; do
-  if [[ ! -f "${f}" ]]; then
-    echo "$(date -u +%FT%TZ) skip: missing ${f}" >> "${LOG}"
-    exit 0
-  fi
-done
+wd_gws_detect_layout
+if [[ "${GWS_LAYOUT}" == "none" ]]; then
+  echo "$(date -u +%FT%TZ) skip: no gws state found (checked ~/Library/Application Support/gws and ~/.config/gws)" >> "${LOG}"
+  exit 0
+fi
+
+GWS_DIR="${GWS_STATE_DIR}"
+KEY_FILE="${GWS_DIR}/.encryption_key"
+ACCTS_FILE="${GWS_DIR}/accounts.json"
+
+# Legacy layout: shared state files must exist (script can be called
+# proactively, so bail quietly — but say which file is missing).
+if [[ "${GWS_LAYOUT}" == "legacy" ]]; then
+  for f in "${KEY_FILE}" "${ACCTS_FILE}"; do
+    if [[ ! -f "${f}" ]]; then
+      echo "$(date -u +%FT%TZ) skip: missing ${f}" >> "${LOG}"
+      exit 0
+    fi
+  done
+fi
 
 # Derive the Infisical key suffix from an account email: uppercase first
 # label of the domain, non-alphanumerics stripped.
@@ -74,7 +91,22 @@ push_if_stale() {
   unset val
 }
 
-# Push every registered account's encrypted credential.
+if [[ "${GWS_LAYOUT}" == "xdg" ]]; then
+  # gws 0.22+: one credentials.enc for the whole install; the encryption key
+  # lives in the macOS Keychain (service "gws-cli") and is NOT pushed — it is
+  # machine-bound, so a restore on a different machine still requires one
+  # `gws auth login` there. The push keeps Infisical's copy of the encrypted
+  # blob current for same-machine state recovery.
+  ENC_FILE="${GWS_DIR}/credentials.enc"
+  if [[ ! -f "${ENC_FILE}" ]]; then
+    echo "$(date -u +%FT%TZ) skip: missing ${ENC_FILE}" >> "${LOG}"
+    exit 0
+  fi
+  push_if_stale "${ENC_FILE}" "PERSONAL_GWS_CREDENTIALS_$(suffix_for_email "${OPERATOR_EMAIL}")_ENC_B64" base64
+  exit 0
+fi
+
+# Legacy layout: push every registered account's encrypted credential.
 for enc in "${GWS_DIR}"/credentials.*.enc; do
   [[ -f "${enc}" ]] || continue
   b64part="${enc##*/credentials.}"
