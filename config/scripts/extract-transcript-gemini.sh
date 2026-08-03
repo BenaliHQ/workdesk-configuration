@@ -56,7 +56,10 @@ if [[ ! -r "$SCHEMA_FILE" ]]; then
 fi
 
 GEMINI_API_KEY="$(wd_resolve_secret PERSONAL_GEMINI_API_KEY 2>/dev/null)" || true
-if [[ -z "$GEMINI_API_KEY" || "${GEMINI_API_KEY:0:6}" != "AIzaSy" ]]; then
+# Key shape check: classic Google API keys start "AIza"; keys minted since
+# mid-2026 start "AQ." — accept both (field-reported 2026-08-03: the old
+# AIzaSy-only check rejected every newly issued key).
+if [[ -z "$GEMINI_API_KEY" || ( "${GEMINI_API_KEY:0:4}" != "AIza" && "${GEMINI_API_KEY:0:3}" != "AQ." ) ]]; then
   echo "ERROR: No Gemini API key available. Either export PERSONAL_GEMINI_API_KEY, or configure Infisical (bash config/scripts/bootstrap-infisical.sh) and store the key there." >&2
   exit 2
 fi

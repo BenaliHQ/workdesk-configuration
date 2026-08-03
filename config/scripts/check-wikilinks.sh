@@ -23,15 +23,16 @@
 #      in the vault. Strips an optional trailing .md from the reference
 #      before lookup.
 #
-# Default-excluded paths (treated as non-living-content):
-#   - */_archive/*
-#   - */defaults/*
-#   - */config/source/*           (install snapshot)
-#   - */vendor/*                  (third-party plugins)
-#   - */node_modules/*
-#   - */.git/*
-#   - */system/session-log/*      (historical session captures, write-once)
-#   - */system/transcripts/*      (raw inputs, write-once)
+# Valid link TARGETS = every note, attachment, and folder in the vault
+# (Obsidian resolves by basename, any folder, any extension). Omitted from
+# the target index (not real vault content): config/source, vendor,
+# node_modules, .git, .workdesk-backups.
+# Excluded from SCANNING only — still valid TARGETS, since citing them is
+# legitimate and they resolve in Obsidian:
+#   - */_archive/*                (retired items)
+#   - */defaults/*                (shipped templates)
+#   - */system/session-log/*      (write-once captures a note may cite)
+#   - */system/transcripts/*      (raw inputs, still linkable)
 #
 # Usage:
 #   bash config/scripts/check-wikilinks.sh [-q|--quiet] <file-or-dir> [<file-or-dir> ...]
@@ -90,37 +91,59 @@ FOLDERS_FILE="$(mktemp)"
 FILES_FILE="$(mktemp)"
 trap 'rm -f "$NOTES_FILE" "$FOLDERS_FILE" "$FILES_FILE"' EXIT
 
-EXCLUDE_ARGS=(
-  -not -path '*_archive/*'
-  -not -path '*defaults/*'
-  -not -path '*config/source/*'
-  -not -path '*vendor/*'
+# Paths omitted from BOTH the target index and scanning — not vault content.
+BASE_EXCLUDE=(
   -not -path '*node_modules/*'
   -not -path '*.git/*'
-  -not -path '*system/session-log/*'
-  -not -path '*system/transcripts/*'
   -not -path '*.workdesk-backups/*'
+  -not -path '*config/source/*'
+  -not -path '*vendor/*'
 )
 
-# Note basenames (markdown files in operator content)
-find "$VAULT_ROOT" -type f -name '*.md' "${EXCLUDE_ARGS[@]}" \
+# Paths excluded from SCANNING only. Their own outgoing links aren't reported
+# (immutable/historical), but they REMAIN valid link targets — Obsidian
+# resolves links to them by basename, and citing a session-log, transcript,
+# or archived item is legitimate (per source-documentation).
+SCAN_ONLY_EXCLUDE=(
+  -not -path '*_archive/*'
+  -not -path '*defaults/*'
+  -not -path '*system/session-log/*'
+  -not -path '*system/transcripts/*'
+)
+
+SCAN_EXCLUDE=( "${BASE_EXCLUDE[@]}" "${SCAN_ONLY_EXCLUDE[@]}" )
+
+# Valid link targets = every markdown note, attachment, and folder that
+# actually exists in the vault (Obsidian resolves by basename regardless of
+# folder or extension). Only BASE_EXCLUDE paths are omitted.
+
+# Markdown note basenames (minus .md)
+find "$VAULT_ROOT" -type f -name '*.md' "${BASE_EXCLUDE[@]}" \
   -exec basename {} .md \; | sort -u > "$NOTES_FILE"
 
-# Folder basenames — Obsidian folder-note convention
-find "$VAULT_ROOT" -type d "${EXCLUDE_ARGS[@]}" \
-  -not -path '*/_archive' \
-  -not -path '*/defaults' \
+# Attachment basenames — index both the full filename ([[report.docx]]) and
+# the stem ([[report]]), since Obsidian resolves either form.
+find "$VAULT_ROOT" -type f -not -name '*.md' "${BASE_EXCLUDE[@]}" -print0 \
+  | while IFS= read -r -d '' p; do
+      b="$(basename "$p")"
+      printf '%s\n%s\n' "$b" "${b%.*}"
+    done | sort -u >> "$NOTES_FILE"
+
+# Folder basenames — Obsidian folder-note convention. The non-content dirs
+# themselves are excluded too (BASE_EXCLUDE only prunes their contents).
+find "$VAULT_ROOT" -type d "${BASE_EXCLUDE[@]}" \
   -not -path '*/config/source' \
   -not -path '*/vendor' \
   -not -path '*/node_modules' \
   -not -path '*/.git' \
+  -not -path '*/.workdesk-backups' \
   -exec basename {} \; | sort -u > "$FOLDERS_FILE"
 
 # Collect files to scan
 : > "$FILES_FILE"
 for target in "$@"; do
   if [[ -d "$target" ]]; then
-    find "$target" -type f -name '*.md' "${EXCLUDE_ARGS[@]}" | sort >> "$FILES_FILE"
+    find "$target" -type f -name '*.md' "${SCAN_EXCLUDE[@]}" | sort >> "$FILES_FILE"
   elif [[ -f "$target" ]]; then
     # Only scan markdown files. Non-.md inputs (e.g., shell scripts) contain
     # syntax that overlaps with wikilink patterns (`[[ -f ... ]]` bash tests,
