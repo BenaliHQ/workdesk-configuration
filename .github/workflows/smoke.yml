@@ -18,3 +18,9 @@ jobs:
         run: ./tests/obsidian-defaults-paths.sh
       - name: repo-session hermetic test
         run: ./tests/repo-session-test.sh
+      - name: update engine (classification, conflicts, migrations, restore)
+        run: ./tests/migrate-test.sh
+      - name: update check (offline, cache, notice)
+        run: ./tests/update-check-test.sh
+      - name: feedback throttle
+        run: ./tests/feedback-throttle-test.sh
