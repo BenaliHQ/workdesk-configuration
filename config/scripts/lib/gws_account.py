@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import re
 import subprocess
+import sys
 
 
 SUPPORTED_LAYOUTS = {"0.4.1": "legacy-account", "0.22.5": "config-dir"}
@@ -96,3 +97,51 @@ def verified_environment(binary, account, environ=None, run=subprocess.run):
     except (OSError, subprocess.TimeoutExpired, ValueError, KeyError, TypeError):
         raise AccountError("Google account verification unavailable; requested operation was not run") from None
     return env
+
+
+def select_command(args, environ=None):
+    """Consume the wrapper's account selector without passing it to native gws."""
+    env = os.environ if environ is None else environ
+    selected = None
+    remaining = []
+    index = 0
+    while index < len(args):
+        arg = args[index]
+        if arg == "--account" or arg.startswith("--account="):
+            if selected is not None:
+                raise AccountError("Specify the Google account only once")
+            if arg == "--account":
+                index += 1
+                if index >= len(args):
+                    raise AccountError("The account selector requires an email")
+                selected = args[index]
+            else:
+                selected = arg.split("=", 1)[1]
+            if not selected:
+                raise AccountError("The account selector requires an email")
+        else:
+            remaining.append(arg)
+        index += 1
+    selected = selected if selected is not None else env.get("WORKDESK_GWS_ACCOUNT", env.get("GOOGLE_WORKSPACE_CLI_ACCOUNT"))
+    if not remaining or remaining[0] == "auth":
+        raise AccountError("Use the dedicated authentication flow for Google auth commands")
+    return selected, remaining
+
+
+def main():
+    # Internal entry point used by the sourced shell function. execve preserves
+    # native argument boundaries, streams, signals and the requested exit code.
+    if len(sys.argv) < 3:
+        raise AccountError("Expected an executable path and Google command")
+    binary = sys.argv[1]
+    account, args = select_command(sys.argv[2:])
+    env = verified_environment(binary, account)
+    os.execve(binary, [binary] + args, env)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except AccountError as error:
+        print("ERROR: " + str(error), file=sys.stderr)
+        sys.exit(2)

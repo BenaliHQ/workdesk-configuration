@@ -107,4 +107,20 @@ class AccountTests(unittest.TestCase):
                 gws.verified_environment(binary,account,self.env(),self.runner())
         self.assertEqual(self.calls,[])
 
+    def test_selector_is_consumed_and_explicit_account_wins(self):
+        args=['gmail','users','messages','list','--params','{"text":"--account"}']
+        for selector in [['--account',ACCOUNT], ['--account='+ACCOUNT]]:
+            account, remaining=gws.select_command(args+selector, {'GOOGLE_WORKSPACE_CLI_ACCOUNT':'other@example.test'})
+            self.assertEqual(account,ACCOUNT)
+            self.assertEqual(remaining,args)
+        self.assertEqual(gws.select_command(args,{'WORKDESK_GWS_ACCOUNT':ACCOUNT})[0],ACCOUNT)
+        self.assertEqual(gws.select_command(args,{'GOOGLE_WORKSPACE_CLI_ACCOUNT':ACCOUNT})[0],ACCOUNT)
+
+    def test_ambiguous_selectors_and_auth_commands_are_rejected(self):
+        for args in [['drive','--account'],['drive','--account='],
+                     ['drive','--account',ACCOUNT,'--account='+ACCOUNT],
+                     ['auth','login','--account',ACCOUNT], []]:
+            with self.assertRaises(gws.AccountError):
+                gws.select_command(args,{})
+
 if __name__ == '__main__': unittest.main(verbosity=2)

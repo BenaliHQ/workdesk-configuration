@@ -22,13 +22,16 @@ class WrapperTests(unittest.TestCase):
         shell.mkdir(parents=True)
         shutil.copy2(SOURCE, shell/'gws-env.sh')
         (self.vault/'config/operator-profile.md').write_text('---\nemail: operator@example.test\ninfisical-project-id: test-project\n---\n')
+        library = self.vault/'config/scripts/lib'
+        library.mkdir(parents=True)
+        shutil.copy2(SOURCE.parents[1]/'scripts/lib/gws_account.py', library/'gws_account.py')
         self.bin = self.root/'tools with spaces'
         self.bin.mkdir()
         self.home = self.root/'home'
         self.home.mkdir()
         self.record = self.root/'call.json'
         self.env = dict(os.environ, HOME=str(self.home), PATH=str(self.bin)+':/usr/bin:/bin', RECORD=str(self.record))
-        for key in ('WORKDESK_GWS_BIN', 'WORKDESK_INFISICAL_BIN', 'BASH_ENV', 'ENV'):
+        for key in ('WORKDESK_GWS_BIN', 'WORKDESK_INFISICAL_BIN', 'BASH_ENV', 'ENV', 'WORKDESK_GWS_ACCOUNT', 'GOOGLE_WORKSPACE_CLI_ACCOUNT'):
             self.env.pop(key, None)
         self.env['ZDOTDIR'] = str(self.home)
         for name in ('gws','infisical'):
@@ -115,6 +118,58 @@ class WrapperTests(unittest.TestCase):
             r=self.run_wrapper(shell,['auth','login'])
             self.assertEqual(r.returncode,127,r.stderr)
             self.assertFalse(self.record.exists())
+        self.both(check)
+
+    def routing_stub(self, version, identity):
+        program = '#!'+sys.executable+'\n'+"""
+import json,os,sys
+from pathlib import Path
+record=Path(os.environ['RECORD'])
+calls=json.loads(record.read_text()) if record.exists() else []
+calls.append({'args':sys.argv[1:],'account':os.environ.get('GOOGLE_WORKSPACE_CLI_ACCOUNT'),
+              'config_dir':os.environ.get('GOOGLE_WORKSPACE_CLI_CONFIG_DIR'),
+              'token_present':'GOOGLE_WORKSPACE_CLI_TOKEN' in os.environ})
+record.write_text(json.dumps(calls))
+if sys.argv[1:]==['--version']:
+ print('gws VERSION')
+elif sys.argv[1:4]==['drive','about','get']:
+ print(json.dumps({'user':{'emailAddress':'IDENTITY'}}))
+else:
+ print('requested operation reached');sys.exit(19)
+""".replace('VERSION',version).replace('IDENTITY',identity)
+        (self.bin/'gws').write_text(program)
+        self.env['WORKDESK_PYTHON'] = sys.executable
+        self.env['GOOGLE_WORKSPACE_CLI_TOKEN'] = 'competing-test-token'
+
+    def test_routed_api_uses_verified_environment_and_preserves_status(self):
+        account='operator@example.test'
+        for mode,version in [('config-dir','0.22.5'),('legacy-account','0.4.1')]:
+            self.routing_stub(version,account)
+            route={'mode':mode}
+            if mode=='config-dir': route['config_dir']=str(self.root)
+            self.env['WORKDESK_GWS_ACCOUNTS']=json.dumps({account:route})
+            def check(shell):
+                args=['gmail','users','messages','list','--params','{"userId":"me"}']
+                r=self.run_wrapper(shell,args+['--account',account])
+                self.assertEqual(r.returncode,19,r.stderr)
+                calls=json.loads(self.record.read_text())
+                self.assertEqual(len(calls),3)
+                self.assertEqual(calls[-1]['args'],args)
+                self.assertFalse(any(c['token_present'] for c in calls))
+                self.assertEqual(calls[-1]['account'],account if mode=='legacy-account' else None)
+                self.assertEqual(calls[-1]['config_dir'],str(self.root) if mode=='config-dir' else None)
+            self.both(check)
+
+    def test_routed_api_stops_after_wrong_identity(self):
+        account='operator@example.test'
+        self.routing_stub('0.22.5','other@example.test')
+        self.env['WORKDESK_GWS_ACCOUNTS']=json.dumps({account:{'mode':'config-dir','config_dir':str(self.root)}})
+        self.env['WORKDESK_GWS_ACCOUNT']=account
+        def check(shell):
+            r=self.run_wrapper(shell,['gmail','users','messages','list'])
+            self.assertEqual(r.returncode,2,r.stderr)
+            self.assertEqual(len(json.loads(self.record.read_text())),2)
+            self.assertNotIn('requested operation reached',r.stdout)
         self.both(check)
 
 if __name__ == '__main__':

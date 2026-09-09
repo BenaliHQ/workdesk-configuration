@@ -6,6 +6,37 @@ This tool layer rides on top of the Infisical foundation (`config/rules/tools/in
 
 ## Access Method
 
+### Explicit account routing for API commands
+
+When the shell wrapper below is sourced, `gws ... --account EMAIL` selects an
+explicit account using the host-local `gws-accounts.json` under
+`WORKDESK_STATE_HOME` (default `~/.local/state/workdesk`). The wrapper also
+accepts `WORKDESK_GWS_ACCOUNT` or the legacy `GOOGLE_WORKSPACE_CLI_ACCOUNT`
+environment selector. An explicit flag wins over inherited selectors;
+duplicate flags fail. This selection is a wrapper feature, not a promise
+that the native binary honors the same flag.
+
+The map must contain an exact email key with either
+`{"mode":"legacy-account"}` for verified gws 0.4.1, or
+`{"mode":"config-dir","config_dir":"/absolute/existing/store"}` for
+verified gws 0.22.5. Keep this machine-specific map outside the synced vault.
+The wrapper removes competing credential selectors and verifies the Drive
+authenticated email before the requested API command. Unknown versions,
+missing routes and mismatched identities fail without running that command.
+The original arguments, output and exit status are preserved after routing.
+
+Calls without an account selector retain native default-account behavior.
+Jobs that launch the binary directly do not inherit this shell function;
+they must use the verified environment from `scripts/lib/gws_account.py`
+or their explicitly reviewed account adapter. Account verification does not
+authorize sending or mutation; the operator's operation-approval rules still
+apply.
+
+Authentication is separate: the login branch below retains the legacy flow.
+Do not use it as a modern multi-store OAuth setup procedure. Modern stores
+need their reviewed per-account setup, and the legacy token-push script does
+not establish backup coverage for modern keyring-backed credentials.
+
 CLI binary: `gws`, installed by `setup-gws.sh` via `brew install googleworkspace-cli` (preferred) or `npm install -g @googleworkspace/cli` (fallback). Both methods come from the official repo at https://github.com/googleworkspace/cli — do NOT `brew install gws`, which installs an unrelated git-workspaces tool of the same name.
 
 A shell wrapper at `config/shell/gws-env.sh` makes `gws auth login` pull the OAuth-app `client_id`/`client_secret` from Infisical at the moment of login — no env vars in your shell, no copy-pasting. Source from `~/.zshrc`:

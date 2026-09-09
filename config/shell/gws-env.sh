@@ -11,15 +11,16 @@
 # Account routing and credential-store compatibility still depend on the CLI
 # version; executable discovery does not migrate or verify credentials.
 #
-# This defines a `gws` shell function that wraps the real binary. For normal
-# API calls (`gws gmail ...`, `gws calendar ...`), gws reads its OAuth state
-# from ~/Library/Application Support/gws/ (real directory on the SSD as of
-# 2026-07-06; the ramdisk/agent pattern is retired), so no env vars are
-# needed. The wrapper still exists for one case: `gws auth login` uses
-# GOOGLE_WORKSPACE_CLI_CLIENT_ID / _CLIENT_SECRET env vars to mint a new
-# refresh token. The wrapper pulls those from Infisical only when `auth login`
-# is invoked, never for routine calls (requires an active `infisical login`
-# user session).
+# Normal API calls with --account EMAIL, WORKDESK_GWS_ACCOUNT, or the legacy
+# GOOGLE_WORKSPACE_CLI_ACCOUNT selector use config/scripts/lib/gws_account.py.
+# It reads $WORKDESK_STATE_HOME/gws-accounts.json (default ~/.local/state/workdesk),
+# chooses the configured store, and checks the authenticated identity first.
+# Calls without a selector retain the native CLI's default behavior.
+#
+# Authentication is a separate flow below. It retains the legacy --account login
+# behavior and must not be treated as a modern multi-store OAuth setup helper.
+# Modern stores need their reviewed per-account login/setup procedure.
+# Infisical is consulted only for auth login, never for routine API reads.
 #
 # Multi-org (2026-07-24): each Google Workspace org has its own OAuth app in
 # Infisical, keyed by the uppercase first label of the account's email domain:
@@ -29,9 +30,8 @@
 # login` (falling back to the operator-profile `email:` when --account is
 # omitted) and injects that org's client credentials.
 #
-# After every `gws auth login`, also re-run:
-#   bash /path/to/Workdesk-OS/config/scripts/gws-push-tokens-to-infisical.sh
-# so Infisical's stored copy stays current.
+# Credential backup is layout-specific. The legacy token-push script does not
+# back up modern keyring-backed stores; verify recovery coverage separately.
 #
 # IMPORTANT: the function must be fully self-contained — no references to
 # variables set at source time. Some environments (e.g. Claude Code shell
@@ -142,6 +142,16 @@ gws() {
       --projectId="${__pid}" \
       --env=prod \
       --command="GOOGLE_WORKSPACE_CLI_CLIENT_ID=\${PERSONAL_GOOGLE_WORKSPACE_${__sfx}_CLIENT_ID:-\$PERSONAL_GOOGLE_WORKSPACE_CLIENT_ID} GOOGLE_WORKSPACE_CLI_CLIENT_SECRET=\${PERSONAL_GOOGLE_WORKSPACE_${__sfx}_CLIENT_SECRET:-\$PERSONAL_GOOGLE_WORKSPACE_CLIENT_SECRET} $(printf '%q' "${__real}") $(printf '%q ' "$@")"
+    return $?
+  fi
+  # Explicit account calls are routed through the host-local map, then checked
+  # against the authenticated Drive principal before the requested API call.
+  local __route_account="${WORKDESK_GWS_ACCOUNT:-${GOOGLE_WORKSPACE_CLI_ACCOUNT:-}}" __scan
+  for __scan in "$@"; do
+    if [[ "${__scan}" = "--account" || "${__scan}" = --account=* ]]; then __route_account="explicit"; fi
+  done
+  if [[ -n "${__route_account}" ]]; then
+    "${WORKDESK_PYTHON:-python3}" "${__root}/config/scripts/lib/gws_account.py" "${__real}" "$@"
     return $?
   fi
   "${__real}" "$@"
