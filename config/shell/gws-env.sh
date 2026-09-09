@@ -5,6 +5,12 @@
 # Source from ~/.zshrc:
 #   source /path/to/Workdesk-OS/config/shell/gws-env.sh
 #
+# Executables are discovered on PATH at call time, then in supported user-local
+# and Homebrew locations. WORKDESK_GWS_BIN and WORKDESK_INFISICAL_BIN can select
+# explicit absolute executables. These settings select programs, not accounts.
+# Account routing and credential-store compatibility still depend on the CLI
+# version; executable discovery does not migrate or verify credentials.
+#
 # This defines a `gws` shell function that wraps the real binary. For normal
 # API calls (`gws gmail ...`, `gws calendar ...`), gws reads its OAuth state
 # from ~/Library/Application Support/gws/ (real directory on the SSD as of
@@ -43,9 +49,44 @@ unset __wd_self
 # function carries the path as a literal.
 __wd_gws_def="$(cat <<'WD_GWS_EOF'
 gws() {
-  local __real="/opt/homebrew/bin/gws"
-  local __root="@@WD_ROOT@@"
+  # Resolve executables at call time: shell snapshots may omit source-time state.
+  # Explicit overrides must identify an absolute executable; never eval them.
+  local __real="${WORKDESK_GWS_BIN:-}" __candidate
+  if [[ -z "${__real}" ]]; then
+    if [[ -n "${ZSH_VERSION:-}" ]]; then
+      __real="$(whence -p gws 2>/dev/null)"
+    else
+      __real="$(type -P gws 2>/dev/null)"
+    fi
+    if [[ -z "${__real}" ]]; then
+      for __candidate in "$HOME/.local/bin/gws" /opt/homebrew/bin/gws /usr/local/bin/gws; do
+        if [[ -x "${__candidate}" && ! -d "${__candidate}" ]]; then __real="${__candidate}"; break; fi
+      done
+    fi
+  fi
+  if [[ "${__real}" != /* || ! -x "${__real}" || -d "${__real}" ]]; then
+    echo "ERROR: gws executable unavailable; set WORKDESK_GWS_BIN to its absolute path." >&2
+    return 127
+  fi
+  local __root=@@WD_ROOT@@
   if [[ "${1:-}" = "auth" && "${2:-}" = "login" ]]; then
+    local __infisical="${WORKDESK_INFISICAL_BIN:-}"
+    if [[ -z "${__infisical}" ]]; then
+      if [[ -n "${ZSH_VERSION:-}" ]]; then
+        __infisical="$(whence -p infisical 2>/dev/null)"
+      else
+        __infisical="$(type -P infisical 2>/dev/null)"
+      fi
+      if [[ -z "${__infisical}" ]]; then
+        for __candidate in "$HOME/.local/bin/infisical" "$HOME/.homebrew/bin/infisical" /opt/homebrew/bin/infisical /usr/local/bin/infisical; do
+          if [[ -x "${__candidate}" && ! -d "${__candidate}" ]]; then __infisical="${__candidate}"; break; fi
+        done
+      fi
+    fi
+    if [[ "${__infisical}" != /* || ! -x "${__infisical}" || -d "${__infisical}" ]]; then
+      echo "ERROR: Infisical executable unavailable; set WORKDESK_INFISICAL_BIN to its absolute path." >&2
+      return 127
+    fi
     # Read the operator's Infisical project ID from operator-profile.md
     # frontmatter, lazily — auth login is rare, and call-time reads never
     # go stale or rely on source-time state.
@@ -97,10 +138,10 @@ gws() {
     # the OAuth app as PERSONAL_GOOGLE_WORKSPACE_CLIENT_ID/_CLIENT_SECRET, so
     # a suffixed-only lookup resolves empty and `gws auth login` fails with an
     # opaque OAuth error. (Field-reported and verified end-to-end 2026-08-03.)
-    /opt/homebrew/bin/infisical run \
+    "${__infisical}" run \
       --projectId="${__pid}" \
       --env=prod \
-      --command="GOOGLE_WORKSPACE_CLI_CLIENT_ID=\${PERSONAL_GOOGLE_WORKSPACE_${__sfx}_CLIENT_ID:-\$PERSONAL_GOOGLE_WORKSPACE_CLIENT_ID} GOOGLE_WORKSPACE_CLI_CLIENT_SECRET=\${PERSONAL_GOOGLE_WORKSPACE_${__sfx}_CLIENT_SECRET:-\$PERSONAL_GOOGLE_WORKSPACE_CLIENT_SECRET} ${__real} $(printf '%q ' "$@")"
+      --command="GOOGLE_WORKSPACE_CLI_CLIENT_ID=\${PERSONAL_GOOGLE_WORKSPACE_${__sfx}_CLIENT_ID:-\$PERSONAL_GOOGLE_WORKSPACE_CLIENT_ID} GOOGLE_WORKSPACE_CLI_CLIENT_SECRET=\${PERSONAL_GOOGLE_WORKSPACE_${__sfx}_CLIENT_SECRET:-\$PERSONAL_GOOGLE_WORKSPACE_CLIENT_SECRET} $(printf '%q' "${__real}") $(printf '%q ' "$@")"
     return $?
   fi
   "${__real}" "$@"
@@ -108,5 +149,6 @@ gws() {
 WD_GWS_EOF
 )"
 
+__wd_root="$(printf '%q' "${__wd_root}")"
 eval "${__wd_gws_def//@@WD_ROOT@@/${__wd_root}}"
 unset __wd_gws_def __wd_root
