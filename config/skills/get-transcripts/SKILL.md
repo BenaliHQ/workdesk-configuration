@@ -14,13 +14,15 @@ Pull the last N days of verbatim transcripts into `system/intake/`. Wraps three 
 - `/get-transcripts --days 30 --backfill` — 30-day backfill (explicit)
 - `/get-transcripts --source granola` — Granola only
 - `/get-transcripts --source google` — Google Meet standalone Transcript Docs only
+- `/get-transcripts --source google --account you@example.com` — explicit Google account
 - `/get-transcripts --source gemini` — "Notes by Gemini" Docs only (Transcript tab)
 - `/get-transcripts --dry-run` — list what would pull, no writes
 - `/get-transcripts --status` — show state files only, no pull
 
 ## What it does
 
-Runs three pure-ETL scripts in parallel when no `--source` filter is given (their state files are disjoint, so concurrent runs are safe):
+Runs the selected ETL scripts sequentially. They share the intake directory;
+separate checkpoint files alone do not prove concurrent publication is safe.
 
 | Source | Script | Captures | Source-id field |
 |---|---|---|---|
@@ -30,11 +32,23 @@ Runs three pure-ETL scripts in parallel when no `--source` filter is given (thei
 
 **All three scripts write to `system/intake/`** with `source-kind: transcript` frontmatter and `processed: false`. All three are idempotent: re-running skips anything already on disk (in intake or in the `system/transcripts/` archive) by source id.
 
-**Why three scripts instead of two?** Google Meet emits two different artifact shapes per recorded meeting: (1) a standalone Doc named "<Title> - DATE TIME TZ - Transcript", or (2) a "Notes by Gemini" Doc whose first tab is the AI summary and whose second tab is the verbatim. Drive's text/plain export only returns the first tab, so shape (2) was structurally invisible to `pull-google-transcripts.sh`. Many meetings emit ONLY shape (2) — they were silently missing until `pull-gemini-transcripts.sh` was added. Running all three catches every transcribed meeting Workspace produced.
+The Google and Gemini scripts target different document layouts. Successful
+runs establish coverage only for the accounts, queries, date windows and
+accessible documents actually checked. Report unavailable sources, missing
+access and skipped transcript tabs; never claim every meeting was captured.
 
 ## Phases
 
 ### 1. Show status first (always)
+
+Resolve the requested Google accounts from the operator's request or an
+explicit existing job configuration before running Google status or pulls.
+Do not infer an account from the shell's current login or assume all configured
+accounts belong in this request. Pass `--account` separately for each selected
+account to the standalone Google importer, including `--status`. See
+`config/rules/tools/gws.md` for host-local routes and checkpoint migration.
+Do not pass this new flag to the Gemini script unless its own interface supports
+it; verify and report that source's actual account coverage separately.
 
 Run all selected scripts with `--status` and surface the result. The operator should see:
 
@@ -56,10 +70,16 @@ If any source shows `HEALTH: STALE` (>36h since last success) or `consecutive_fa
   - `google` → only `pull-google-transcripts.sh`
   - `gemini` → only `pull-gemini-transcripts.sh`
 - `--dry-run` and `--status` pass through.
+- Google `--account` passes through to both status and pull. Multiple approved
+  accounts run sequentially, each with its own checkpoint and reported result.
 
 ### 3. Run pulls
 
-When all three sources are selected, run them in parallel (separate Bash tool calls in one message). They write to different state files (`config/state/pull-granola.json`, `config/state/pull-google.json`, `config/state/pull-gemini.json`) and the same intake dir, but the idempotency check happens per-file with id grep, so parallel writes are safe.
+Before pulling, check the selected jobs' current owners and running processes.
+Do not race a scheduled writer or another manual pull. A timeout alone does not
+prove a writer stopped. Run the selected sources and Google accounts sequentially.
+Google progress is now host-local and account-scoped; an unattributed legacy
+checkpoint is not a valid automatic starting point for another account.
 
 Capture the tail of each log:
 
@@ -78,7 +98,7 @@ Report concisely to the operator:
 
 ```
 Granola:      pulled=N skipped=N failed=N
-Google Meet:  pulled=N skipped=N failed=N
+Google Meet (account): pulled=N skipped=N failed=N
 Gemini Docs:  pulled=N skipped=N stub=N no_access=N failed=N
 Now in system/intake/ (transcripts only): N
 
@@ -91,7 +111,8 @@ Gemini-specific counts to expose:
 
 If anything failed (true `failed > 0`), point at the log files:
 - `system/cron-pull-granola.log`
-- `system/cron-pull-google-transcripts.log`
+- Google: the selected account's `pull-google-transcripts.log` beside its
+  host-local checkpoint, as documented in `config/rules/tools/gws.md`
 - `system/cron-pull-gemini-transcripts.log`
 
 ### 5. Verify (when ≥1 new file pulled)
