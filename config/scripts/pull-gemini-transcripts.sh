@@ -283,21 +283,28 @@ write_intake_for_doc() {
     return 4
   fi
 
-  # Extract only the Transcript tab text
-  local transcript_text
-  transcript_text="$(jq -r '
+  # Preserve text-run bytes, including speaker boundaries and trailing newlines.
+  # Shell command substitution and line-oriented filters would strip them.
+  local transcript_file
+  transcript_file="$(mktemp)" || return 4
+  if ! jq -j '
     .tabs[]?
     | select(.tabProperties.title == "Transcript")
     | .documentTab.body.content[]?
     | .paragraph?.elements[]?
     | .textRun?.content // empty
-  ' "$doc_json" | awk 'BEGIN{ORS=""} {print}')"
+  ' "$doc_json" > "$transcript_file"; then
+    log "ERROR  $doc_id invalid document response"
+    rm -f "$doc_json" "$transcript_file"
+    return 4
+  fi
 
-  local size=${#transcript_text}
+  local size
+  size="$(wc -c < "$transcript_file" | tr -d ' ')"
 
   if [[ $size -lt $MIN_TRANSCRIPT_CHARS ]]; then
     log "SKIP   $doc_id stub-transcript size=${size}b title=\"$event_title\""
-    rm -f "$doc_json"
+    rm -f "$doc_json" "$transcript_file"
     return 1
   fi
 
@@ -317,7 +324,7 @@ write_intake_for_doc() {
         : # fall through, overwrite
       else
         log "SKIP   $doc_id already-pulled (in intake) → $filename"
-        rm -f "$doc_json"
+        rm -f "$doc_json" "$transcript_file"
         return 2
       fi
     else
@@ -330,7 +337,7 @@ write_intake_for_doc() {
 
   if [[ $DRY_RUN -eq 1 ]]; then
     log "DRY    $doc_id WOULD pull → $filename (\"$event_title\" $local_date, ${size}b)"
-    rm -f "$doc_json"
+    rm -f "$doc_json" "$transcript_file"
     return 3
   fi
 
@@ -366,12 +373,11 @@ write_intake_for_doc() {
     printf -- '# %s — %s (raw transcript)\n\n' "$event_title" "$local_date"
     printf -- 'Verbatim transcript extracted from the "Notes by Gemini" Google Doc, **Transcript** tab. Speakers are name-resolved by Google (e.g., "Jane Doe: ..."). The Gemini-generated summary on the Notes tab is intentionally NOT pulled per [[../../config/rules/source-processing-pattern]] — synthesis happens at processing time from the verbatim, not from another system'"'"'s summary.\n\n'
     printf -- '## Transcript\n\n'
-    printf -- '%s' "$transcript_text"
-    printf -- '\n'
+    cat "$transcript_file"
   } > "$tmp"
 
   mv "$tmp" "$target_path"
-  rm -f "$doc_json"
+  rm -f "$doc_json" "$transcript_file"
 
   log "PULL   $doc_id → $filename (${size}b) \"$event_title\""
   return 0
@@ -390,19 +396,12 @@ if [[ -n "$FORCE_DOC_ID" ]]; then
   title="$(printf '%s' "$meta" | jq -r '.title // "Untitled"')"
   write_intake_for_doc "$FORCE_DOC_ID" "$title" "$NOW_ISO" "(forced)" "[]"
   rc=$?
-  pulled=0
-  [[ $rc -eq 0 || $rc -eq 3 ]] && pulled=1
-  write_state "$(jq -n \
-    --arg now "$NOW_ISO" \
-    --argjson pulled "$pulled" \
-    '{
-       last_success_at: $now,
-       last_failure_at: null,
-       consecutive_failures: 0,
-       last_run_at: $now,
-       last_run_pulled: $pulled
-     }')"
-  exit 0
+  # A single document is not evidence of complete calendar enumeration.
+  # Preserve the existing watermark, including on dry-run and failure.
+  case "$rc" in
+    0|2|3) exit 0 ;;
+    *) log "ERROR  single-document pull incomplete (result=$rc); checkpoint preserved"; exit 1 ;;
+  esac
 fi
 
 # ── List calendar events with Notes-by-Gemini attachments ───────────────────
