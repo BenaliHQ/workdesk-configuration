@@ -395,12 +395,13 @@ write_intake_for_doc() {
     return 3
   fi
 
-  # Build attendee YAML from event attendee list (passed in by caller)
-  local attendees_yaml
-  attendees_yaml="$(printf '%s' "$attendees_json" | jq -r '
-    (. // []) | .[] | "  - \"\(.displayName // (.email | split("@")[0])) <\(.email)>\""
-  ' 2>/dev/null)"
-  [[ -z "$attendees_yaml" ]] && attendees_yaml='  - "(none captured on event)"'
+  # Preserve calendar invitees as supplied; invitations do not establish
+  # presence, and an email local part is not an inferred person's name.
+  local invitees_json
+  invitees_json="$(printf '%s' "$attendees_json" | jq -ce '
+    if type == "array" and all(.[]; type == "object") then .
+    else error("Invalid calendar invitees") end
+  ')" || { log "ERROR  $doc_id invalid calendar invitees"; rm -f "$doc_json" "$transcript_file"; return 4; }
 
   local pulled_at drive_url
   pulled_at="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
@@ -418,15 +419,16 @@ write_intake_for_doc() {
     printf -- 'title: %s\n' "$(printf '%s' "$event_title" | jq -Rs '.')"
     printf -- 'gemini-doc-id: %s\n' "$doc_id"
     printf -- 'gemini-doc-url: %s\n' "$drive_url"
-    printf -- 'event-start: %s\n' "$event_start"
-    printf -- 'event-organizer: %s\n' "$event_organizer"
-    printf -- 'attendees-from-source:\n'
-    printf -- '%s\n' "$attendees_yaml"
+    printf -- 'event-start: %s\n' "$(printf '%s' "$event_start" | jq -Rs '.')"
+    printf -- 'event-organizer: %s\n' "$(printf '%s' "$event_organizer" | jq -Rs '.')"
+    printf -- 'attendees-from-source: []\n'
+    printf -- 'calendar-invitees: %s\n' "$invitees_json"
     printf -- 'source-format: %s\n' "$SOURCE_FORMAT"
     printf -- 'pulled-at: %s\n' "$pulled_at"
     printf -- '---\n\n'
     printf -- '# %s — %s (raw transcript)\n\n' "$event_title" "$local_date"
     printf -- 'Verbatim transcript extracted from the "Notes by Gemini" Google Doc, **Transcript** tab. Speakers are name-resolved by Google (e.g., "Jane Doe: ..."). The Gemini-generated summary on the Notes tab is intentionally NOT pulled per [[../../config/rules/source-processing-pattern]] — synthesis happens at processing time from the verbatim, not from another system'"'"'s summary.\n\n'
+    printf -- 'Calendar invitees are source metadata, not evidence of attendance. Determine participation from the transcript.\n\n'
     printf -- '## Transcript\n\n'
     cat "$transcript_file"
   } > "$tmp" || { log "ERROR  $doc_id staging failed; candidate retained: $tmp"; rm -f "$doc_json" "$transcript_file"; return 4; }
@@ -535,9 +537,9 @@ if ! fetch_calendar_pages; then
   exit 2
 fi
 
-# Extract: doc_id <TAB> event_title <TAB> event_start <TAB> organizer_email <TAB> attendees_json
+# Preserve each attachment record as JSON; TSV escaping corrupts quoted names.
 docs_tsv="$(mktemp)"
-jq -r '
+if ! jq -c '
   .items[]?
   | select(.attachments != null)
   | . as $e
@@ -548,10 +550,13 @@ jq -r '
       ($e.summary // "Untitled meeting"),
       ($e.start.dateTime // $e.start.date),
       ($e.organizer.email // "?"),
-      ($e.attendees // [] | tostring)
+      ($e.attendees // [])
     ]
-  | @tsv
-' "$events_json" > "$docs_tsv"
+' "$events_json" > "$docs_tsv"; then
+  log "ERROR  malformed calendar attachment metadata; checkpoint preserved"
+  rm -f "$docs_tsv"
+  exit 2
+fi
 
 total_found=$(wc -l < "$docs_tsv" | tr -d ' ')
 log "INFO   found $total_found Notes-by-Gemini attachments in calendar since $CUTOFF_ISO"
@@ -562,8 +567,13 @@ stub=0
 no_access=0
 failed=0
 
-while IFS=$'\t' read -r doc_id event_title event_start event_organizer attendees_json; do
-  [[ -z "$doc_id" ]] && continue
+while IFS= read -r record; do
+  [[ -z "$record" ]] && continue
+  doc_id="$(printf '%s' "$record" | jq -r '.[0]')"
+  event_title="$(printf '%s' "$record" | jq -r '.[1]')"
+  event_start="$(printf '%s' "$record" | jq -r '.[2]')"
+  event_organizer="$(printf '%s' "$record" | jq -r '.[3]')"
+  attendees_json="$(printf '%s' "$record" | jq -c '.[4]')"
   write_intake_for_doc "$doc_id" "$event_title" "$event_start" "$event_organizer" "$attendees_json"
   case $? in
     0) pulled=$((pulled + 1)) ;;

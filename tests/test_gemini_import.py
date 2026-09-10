@@ -41,6 +41,7 @@ elif a[:3]==['calendar','events','list']:
  if mode=='malformed':print('{"items":{}}');sys.exit(0)
  if mode=='bad-token':print(json.dumps({'items':[],'nextPageToken':'bad\\nvalue'}));sys.exit(0)
  data={'items':[]}
+ if mode=='metadata':data['items']=[json.loads(os.environ['CALENDAR_EVENT'])]
  if mode=='page-fail' and not second:
   data['items']=[{'summary':'Must not export before page two','start':{'dateTime':'2026-09-09T14:00:00Z'},'attachments':[{'title':'Notes by Gemini','fileId':'fixture-doc'}]}]
  if mode in ['pages','page-fail','repeated']:
@@ -263,5 +264,27 @@ else:sys.exit(90)
                 docs=[c for c in calls if c['args'][:3]==['docs','documents','get']]
                 self.assertFalse(any(json.loads(c['args'][c['args'].index('--params')+1]).get('includeTabsContent') for c in docs))
                 self.assertEqual(self.checkpoint.read_bytes(),self.before)
+
+    def test_calendar_invitees_preserved_without_claiming_attendance(self):
+        invitees=[{'displayName':'Alex "AJ" \\ Smith','email':'alex@example.test','responseStatus':'declined'},
+                  {'email':'no-name@example.test','optional':True}]
+        event={'summary':'Source fixture','start':{'dateTime':'2026-09-09T14:00:00Z'},'organizer':{'email':'organizer@example.test'},
+               'attendees':invitees,'attachments':[{'title':'Notes by Gemini','fileId':'fixture-doc'}]}
+        self.document(['Robin: actual speaker.\n'*60])
+        r=self.enumeration(extra={'CALENDAR_MODE':'metadata','CALENDAR_EVENT':json.dumps(event)})
+        self.assertEqual(r.returncode,0,r.stderr)
+        note=self.notes()[0].read_text();header=note.split('---',2)[1]
+        line=next(x for x in header.splitlines() if x.startswith('calendar-invitees: '))
+        self.assertEqual(json.loads(line.split(': ',1)[1]),invitees)
+        self.assertIn('attendees-from-source: []',header)
+        self.assertIn('not evidence of attendance',note)
+
+    def test_malformed_invitees_do_not_become_empty_or_invented_people(self):
+        event={'summary':'Fixture','start':{'dateTime':'2026-09-09T14:00:00Z'},'attendees':'invalid',
+               'attachments':[{'title':'Notes by Gemini','fileId':'fixture-doc'}]}
+        self.document(['Robin: actual speaker.\n'*60])
+        r=self.enumeration(extra={'CALENDAR_MODE':'metadata','CALENDAR_EVENT':json.dumps(event)})
+        self.assertNotEqual(r.returncode,0);self.assertEqual(self.notes(),[])
+        self.assertEqual(json.loads(self.checkpoint.read_text())['last_success_at'],'2026-09-01T00:00:00Z')
 
 if __name__=='__main__':unittest.main(verbosity=2)

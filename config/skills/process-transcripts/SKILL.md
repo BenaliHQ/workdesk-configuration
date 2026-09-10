@@ -305,6 +305,7 @@ Record actual requested/reported model, token usage, elapsed time, extraction pa
 
 - **Don't fabricate attendees.** If Gemini returned a name not in the transcript, drop it. Per [[../../rules/no-fabrication]].
 - **Don't treat the Granola/Google `attendees-from-source` field as ground truth.** That's the calendar invite list, not actual presence. Use Gemini's `attendees_present` (which is grounded in transcript speaker turns).
+- **Gemini-import `calendar-invitees` records invitations, not attendance.** Preserve its supplied names, emails and response states as source metadata; do not infer names from email local parts or turn accepted invitations into presence. An empty `attendees-from-source` means attendance was not established by the importer, not that nobody attended. Check the transcript before accepting the extractor's attendance claims.
 - **Don't fill timeline gaps.** If the transcript jumps topics, don't reconstruct what was missed.
 - **Don't guess speaker names when Gemini returned `low` confidence.** Plain `Speaker X (unidentified)` + `[REVIEW]` beats fabrication.
 - **Don't create person notes for clients' clients** (homeowners, prospects, tertiary mentions). Per [[../../objects/person]] network-scope filter.

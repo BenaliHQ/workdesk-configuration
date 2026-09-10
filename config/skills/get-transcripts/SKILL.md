@@ -119,6 +119,11 @@ If anything failed (true `failed > 0`), point at the log files:
 
 ### 5. Verify (when ≥1 new file pulled)
 
+For Gemini sources, `calendar-invitees` preserves the Calendar objects without
+establishing attendance. The importer leaves `attendees-from-source: []` until
+participation can be determined from transcript evidence. Do not interpret that
+empty field as proof of an unattended meeting.
+
 Spot-check that frontmatter is well-formed on one new file from each source. Specifically:
 - `source-kind: transcript`
 - `processed: false`
