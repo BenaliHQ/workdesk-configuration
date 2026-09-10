@@ -280,13 +280,15 @@ write_intake_for_doc() {
   local event_organizer="$4"
   local attendees_json="$5"
 
-  # Cheap idempotency check first — skip the Docs API call entirely if we
-  # already have this doc on disk
-  if [[ $FORCE -eq 0 || "$FORCE_DOC_ID" != "$doc_id" ]]; then
-    if grep -rlq "^gemini-doc-id: ${doc_id}[[:space:]]*\$" "$INTAKE_DIR" "$TRANSCRIPTS_DIR" 2>/dev/null; then
-      log "SKIP   $doc_id already-pulled (pre-fetch)"
-      return 2
+  # A force flag selects a single source; it never authorizes replacement or
+  # duplication of a source already present in intake or the transcript archive.
+  if grep -rlq "^gemini-doc-id: ${doc_id}[[:space:]]*\$" "$INTAKE_DIR" "$TRANSCRIPTS_DIR" 2>/dev/null; then
+    if [[ $FORCE -eq 1 && "$FORCE_DOC_ID" == "$doc_id" ]]; then
+      log "ERROR  $doc_id source already exists; explicit reconciliation required"
+      return 4
     fi
+    log "SKIP   $doc_id already-pulled (pre-fetch)"
+    return 2
   fi
 
   # Fetch the Doc with all tab content.  Capture output unconditionally —
@@ -355,10 +357,12 @@ write_intake_for_doc() {
   target_path="$INTAKE_DIR/$filename"
 
   # Filename collision handling — different doc landing on same filename
-  if [[ -e "$target_path" ]]; then
+  if [[ -e "$target_path" || -L "$target_path" ]]; then
     if grep -q "^gemini-doc-id: ${doc_id}[[:space:]]*\$" "$target_path" 2>/dev/null; then
       if [[ $FORCE -eq 1 && "$FORCE_DOC_ID" == "$doc_id" ]]; then
-        : # fall through, overwrite
+        log "ERROR  $doc_id source appeared during fetch; reconcile existing note"
+        rm -f "$doc_json" "$transcript_file"
+        return 4
       else
         log "SKIP   $doc_id already-pulled (in intake) → $filename"
         rm -f "$doc_json" "$transcript_file"
@@ -389,7 +393,8 @@ write_intake_for_doc() {
   pulled_at="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
   drive_url="https://docs.google.com/document/d/$doc_id"
 
-  local tmp="$target_path.tmp.$$"
+  local tmp
+  tmp="$(mktemp "$INTAKE_DIR/.gemini-source-XXXXXXXX")" || { rm -f "$doc_json" "$transcript_file"; return 4; }
   {
     printf -- '---\n'
     printf -- 'type: source\n'
@@ -411,9 +416,28 @@ write_intake_for_doc() {
     printf -- 'Verbatim transcript extracted from the "Notes by Gemini" Google Doc, **Transcript** tab. Speakers are name-resolved by Google (e.g., "Jane Doe: ..."). The Gemini-generated summary on the Notes tab is intentionally NOT pulled per [[../../config/rules/source-processing-pattern]] — synthesis happens at processing time from the verbatim, not from another system'"'"'s summary.\n\n'
     printf -- '## Transcript\n\n'
     cat "$transcript_file"
-  } > "$tmp"
+  } > "$tmp" || { log "ERROR  $doc_id staging failed; candidate retained: $tmp"; rm -f "$doc_json" "$transcript_file"; return 4; }
 
-  mv "$tmp" "$target_path"
+  # Atomic no-replace publication also covers a competing writer arriving
+  # after the collision check. Retain the candidate when reconciliation is needed.
+  if ! "${WORKDESK_PYTHON:-python3}" - "$tmp" "$target_path" <<'PYPUBLISH'
+import os, sys
+from pathlib import Path
+source, target = map(Path, sys.argv[1:])
+try:
+    with source.open('rb') as handle:
+        os.fsync(handle.fileno())
+    os.link(source, target)
+except OSError:
+    print('Source publication refused; existing destination and candidate preserved.', file=sys.stderr)
+    sys.exit(1)
+source.unlink()
+PYPUBLISH
+  then
+    log "ERROR  $doc_id publication failed; reconcile staged candidate: $tmp"
+    rm -f "$doc_json" "$transcript_file"
+    return 4
+  fi
   rm -f "$doc_json" "$transcript_file"
 
   log "PULL   $doc_id → $filename (${size}b) \"$event_title\""

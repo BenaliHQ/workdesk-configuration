@@ -135,7 +135,11 @@ The old synced `config/state/pull-gemini.json` is preserved but never adopted
 automatically. Calendar pagination completes before source publication; failed
 pages, malformed page envelopes and repeated page tokens preserve prior success.
 Single-document recovery requires `--doc-id ID --force` and never advances
-enumeration progress. Dry runs never change the checkpoint, including failures.
+enumeration progress. `--force` does not authorize replacing or duplicating an
+existing source in intake or the transcript archive: reconcile that source
+explicitly instead. Publication uses an atomic no-replace operation; an occupied
+destination is preserved and the staged candidate retained for review.
+Dry runs never change the checkpoint, including failures.
 This account boundary does not certify source publication, nested document
 coverage or the completeness of calendar attachment discovery.
 

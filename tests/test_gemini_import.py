@@ -171,4 +171,28 @@ else:sys.exit(90)
         self.assertNotEqual(r.returncode,0);self.assertEqual(self.notes(),[])
         self.assertEqual(self.checkpoint.read_bytes(),self.before)
 
+    def test_force_cannot_replace_existing_source(self):
+        self.document(['Alex: original source.\n'*60]);r=self.run_import();self.assertEqual(r.returncode,0,r.stderr)
+        note=self.notes()[0];before=note.read_bytes()
+        self.document(['Robin: changed source.\n'*60]);r=self.run_import()
+        self.assertNotEqual(r.returncode,0);self.assertEqual(note.read_bytes(),before)
+        self.assertEqual(len(self.notes()),1)
+
+    def test_existing_suffix_collision_is_preserved(self):
+        import datetime
+        date=datetime.datetime.now().strftime('%Y-%m-%d')
+        intake=self.vault/'system/intake';intake.mkdir(exist_ok=True)
+        occupied=[intake/(date+'-fixture.md'),intake/(date+'-fixture-fixtur.md')]
+        for p in occupied:p.write_text('Existing operator source: '+p.name)
+        before={p:p.read_bytes() for p in occupied}
+        self.document(['Alex: source collision.\n'*60]);r=self.run_import()
+        self.assertNotEqual(r.returncode,0)
+        for p,data in before.items():self.assertEqual(p.read_bytes(),data)
+
+    def test_forced_archived_source_cannot_be_duplicated(self):
+        self.document(['Alex: archived source.\n'*60]);r=self.run_import();self.assertEqual(r.returncode,0,r.stderr)
+        note=self.notes()[0];archived=self.vault/'system/transcripts'/note.name;note.rename(archived);before=archived.read_bytes()
+        r=self.run_import();self.assertNotEqual(r.returncode,0)
+        self.assertEqual(archived.read_bytes(),before);self.assertEqual(self.notes(),[])
+
 if __name__=='__main__':unittest.main(verbosity=2)
