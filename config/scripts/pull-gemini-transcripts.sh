@@ -282,7 +282,14 @@ write_intake_for_doc() {
 
   # A force flag selects a single source; it never authorizes replacement or
   # duplication of a source already present in intake or the transcript archive.
-  if grep -rlq "^gemini-doc-id: ${doc_id}[[:space:]]*\$" "$INTAKE_DIR" "$TRANSCRIPTS_DIR" 2>/dev/null; then
+  local identity_result
+  "${WORKDESK_PYTHON:-python3}" "$SCRIPT_DIR/lib/gemini_source_identity.py" "$doc_id" "$INTAKE_DIR" "$TRANSCRIPTS_DIR" >/dev/null
+  identity_result=$?
+  if [[ $identity_result -gt 1 ]]; then
+    log "ERROR  source identity inventory requires reconciliation"
+    return 4
+  fi
+  if [[ $identity_result -eq 0 ]]; then
     if [[ $FORCE -eq 1 && "$FORCE_DOC_ID" == "$doc_id" ]]; then
       log "ERROR  $doc_id source already exists; explicit reconciliation required"
       return 4
@@ -356,24 +363,20 @@ write_intake_for_doc() {
   filename="${local_date}-${slug}.md"
   target_path="$INTAKE_DIR/$filename"
 
-  # Filename collision handling — different doc landing on same filename
+  # Recheck source identity after fetching. Text in an occupied filename is
+  # never used as identity evidence; only the frontmatter inventory decides.
+  "${WORKDESK_PYTHON:-python3}" "$SCRIPT_DIR/lib/gemini_source_identity.py" "$doc_id" "$INTAKE_DIR" "$TRANSCRIPTS_DIR" >/dev/null
+  identity_result=$?
+  if [[ $identity_result -ne 1 ]]; then
+    log "ERROR  source identity changed or needs review after fetch"
+    rm -f "$doc_json" "$transcript_file"
+    return 4
+  fi
   if [[ -e "$target_path" || -L "$target_path" ]]; then
-    if grep -q "^gemini-doc-id: ${doc_id}[[:space:]]*\$" "$target_path" 2>/dev/null; then
-      if [[ $FORCE -eq 1 && "$FORCE_DOC_ID" == "$doc_id" ]]; then
-        log "ERROR  $doc_id source appeared during fetch; reconcile existing note"
-        rm -f "$doc_json" "$transcript_file"
-        return 4
-      else
-        log "SKIP   $doc_id already-pulled (in intake) → $filename"
-        rm -f "$doc_json" "$transcript_file"
-        return 2
-      fi
-    else
-      local short_suffix="${doc_id:0:6}"
-      filename="${local_date}-${slug}-${short_suffix}.md"
-      target_path="$INTAKE_DIR/$filename"
-      log "INFO   filename collision avoided via suffix → $filename"
-    fi
+    local short_suffix="${doc_id:0:6}"
+    filename="${local_date}-${slug}-${short_suffix}.md"
+    target_path="$INTAKE_DIR/$filename"
+    log "INFO   filename collision uses suffix; publication still refuses replacement"
   fi
 
   if [[ $DRY_RUN -eq 1 ]]; then

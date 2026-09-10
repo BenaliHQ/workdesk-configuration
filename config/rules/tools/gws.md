@@ -139,6 +139,9 @@ enumeration progress. `--force` does not authorize replacing or duplicating an
 existing source in intake or the transcript archive: reconcile that source
 explicitly instead. Publication uses an atomic no-replace operation; an occupied
 destination is preserved and the staged candidate retained for review.
+Source identity is read only from frontmatter, including ordinary quoted IDs;
+mentions in transcript prose do not count. Duplicate ID records, unreadable
+inventories, symlinks or ambiguous identity syntax require reconciliation.
 Dry runs never change the checkpoint, including failures.
 This account boundary does not certify source publication, nested document
 coverage or the completeness of calendar attachment discovery.

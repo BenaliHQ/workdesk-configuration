@@ -19,7 +19,7 @@ class GeminiImportTests(unittest.TestCase):
         self.vault = self.root/'vault'
         scripts = self.vault/'config/scripts'
         (scripts/'lib').mkdir(parents=True)
-        for name in ['pull-gemini-transcripts.sh','lib/gws-layout.sh','lib/gws_account.py']:
+        for name in ['pull-gemini-transcripts.sh','lib/gws-layout.sh','lib/gws_account.py','lib/gemini_source_identity.py']:
             shutil.copy2(ROOT/'config/scripts'/name,scripts/name)
         self.script = scripts/'pull-gemini-transcripts.sh'
         (self.vault/'system/transcripts').mkdir(parents=True)
@@ -194,5 +194,49 @@ else:sys.exit(90)
         note=self.notes()[0];archived=self.vault/'system/transcripts'/note.name;note.rename(archived);before=archived.read_bytes()
         r=self.run_import();self.assertNotEqual(r.returncode,0)
         self.assertEqual(archived.read_bytes(),before);self.assertEqual(self.notes(),[])
+
+    def test_body_mention_is_not_a_source_identity(self):
+        other=self.vault/'system/transcripts/other.md'
+        other.write_text('---\ngemini-doc-id: other-document\n---\nMention in transcript:\ngemini-doc-id: fixture-doc\n')
+        self.document(['Alex: new source.\n'*60]);r=self.run_import()
+        self.assertEqual(r.returncode,0,r.stderr);self.assertEqual(len(self.notes()),1)
+
+    def test_quoted_source_identity_is_recognized(self):
+        other=self.vault/'system/transcripts/other.md'
+        for value in ['"fixture-doc"', "'fixture-doc'"]:
+            with self.subTest(value=value):
+                other.write_text('---\ngemini-doc-id: '+value+'\n---\nSaved source.\n')
+                before=other.read_bytes();self.document(['Alex: new source.\n'*60]);r=self.run_import()
+                self.assertNotEqual(r.returncode,0);self.assertEqual(self.notes(),[]);self.assertEqual(other.read_bytes(),before)
+
+    def test_ambiguous_source_frontmatter_stops_before_export(self):
+        other=self.vault/'system/transcripts/other.md'
+        for header in ['gemini-doc-id: other\ngemini-doc-id: fixture-doc', '"gemini-doc-id": fixture-doc', 'gemini-doc-id: [fixture-doc]']:
+            with self.subTest(header=header):
+                other.write_text('---\n'+header+'\n---\nSaved source.\n')
+                self.document(['Alex: new source.\n'*60]);r=self.run_import()
+                self.assertNotEqual(r.returncode,0);self.assertEqual(self.notes(),[])
+                self.assertIn('inventory',r.stderr)
+
+    def test_symlink_inventory_is_not_followed(self):
+        outside=self.root/'outside.md';outside.write_text('---\ngemini-doc-id: fixture-doc\n---\nOutside source.\n')
+        (self.vault/'system/transcripts/link.md').symlink_to(outside)
+        before=outside.read_bytes();self.document(['Alex: new source.\n'*60]);r=self.run_import()
+        self.assertNotEqual(r.returncode,0);self.assertEqual(self.notes(),[]);self.assertEqual(outside.read_bytes(),before)
+
+    def test_duplicate_source_id_records_require_review(self):
+        for name in ['one','two']:
+            (self.vault/'system/transcripts'/(name+'.md')).write_text('---\ngemini-doc-id: fixture-doc\n---\nSaved source.\n')
+        self.document(['Alex: new source.\n'*60]);r=self.run_import()
+        self.assertNotEqual(r.returncode,0);self.assertIn('inventory',r.stderr);self.assertEqual(self.notes(),[])
+
+    def test_collision_body_mention_does_not_claim_identity(self):
+        import datetime
+        date=datetime.datetime.now().strftime('%Y-%m-%d')
+        intake=self.vault/'system/intake';intake.mkdir(exist_ok=True)
+        other=intake/(date+'-fixture.md')
+        other.write_text('---\ngemini-doc-id: other-document\n---\ngemini-doc-id: fixture-doc\n')
+        before=other.read_bytes();self.document(['Alex: new source.\n'*60]);r=self.run_import()
+        self.assertEqual(r.returncode,0,r.stderr);self.assertEqual(len(self.notes()),2);self.assertEqual(other.read_bytes(),before)
 
 if __name__=='__main__':unittest.main(verbosity=2)
