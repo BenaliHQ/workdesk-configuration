@@ -7,7 +7,7 @@ import json
 import sqlite3
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location('refresh_search', ROOT/'config/scripts/refresh-search.py')
@@ -325,6 +325,45 @@ class RefreshTests(unittest.TestCase):
         self.assertTrue(child_ready.exists(),'Child must start before timeout is tested')
         time.sleep(1.4)
         self.assertFalse(child_output.exists())
+
+    def test_group_observation_requires_no_live_members(self):
+        from subprocess import CompletedProcess
+        for output, stopped in [('42 Z\n43 S\n', True), ('42 S\n42 Z\n', False),
+                                ('43 R\n', True)]:
+            with patch.object(runner.subprocess, 'run', return_value=CompletedProcess([], 0, output, '')):
+                self.assertEqual(runner.group_stopped(42), stopped)
+        for code, output in [(1, '43 S\n'), (0, ''), (0, 'bad output row\n')]:
+            with patch.object(runner.subprocess, 'run', return_value=CompletedProcess([], code, output, '')):
+                with self.assertRaises(runner.CleanupUnverified):runner.group_stopped(42)
+
+    def test_permission_denied_requires_independent_group_observation(self):
+        import os
+        import subprocess
+        for stopped in [False, True]:
+            process = Mock(pid=424242)
+            process.wait.side_effect = [subprocess.TimeoutExpired(['fixture'], 1), 0, 0]
+            with (self.root/'test.lock').open('a') as lock:
+                with patch.object(runner.subprocess, 'Popen', return_value=process), \
+                     patch.object(runner.os, 'killpg', side_effect=PermissionError('fixture denial')), \
+                     patch.object(runner, 'group_stopped', return_value=stopped) as observe:
+                    expected = RuntimeError if stopped else runner.CleanupUnverified
+                    message = '^command-timeout$' if stopped else 'signal-denied'
+                    with self.assertRaisesRegex(expected, message):
+                        runner.execute(['fixture'], dict(os.environ), self.root/'denied.log', 1, lock.fileno())
+                    observe.assert_called_with(process.pid)
+
+    def test_unverified_cleanup_blocks_retry_even_before_embedding(self):
+        with patch.object(runner, 'execute', side_effect=runner.CleanupUnverified('fixture')):
+            receipt, code = self.run_refresh()
+        self.assertEqual((code, receipt['failed_stage']), (2, 'version'))
+        self.assertTrue(receipt['cleanup_unverified'])
+        self.assertTrue((self.state/'repair-required.json').exists())
+        self.assertFalse((self.state/'last-success.json').exists())
+        (self.state/'repair-required.json').unlink()
+        with patch.object(runner, 'execute') as execute:
+            blocked, code = self.run_refresh()
+        self.assertEqual((code, blocked['status']), (2, 'repair-required'))
+        execute.assert_not_called()
 
     def test_runner_term_drains_started_child_that_ignores_term(self):
         import os

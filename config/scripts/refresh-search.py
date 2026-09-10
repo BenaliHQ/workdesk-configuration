@@ -17,6 +17,26 @@ import re
 import signal
 import subprocess
 import tempfile
+import time
+
+
+class CleanupUnverified(RuntimeError):
+    """A child group may still be running; automatic retries are unsafe."""
+
+
+def group_stopped(group):
+    """Observe the whole group, including descendants whose leader exited."""
+    result = subprocess.run(['/bin/ps', '-axo', 'pgid=,stat='],
+                            capture_output=True, text=True, timeout=5)
+    if result.returncode or not result.stdout.strip():
+        raise CleanupUnverified('process-group-observation-failed')
+    for line in result.stdout.splitlines():
+        fields = line.split()
+        if len(fields) != 2 or not fields[0].isdigit():
+            raise CleanupUnverified('process-group-observation-invalid')
+        if int(fields[0]) == group and not fields[1].startswith('Z'):
+            return False
+    return True
 
 
 def stamp():
@@ -66,21 +86,33 @@ def execute(command, env, log, timeout, lock_fd, stderr_log=None):
             # unwound its locks. A repeated TERM must not interrupt that cleanup.
             for number in (signal.SIGTERM, signal.SIGINT):
                 signal.signal(number, signal.SIG_IGN)
-            try:
-                os.killpg(process.pid, signal.SIGTERM)
-            except ProcessLookupError:
-                return
-            try:
-                process.wait(timeout=10)
-            except subprocess.TimeoutExpired:
-                os.killpg(process.pid, signal.SIGKILL)
-                process.wait()
-            finally:
-                # The leader may exit before a descendant that ignores TERM.
+            def signal_group(number):
                 try:
-                    os.killpg(process.pid, signal.SIGKILL)
+                    os.killpg(process.pid, number)
                 except ProcessLookupError:
                     pass
+                except PermissionError as exc:
+                    # A refused signal is not evidence of termination. Only a
+                    # successful group-wide observation can establish that.
+                    if not group_stopped(process.pid):
+                        raise CleanupUnverified('process-group-signal-denied') from exc
+            try:
+                signal_group(signal.SIGTERM)
+                try:
+                    process.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    pass
+                signal_group(signal.SIGKILL)
+                process.wait(timeout=5)
+                deadline = time.monotonic() + 5
+                while not group_stopped(process.pid):
+                    if time.monotonic() >= deadline:
+                        raise CleanupUnverified('process-group-still-running')
+                    time.sleep(0.05)
+            except CleanupUnverified:
+                raise
+            except Exception as exc:
+                raise CleanupUnverified('process-group-cleanup-unverified') from exc
         def interrupted(number, _frame):
             raise RuntimeError('runner-interrupted-signal-'+str(number))
         handlers = {number: signal.getsignal(number) for number in (signal.SIGTERM, signal.SIGINT)}
@@ -155,6 +187,8 @@ def refresh(vault, config, expected, index, state, qmd, timeout=7200, *, node, p
                 return {'status': 'repair-required', 'reason': 'unreadable-prior-receipt', 'as_of': stamp()}, 2
             if not isinstance(prior, dict) or prior.get('status') not in ('completed', 'failed'):
                 return {'status': 'repair-required', 'reason': 'interrupted-or-invalid-prior-run', 'as_of': stamp()}, 2
+            if prior.get('cleanup_unverified'):
+                return {'status': 'repair-required', 'reason': 'prior-process-cleanup-unverified', 'as_of': stamp()}, 2
             if prior.get('status') == 'failed' and prior.get('failed_stage') not in ('version', 'source-preflight', 'update', 'source-freshness'):
                 return {'status': 'repair-required', 'reason': 'prior-embedding-or-verification-failure', 'as_of': stamp()}, 2
         run = Path(tempfile.mkdtemp(prefix='run-', dir=state))
@@ -262,10 +296,12 @@ def refresh(vault, config, expected, index, state, qmd, timeout=7200, *, node, p
             receipt.pop('completed_at', None)
             receipt.update(status='failed', finished_at=stamp(), failed_stage=stage,
                            error=type(exc).__name__+': '+str(exc))
+            if isinstance(exc, CleanupUnverified):
+                receipt['cleanup_unverified'] = True
             save(run/'receipt.json', receipt)
             if reconcile_sha256 is None:
                 save(state/'last-run.json', receipt)
-                if stage in ('embed', 'verification'):
+                if stage in ('embed', 'verification') or isinstance(exc, CleanupUnverified):
                     save(state/'repair-required.json', receipt)
             return receipt, 2
 
