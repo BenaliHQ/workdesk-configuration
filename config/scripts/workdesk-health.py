@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Read-only local capability and backup exceptions. Does not contact providers."""
+"""Read-only local capability, backup and search metadata report.
+
+Does not contact providers. Exit zero means a report was produced, not healthy.
+JSON status is attention for observed exceptions and incomplete for unverified
+search coverage without observed exceptions. Read both exceptions and unverified;
+metadata alone never certifies source freshness, all chunks or retrieval quality.
+"""
 import argparse
 import datetime as dt
 import json
@@ -86,6 +92,25 @@ def qmd_index_status(index, vault):
         return dict(result, reason='index-unreadable-or-unsupported-schema')
 
 
+def search_summary(search):
+    """Separate observed defects from limits of this read-only metadata probe."""
+    issues, unchecked = [], []
+    if search.get('state') == 'not-checked':
+        unchecked.append('search-not-checked')
+    elif search.get('state') != 'index-observed':
+        issues.append('search-' + search.get('reason', 'unavailable'))
+    else:
+        for collection in search['collections']:
+            if collection['active_documents'] == 0:
+                issues.append('search-empty-collection:' + collection['name'])
+            if collection['hashes_without_first_vector'] > 0:
+                issues.append('search-missing-first-vectors:' + collection['name'])
+        unchecked.extend(['search-source-freshness-unverified',
+                          'search-all-chunk-coverage-unverified',
+                          'search-retrieval-quality-unverified'])
+    return issues, unchecked
+
+
 def inspect(vault, qmd_index=None):
     def git(*args):
         r = subprocess.run(["git", "-C", str(vault), *args], capture_output=True, text=True)
@@ -113,17 +138,21 @@ def inspect(vault, qmd_index=None):
     if pending is None: issues.append('working-tree-unavailable')
     if not (Path.home()/'.claude/hooks/verify-send-phrase.py').is_file(): issues.append('email-verifier-missing')
     if not (Path.home()/'.claude/email-send-phrase').is_file(): issues.append('email-phrase-not-provisioned')
+    search = qmd_index_status(qmd_index, vault) if qmd_index else {'state': 'not-checked', 'reason': 'no-explicit-qmd-index'}
+    search_issues, unchecked = search_summary(search)
+    issues.extend(search_issues)
     return {
         'as_of': dt.datetime.now(dt.timezone.utc).isoformat(),
         'host': __import__('socket').gethostname(),
         'vault': str(vault),
-        'status': 'attention' if issues else 'no-local-exception-detected',
+        'status': 'attention' if issues else ('incomplete' if unchecked else 'no-local-exception-detected'),
         'exceptions': issues,
+        'unverified': unchecked,
         'backup': {'commit_age_seconds': commit_age, 'pending_change_count': len(pending.splitlines()) if pending is not None else None,
                    'head_matches_local_push_receipt': bool(head and pushed and head == pushed), 'oldest_unpushed_age_seconds': age,
                    'automatic_commit_plugin_enabled': enabled, 'automatic_commits_enabled': automatic, 'commit_interval_minutes': cadence, 'automatic_pull_enabled': auto_pull},
         'tools_on_this_path': {name: bool(shutil.which(name)) for name in ['claude','codex','gws','qbo','qmd','ntn','keep-markdown','infisical']},
-        'search': qmd_index_status(qmd_index, vault) if qmd_index else {'state': 'not-checked', 'reason': 'no-explicit-qmd-index'},
+        'search': search,
         'safety': {'codex_wiring_present': (vault/'.codex/hooks.json').is_file(),
                    'verifier_present': (Path.home()/'.claude/hooks/verify-send-phrase.py').is_file(),
                    'phrase_present': (Path.home()/'.claude/email-send-phrase').is_file(),

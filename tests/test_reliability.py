@@ -66,6 +66,38 @@ class CopyTests(unittest.TestCase):
    with self.assertRaises(c.ChangedTarget):c.checked_copy(src,dst,None)
 
 class HealthTests(unittest.TestCase):
+ def test_search_summary_distinguishes_defects_from_unknown_coverage(self):
+  spec=importlib.util.spec_from_file_location('health',W/'config/scripts/workdesk-health.py');h=importlib.util.module_from_spec(spec);spec.loader.exec_module(h)
+  self.assertEqual(h.search_summary({'state':'not-checked'}),([],['search-not-checked']))
+  self.assertEqual(h.search_summary({'state':'unavailable','reason':'index-file-missing'})[0],['search-index-file-missing'])
+  for count,pending,expected in [(0,0,['search-empty-collection:test']),(2,1,['search-missing-first-vectors:test']),(2,0,[])]:
+   result={'state':'index-observed','collections':[{'name':'test','active_documents':count,'hashes_without_first_vector':pending}]}
+   issues,unknown=h.search_summary(result)
+   self.assertEqual(issues,expected)
+   self.assertIn('search-all-chunk-coverage-unverified',unknown)
+ def test_health_top_level_includes_search_failure(self):
+  spec=importlib.util.spec_from_file_location('health',W/'config/scripts/workdesk-health.py');h=importlib.util.module_from_spec(spec);spec.loader.exec_module(h)
+  with tempfile.TemporaryDirectory() as t:
+   root=Path(t);result=h.inspect(root,root/'missing.sqlite')
+   self.assertEqual(result['status'],'attention')
+   self.assertIn('search-index-file-missing',result['exceptions'])
+   self.assertFalse((root/'missing.sqlite').exists())
+ def test_clean_local_backup_does_not_hide_unchecked_search(self):
+  from unittest.mock import patch
+  from types import SimpleNamespace
+  spec=importlib.util.spec_from_file_location('health',W/'config/scripts/workdesk-health.py');h=importlib.util.module_from_spec(spec);spec.loader.exec_module(h)
+  # Isolate pre-existing backup/safety observations; exercise inspect's actual
+  # search integration rather than requiring the operator's local settings.
+  def run(args,**kwargs):
+   text=''
+   if '--format=%ct' in args:text='0'
+   elif 'rev-parse' in args and 'HEAD' in args:text='head'
+   return SimpleNamespace(returncode=0,stdout=text)
+  with tempfile.TemporaryDirectory() as t, patch.object(h.subprocess,'run',side_effect=run), patch.object(h,'backup_status',return_value=[]), patch.object(h,'plugin_status',return_value=(True,True,False,10,[])), patch.object(Path,'is_file',return_value=True):
+   result=h.inspect(Path(t))
+   self.assertEqual(result['exceptions'],[])
+   self.assertEqual(result['status'],'incomplete')
+   self.assertEqual(result['unverified'],['search-not-checked'])
  def test_qmd_metadata_missing_foreign_partial_and_complete_first_vectors(self):
   import sqlite3
   spec=importlib.util.spec_from_file_location('health',W/'config/scripts/workdesk-health.py');h=importlib.util.module_from_spec(spec);spec.loader.exec_module(h)
