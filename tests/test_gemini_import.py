@@ -48,8 +48,12 @@ elif a[:3]==['calendar','events','list']:
  print(json.dumps(data))
 elif a[:3]==['docs','documents','get']:
  p=json.loads(a[a.index('--params')+1])
- if p.get('includeTabsContent'):print(Path(os.environ['DOC_FIXTURE']).read_text())
- else:print('{"documentId":"fixture-doc","title":"Fixture"}')
+ if p.get('includeTabsContent'):
+  print(Path(os.environ['DOC_FIXTURE']).read_text());sys.exit(int(os.environ.get('DOC_EXIT','0')))
+ else:
+  mode=os.environ.get('META_MODE','normal')
+  print(json.dumps({'documentId':'wrong-doc' if mode=='wrong-id' else 'fixture-doc','title':[] if mode=='bad-title' else 'Fixture'}))
+  sys.exit(8 if mode=='failed' else 0)
 else:sys.exit(90)
 ''');gws.chmod(0o700)
         self.doc=self.root/'doc.json'
@@ -238,5 +242,26 @@ else:sys.exit(90)
         other.write_text('---\ngemini-doc-id: other-document\n---\ngemini-doc-id: fixture-doc\n')
         before=other.read_bytes();self.document(['Alex: new source.\n'*60]);r=self.run_import()
         self.assertEqual(r.returncode,0,r.stderr);self.assertEqual(len(self.notes()),2);self.assertEqual(other.read_bytes(),before)
+
+    def test_wrong_document_id_never_publishes(self):
+        self.document(['Alex: plausible text.\n'*60])
+        data=json.loads(self.doc.read_text());data['documentId']='different-doc';self.doc.write_text(json.dumps(data))
+        r=self.run_import();self.assertNotEqual(r.returncode,0);self.assertEqual(self.notes(),[])
+        self.assertEqual(self.checkpoint.read_bytes(),self.before)
+
+    def test_failed_cli_with_valid_document_json_never_publishes(self):
+        self.document(['Alex: plausible text.\n'*60]);self.env['DOC_EXIT']='8';r=self.run_import()
+        self.assertNotEqual(r.returncode,0);self.assertEqual(self.notes(),[])
+        self.assertEqual(self.checkpoint.read_bytes(),self.before)
+
+    def test_metadata_mismatch_failure_or_invalid_title_stops_before_full_fetch(self):
+        for mode in ['wrong-id','bad-title','failed']:
+            with self.subTest(mode=mode):
+                self.env['META_MODE']=mode;self.document(['Alex: plausible text.\n'*60]);r=self.run_import()
+                self.assertNotEqual(r.returncode,0);self.assertEqual(self.notes(),[])
+                calls=[json.loads(x) for x in self.calls.read_text().splitlines()]
+                docs=[c for c in calls if c['args'][:3]==['docs','documents','get']]
+                self.assertFalse(any(json.loads(c['args'][c['args'].index('--params')+1]).get('includeTabsContent') for c in docs))
+                self.assertEqual(self.checkpoint.read_bytes(),self.before)
 
 if __name__=='__main__':unittest.main(verbosity=2)

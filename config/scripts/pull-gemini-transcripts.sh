@@ -305,10 +305,11 @@ write_intake_for_doc() {
   # by someone else and they didn't share the Gemini Doc.  Those are
   # permanent: don't count as retryable failure or consecutive_failures
   # climbs every run.
-  local doc_json; doc_json="$(mktemp)"
+  local doc_json doc_exit=0
+  doc_json="$(mktemp)" || return 4
   gws docs documents get \
     --params "$(jq -n --arg id "$doc_id" '{documentId:$id, includeTabsContent:true}')" \
-    --format json > "$doc_json" 2>/dev/null || true
+    --format json > "$doc_json" 2>/dev/null || doc_exit=$?
 
   if [[ ! -s "$doc_json" ]]; then
     log "ERROR  $doc_id docs.get returned empty (gws or network failure)"
@@ -320,11 +321,20 @@ write_intake_for_doc() {
   api_err_code="$(jq -r '.error.code // empty' "$doc_json" 2>/dev/null)"
   if [[ -n "$api_err_code" ]]; then
     if [[ "$api_err_code" == "403" || "$api_err_code" == "404" ]]; then
-      log "SKIP   $doc_id no-access (code=$api_err_code, owner has not shared) title=\"$event_title\""
+      log "SKIP   $doc_id unavailable (code=$api_err_code; cause not established) title=\"$event_title\""
       rm -f "$doc_json"
       return 5
     fi
     log "ERROR  $doc_id docs.get api error code=$api_err_code"
+    rm -f "$doc_json"
+    return 4
+  fi
+
+  if [[ $doc_exit -ne 0 ]] || ! jq -e --arg id "$doc_id" '
+    type == "object" and (has("error") | not) and .documentId == $id and
+    (.tabs | type == "array")
+  ' "$doc_json" >/dev/null 2>&1; then
+    log "ERROR  $doc_id document response failed or identity did not match"
     rm -f "$doc_json"
     return 4
   fi
@@ -450,14 +460,16 @@ PYPUBLISH
 # ── Forced single-doc path ──────────────────────────────────────────────────
 if [[ -n "$FORCE_DOC_ID" ]]; then
   # No calendar context — pull minimal info from the Doc itself
-  meta="$(gws docs documents get --params \
+  if ! meta="$(gws docs documents get --params \
     "$(jq -n --arg id "$FORCE_DOC_ID" '{documentId:$id, includeTabsContent:false}')" \
-    --format json 2>/dev/null)"
-  if [[ -z "$meta" ]]; then
+    --format json 2>/dev/null)" || ! printf '%s' "$meta" | jq -e --arg id "$FORCE_DOC_ID" '
+      type == "object" and (has("error") | not) and .documentId == $id and
+      (.title | type == "string" and length > 0)
+    ' >/dev/null 2>&1; then
     log "ERROR  $FORCE_DOC_ID metadata fetch failed"
     exit 2
   fi
-  title="$(printf '%s' "$meta" | jq -r '.title // "Untitled"')"
+  title="$(printf '%s' "$meta" | jq -r '.title')"
   write_intake_for_doc "$FORCE_DOC_ID" "$title" "$NOW_ISO" "(forced)" "[]"
   rc=$?
   # A single document is not evidence of complete calendar enumeration.
