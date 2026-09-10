@@ -48,7 +48,7 @@ Zones (read from vault):
 - **Actions:** `gtd/actions/next/` (all open next-actions) and `gtd/actions/waiting/` (delegated / waiting-on items — check whether any are now unblocked or need a nudge).
 - due `gtd/recurring/schedules/` items (`status: active` AND `next_due <= today`)
 
-Tools (try if connected per `config/tools/<slug>.md` `connected: true`; degrade silently if not):
+Tools (try if connected per `config/tools/<slug>.md` `connected: true`; record unavailable, not-configured, stale and verified-empty sources separately):
 - **`gws calendar` — scoped per `{scope}`.**
   - When `{scope}` is `own` (default): scope every call to `{email}` (or `primary` if `{email}` is empty), so shared/subscribed calendars are excluded.
     - Today: `gws calendar +agenda --today --calendar {email}`
@@ -71,6 +71,8 @@ Tools (try if connected per `config/tools/<slug>.md` `connected: true`; degrade 
 4. For each `gtd/actions/waiting/` item: check whether the blocker has cleared or a follow-up is now due — these become "delegate / nudge" candidates in triage
 
 ## Reasoning — focus & GTD triage
+
+Preserve the status of source statements. An intention in a daily note is a candidate, not a confirmed commitment; an incomplete checklist is not proof that an external action remains undone. Cite the source and keep unresolved contradictions visible. Do not invent a due date, owner, completion, client agreement or attendee from context. Proposed prioritization and delegation remain recommendations until explicitly accepted or supported by a current source.
 
 The daily-plan is not a data dump. After gathering all anchors, apply judgment — this is the highest-value part of the signal. The operator is being briefed AND coached to stay focused and sharp.
 
@@ -117,6 +119,8 @@ schedule: daily
 ---
 ```
 
+Before the body, include **Coverage** — identify checked sources and their dates/account scopes; state material missing, stale or unavailable inputs. Mark the plan partial when required coverage is incomplete.
+
 Body sections:
 1. **Focus — the 1–3 things that truly require *you* today.** Lead with this. Synthesized via GTD triage (see [Reasoning](#reasoning--focus--gtd-triage)) from everything below. High-impact work only the operator can do.
 2. Today's commitments + relevant context for each (scoped-calendar events; today first, then any lookahead items that need action today)
@@ -154,7 +158,7 @@ If total intake > 20, surface a triage warning as the day's top item.
 
 ### 2. Pull-health check
 
-Read state files from `config/state/pull-{source}.json`:
+Resolve the current host-local state paths from each installed puller's tool guide and runtime configuration. For account-scoped sources, report each configured account separately. Historical `config/state/pull-{source}.json` files below are legacy evidence, not automatically the active checkpoint:
 
 - `config/state/pull-granola.json`
 - `config/state/pull-google.json`
@@ -194,4 +198,4 @@ Surface ad-hoc generation when:
 
 For each source, retain what was read, the time window, the result and any observed error. Distinguish available, verified-empty, not-configured, unavailable, not-checked and stale. Include a compact Coverage summary with material gaps and recovery steps where known. A missing supplied input or an out-of-scope read is not a failed provider request. Never attribute a local action, waiting, project or inbox omission to a calendar/CRM/search outage unless an actual dependency and failure are established. Continue authorized local reads independently. Do not infer no commitments from a failed read or invent its cause.
 
-An unresolved QUESTION remains active regardless of age unless its substance has a durable linked record and explicit disposition. Age never resolves a truth conflict.
+An unresolved QUESTION remains active regardless of age. Archive only after a sourced resolution or explicit operator dismissal; preserve the resolution and its link. Age never resolves a truth conflict.
