@@ -363,7 +363,10 @@ write_intake_for_doc() {
   # Extract body — everything after the "Transcript" line
   local transcript_body
   transcript_body="$(awk 'f{print} /^Transcript[[:space:]]*$/{f=1}' "$body_tmp")"
-  if [[ -z "${transcript_body//[[:space:]]/}" ]]; then
+  # Bash 3.2 pattern replacement is prohibitively slow on long transcripts.
+  # Consume the full stream (no grep -q) so pipefail cannot mistake SIGPIPE
+  # from an early reader exit for an empty body.
+  if ! printf '%s' "$transcript_body" | LC_ALL=C grep '[^[:space:]]' >/dev/null; then
     log "ERROR  $file_id export has no recognized transcript body; source not published"
     rm -f "$body_tmp"; rmdir "$body_dir"
     return 4

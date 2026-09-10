@@ -38,6 +38,7 @@ elif args[:3]==['drive','files','export']:
  if mode=='export-fail':sys.exit(8)
  output=Path(args[args.index('--output')+1]);assert not output.is_absolute()
  output.write_bytes(b'Unexpected layout without transcript section' if mode=='no-body' else b'Attendees\r\nAlex\r\nTranscript\r\nAlex: Preserve this exact source statement.\r\n')
+ if mode=='long-body':output.write_text('Attendees\nAlex\nTranscript\n'+'Alex: Preserve this exact source statement.\n'*3000)
 else:sys.exit(90)
 '''
 
@@ -168,6 +169,12 @@ class GoogleImportTests(unittest.TestCase):
         result=self.run_import(mode='no-body');self.assertEqual(result.returncode,1,result.stderr)
         self.assertEqual(self.notes(),[])
         self.assertEqual(json.loads(path.read_text())['last_success_at'],old)
+
+    def test_long_transcript_is_preserved_within_bounded_runtime(self):
+        result=self.run_import(mode='long-body');self.assertEqual(result.returncode,0,result.stderr)
+        self.assertEqual(len(self.notes()),1)
+        body=self.notes()[0].read_text().split('## Transcript\n\n',1)[1]
+        self.assertEqual(body,'Alex: Preserve this exact source statement.\n'*3000)
 
 
 if __name__=='__main__':unittest.main()
