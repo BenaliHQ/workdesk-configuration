@@ -30,6 +30,7 @@
 #   bash config/scripts/pull-gemini-transcripts.sh --account you@example.com --days 30 --backfill    # >7 requires --backfill
 #   bash config/scripts/pull-gemini-transcripts.sh --account you@example.com --dry-run
 #   bash config/scripts/pull-gemini-transcripts.sh --account you@example.com --doc-id <id> --force
+#   # After reviewing exact extracted text: --doc-id <id> --force --reviewed-short-sha256 <sha256>
 #   bash config/scripts/pull-gemini-transcripts.sh --account you@example.com --status
 #   bash config/scripts/pull-gemini-transcripts.sh --account you@example.com --help
 #
@@ -62,6 +63,7 @@ BACKFILL=0
 DRY_RUN=0
 FORCE_DOC_ID=""
 FORCE=0
+REVIEWED_SHORT_SHA256=""
 SHOW_STATUS=0
 ACCOUNT="${WORKDESK_GWS_ACCOUNT:-}"
 ACCOUNT_FLAG=0
@@ -147,6 +149,9 @@ while [[ $# -gt 0 ]]; do
     --dry-run)  DRY_RUN=1; shift ;;
     --doc-id)   [[ $# -ge 2 && "$2" =~ ^[A-Za-z0-9_-]+$ ]] || { echo "--doc-id requires a document ID" >&2; exit 2; }; FORCE_DOC_ID="$2"; shift 2 ;;
     --force)    FORCE=1; shift ;;
+    --reviewed-short-sha256)
+      [[ $# -ge 2 && "$2" =~ ^[a-f0-9]{64}$ && -z "$REVIEWED_SHORT_SHA256" ]] || { echo "Specify --reviewed-short-sha256 once with a lowercase SHA-256" >&2; exit 2; }
+      REVIEWED_SHORT_SHA256="$2"; shift 2 ;;
     --status)   SHOW_STATUS=1; shift ;;
     --help|-h)
       sed -n '2,40p' "$0" | sed 's/^# \{0,1\}//'
@@ -250,6 +255,11 @@ fi
 
 if [[ "$DAYS" -gt 7 && $BACKFILL -eq 0 && -z "$FORCE_DOC_ID" ]]; then
   echo "Error: --days $DAYS > 7 requires --backfill" >&2
+  exit 2
+fi
+
+if [[ -n "$REVIEWED_SHORT_SHA256" && ( -z "$FORCE_DOC_ID" || $FORCE -eq 0 ) ]]; then
+  echo "Error: reviewed short content requires --doc-id and --force" >&2
   exit 2
 fi
 
@@ -391,7 +401,14 @@ write_intake_for_doc() {
   local size
   size="$(wc -c < "$transcript_file" | tr -d ' ')"
 
-  if [[ $size -lt $MIN_TRANSCRIPT_CHARS ]]; then
+  local transcript_sha256
+  transcript_sha256="$(shasum -a 256 "$transcript_file" | cut -d ' ' -f 1)"
+  if [[ -n "$REVIEWED_SHORT_SHA256" && "$transcript_sha256" != "$REVIEWED_SHORT_SHA256" ]]; then
+    log "ERROR  $doc_id reviewed transcript checksum mismatch; source not published"
+    rm -f "$doc_json" "$transcript_file"
+    return 4
+  fi
+  if [[ $size -lt $MIN_TRANSCRIPT_CHARS && -z "$REVIEWED_SHORT_SHA256" ]]; then
     log "SKIP   $doc_id short-transcript-needs-review size=${size}b title=\"$event_title\""
     rm -f "$doc_json" "$transcript_file"
     return 1
@@ -461,6 +478,10 @@ write_intake_for_doc() {
     printf -- 'attendees-from-source: []\n'
     printf -- 'calendar-invitees: %s\n' "$invitees_json"
     printf -- 'source-format: %s\n' "$SOURCE_FORMAT"
+    if [[ -n "$REVIEWED_SHORT_SHA256" ]]; then
+      printf -- 'short-transcript-review: exact-content-reviewed\n'
+      printf -- 'reviewed-transcript-sha256: %s\n' "$transcript_sha256"
+    fi
     printf -- 'pulled-at: %s\n' "$pulled_at"
     printf -- '---\n\n'
     printf -- '# %s — %s (raw transcript)\n\n' "$event_title" "$heading_date"

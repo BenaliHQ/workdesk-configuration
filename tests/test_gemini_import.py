@@ -442,4 +442,26 @@ else:sys.exit(90)
                 r=self.enumeration();self.assertEqual(r.returncode,2,r.stderr)
                 self.assertFalse(self.calls.exists());self.assertEqual(self.checkpoint.read_text(),data)
 
+    def test_reviewed_short_transcript_preserves_exact_body_and_checkpoint(self):
+        text='Sep 3, 2026\nAlex: One word.\n'
+        self.document([text]);digest=hashlib.sha256(text.encode()).hexdigest()
+        r=self.run_import('--reviewed-short-sha256',digest);self.assertEqual(r.returncode,0,r.stderr)
+        note=self.notes()[0].read_text()
+        self.assertEqual(note.split('## Transcript\n\n',1)[1],text)
+        self.assertIn('short-transcript-review: exact-content-reviewed',note)
+        self.assertIn('reviewed-transcript-sha256: '+digest,note)
+        self.assertEqual(self.checkpoint.read_bytes(),self.before)
+
+    def test_reviewed_checksum_mismatch_blocks_short_and_long_content(self):
+        for text in ['Alex: short.\n','Alex: long content.\n'*100]:
+            with self.subTest(size=len(text)):
+                self.document([text]);r=self.run_import('--reviewed-short-sha256','0'*64)
+                self.assertNotEqual(r.returncode,0);self.assertEqual(self.notes(),[])
+                self.assertEqual(self.checkpoint.read_bytes(),self.before)
+
+    def test_short_review_cannot_authorize_enumeration_or_duplicate_flags(self):
+        for args in [('--reviewed-short-sha256','0'*64),('--doc-id','fixture-doc','--force','--reviewed-short-sha256','bad'),('--doc-id','fixture-doc','--force','--reviewed-short-sha256','0'*64,'--reviewed-short-sha256','0'*64)]:
+            r=self.enumeration(args=args);self.assertEqual(r.returncode,2,r.stderr)
+            self.assertFalse(self.calls.exists());self.assertEqual(self.checkpoint.read_bytes(),self.before)
+
 if __name__=='__main__':unittest.main(verbosity=2)

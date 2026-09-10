@@ -167,6 +167,16 @@ and look for same-day files with overlapping titles.
 | Gemini script reports `no_access > 0` | A requested document was unavailable (403/404); cause unverified | Report incomplete coverage and retain its source ID. Verify the selected account and document access before proposing recovery. |
 | Gemini script reports `stub > 0` | Extracted text fell below the importer threshold | Review the actual document and extraction layout; do not assume a recording exists or transcription failed. |
 
+For a legitimate short Gemini transcript, inspect the full extracted display text
+and record its SHA-256 before recovery. Use `--doc-id ID --force
+--reviewed-short-sha256 SHA256` with the selected account. The checksum covers the
+UTF-8 output of `config/scripts/lib/gemini_document_text.py`, including dates and
+newlines, not the Docs JSON response. Never calculate a checksum merely to bypass
+an unresolved review. A mismatch blocks publication even if the new content is
+longer than the threshold. The note retains the reviewed checksum; this single-doc
+operation does not advance calendar coverage or authorize replacing an old source.
+Missing Transcript tabs remain gaps; do not substitute Notes or Full notes.
+
 ## What NOT to do
 
 - **Don't synthesize transcripts during this skill.** Synthesis is `/process-transcripts`'s job — see [[../../config/rules/source-processing-pattern]] ("Don't synthesize from an upstream summary when the verbatim source is available"). `/get-transcripts` ends when the raw transcript is on disk in `system/intake/`.
