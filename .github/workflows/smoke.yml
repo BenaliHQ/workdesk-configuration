@@ -41,6 +41,8 @@ jobs:
         run: python3 -m unittest discover -s tests -p "test_release_archive.py" -v
       - name: Extraction response contract and offline transport
         run: python3 -m unittest discover -s tests -p "test_extraction_contract.py" -v
+      - name: Secret resolver failure handling
+        run: python3 -m unittest discover -s tests -p "test_secret_resolver.py" -v
       - name: Google wrapper in Bash and Zsh
         run: |
           python3 tests/gws-wrapper-test.py
