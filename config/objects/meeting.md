@@ -24,14 +24,14 @@ Meetings are atomic notes (one file per meeting). Universal — ships pre-built 
 | Field | Type | Notes |
 |---|---|---|
 | `type` | literal | Must be `meeting` |
-| `date` | `YYYY-MM-DD` | When the meeting occurred (not when the note was written) |
+| `date` | `YYYY-MM-DD` | When the meeting occurred, supported by source metadata or explicit confirmation. Never substitute the import, processing or current date. Unknown dates remain unfilled and are reported as missing context; they prevent finalizing a full meeting record. |
 | `status` | enum | See [§ Lifecycle](#lifecycle) |
 | `meeting-type` | enum | See [§ Meeting-type enum](#meeting-type-enum) |
 | `attendees` | list | Wikilinks for attendees with existing `atlas/people/` notes; plain strings otherwise. See [§ Attendee discipline](#attendee-discipline) |
 | `source` | string or wikilink | Where the meeting record came from. See [§ Source field values](#source-field-values) |
 | `created` | `YYYY-MM-DD` | When the meeting note was created |
 | `last_updated` | `YYYY-MM-DD` | Last edit |
-| `author` | string | `claude` or `operator` |
+| `author` | string | The verified authoring agent/runtime (for example `claude` or `codex`), or `operator` for operator-written records. Never attribute one agent’s work to another. |
 
 ### Optional / contextual fields
 
@@ -77,11 +77,11 @@ The `source:` field documents what triggered the meeting note's creation. Common
 
 - `"[[system/transcripts/{slug}]]"` — wikilink to a verbatim transcript that arrived in `system/transcripts/`
 - `granola` — meeting captured by Granola, transcript exists in the granola archive
-- `operator-paste` — operator pasted raw text into a Claude Code session
+- `operator-paste` — operator pasted raw text into an agent session
 - `operator-direct` — operator dictated the meeting in conversation (no transcript)
 - `calendar-event+operator-confirmation` — meeting record built from a calendar event plus operator memory (often used for `did-not-occur` or notes-only meetings)
 
-When `transcript:` is set, `source:` usually points at the same wikilink. When there's no transcript, `source:` records how Claude or the operator built the record.
+When `transcript:` is set, `source:` usually points at the same wikilink. When there's no transcript, `source:` records how the agent or operator built the record.
 
 ## Attendee discipline
 
@@ -90,7 +90,8 @@ Attendees go in frontmatter as a YAML list. Per [[double-entry-knowledge]] and [
 - **Wikilinks** for attendees with existing notes in `atlas/people/` — e.g., `"[[jordan-lee]]"`
 - **Plain strings** for attendees without notes — e.g., `"Pat Morgan"`
 - **Never fabricate wikilinks** to person notes that don't exist. Plain strings upgrade to wikilinks when the person note is later created.
-- **The operator** is always an attendee but does NOT get a self-wikilink (no operator self-note in operating vault; they're the operator, not a tracked person entity).
+- **The operator** is an attendee only when the source or explicit operator confirmation establishes attendance. Owning or importing a recording is not attendance evidence. Do not add a self-wikilink when the vault has no operator self-note.
+- **Unconfirmed presence is not absence.** A person mentioned in a prior conversation, or without a recorded speaker turn, has unknown attendance unless the source resolves it. State an absence only when the source explicitly supports it; otherwise keep attendance unconfirmed in both metadata and prose.
 
 Don't include attendees in the body unless the frontmatter list is incomplete or needs annotation (e.g., legacy practice of listing them under `## Attendees` with role notes). For most meetings, frontmatter is sufficient.
 

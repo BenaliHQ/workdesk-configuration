@@ -57,6 +57,10 @@ rsync -a \
   --exclude='state/' \
   --exclude='snapshots/' \
   --exclude='.DS_Store' \
+  --exclude='._*' \
+  --exclude='__pycache__/' \
+  --exclude='*.pyc' \
+  --exclude='operator-policy.md' \
   config/ "$STAGE/workdesk/"
 
 # Migrations: if migrations/ exists at repo root, copy and list scripts in
@@ -83,11 +87,12 @@ import json
 print(json.dumps({'version': '$VERSION', 'migrations': $MIGS_JSON}, indent=2))
 " > "$STAGE/manifest.json"
 
-# Build the tarball with mode bits and symlinks preserved.
+# Build the tarball with mode bits and symlinks preserved. macOS copyfile
+# metadata is host-local and must not become synthesized AppleDouble entries.
 DIST="$REPO_ROOT/dist"
 mkdir -p "$DIST"
 TARBALL="$DIST/$TARBALL_NAME"
-tar -czpf "$TARBALL" -C "$STAGE" .
+COPYFILE_DISABLE=1 tar -czpf "$TARBALL" -C "$STAGE" .
 
 # SHA256 sidecar.
 SHA_FILE="$TARBALL.sha256"

@@ -91,7 +91,7 @@ Rules of thumb:
 
 ## Sparse-data fallback chain
 
-Try in order; layers with no data are silently skipped:
+Try in order. Skip verified-empty layers when selecting work, but retain material coverage gaps in the output. An unread, unavailable, not-configured or stale source is not a verified-empty layer.
 
 1. Calendar commitments (today + next `{lookahead}` days, scoped per `{scope}`)
 2. `gtd/actions/next/` (sorted by `parent:` recency)
@@ -101,7 +101,7 @@ Try in order; layers with no data are silently skipped:
 6. Unread inbox items (with backlog warning if >20)
 7. Stale contexts needing attention
 
-If all 7 layers return empty (true cold-start), produce a **setup-oriented plan**: "Nothing scheduled and nothing in next-actions. First steps to seed the vault: …" — never a hollow report.
+If all 7 layers are verified empty (true cold-start), produce a **setup-oriented plan**: "Nothing scheduled and nothing in next-actions. First steps to seed the vault: …" — never a hollow report. If some layers were not checked or could not be read, state the limited coverage and use the available sources; do not declare a cold-start from failed reads.
 
 ## Output
 
@@ -189,3 +189,9 @@ Surface ad-hoc generation when:
 - **2026-06-09/10 — v1.1→1.2 parameterization.** Operator expanded Phase 2 (own-calendar-only scoping, today+7d lookahead, 7d daily-note lookback, an action-email-label pull, multi-location project scan across `gtd/`+`atlas/clients/`+`atlas/businesses/`, `gtd/actions/waiting/` check, and GTD do/prioritize/delegate/defer/delete triage with a leading Focus section). Initially hardcoded the operator's values into the signal; refactored so the generalized logic ships upstream and the operator-specific values (`email`, scope, windows, label) live in `operator-profile.daily-plan` with defaults. This is the same pattern as `week-start`/`role`/`work-mode` — signals read operator-owned prefs from the profile, which `/update` preserves.
 - **gws gmail metadata quirk.** When fetching message metadata, pass `userId:"me"` and `format:"metadata"` only — do NOT pass a `metadataHeaders` array; it breaks the gws request and returns empty headers. Parse all `payload.headers` and filter Subject/From/Date in code.
 - **Label-name reality.** The operator's "action items" label is literally named `Actions` (a parallel `Waiting` label also exists). Don't assume a label's display name from how the operator refers to it — list labels (`gws gmail users labels list`) to confirm the exact name. Now read from `operator-profile.daily-plan.action-email-label`.
+
+## Coverage and unresolved questions
+
+For each source, retain what was read, the time window, the result and any observed error. Distinguish available, verified-empty, not-configured, unavailable, not-checked and stale. Include a compact Coverage summary with material gaps and recovery steps where known. A missing supplied input or an out-of-scope read is not a failed provider request. Never attribute a local action, waiting, project or inbox omission to a calendar/CRM/search outage unless an actual dependency and failure are established. Continue authorized local reads independently. Do not infer no commitments from a failed read or invent its cause.
+
+An unresolved QUESTION remains active regardless of age unless its substance has a durable linked record and explicit disposition. Age never resolves a truth conflict.
