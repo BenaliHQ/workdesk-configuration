@@ -399,4 +399,47 @@ else:sys.exit(90)
         self.assertFalse(self.calls.exists())
         self.assertEqual(self.checkpoint.read_bytes(),self.before)
 
+    def test_invalid_calendar_metadata_records_initial_failure_before_export(self):
+        base={'summary':'Fixture','start':{'date':'2026-09-09'},'attachments':[{'title':'Notes by Gemini','fileId':'fixture-doc'}]}
+        for field,value in [('summary',None),('summary',[]),('summary','  '),('start',{'date':'2026-09-09','dateTime':'2026-09-09T00:00:00Z'}),('organizer',[]),('attachments',{})]:
+            with self.subTest(field=field,value=value):
+                self.checkpoint.unlink(missing_ok=True)
+                event=dict(base);event[field]=value
+                r=self.enumeration(extra={'CALENDAR_MODE':'metadata','CALENDAR_EVENT':json.dumps(event)})
+                self.assertEqual(r.returncode,2,r.stderr);self.assertEqual(self.notes(),[])
+                state=json.loads(self.checkpoint.read_text())
+                self.assertIsNone(state.get('last_success_at'))
+                self.assertTrue(state['coverage_start_at'].endswith('Z'))
+                self.assertEqual(state['last_failure_reason'],'calendar-metadata')
+                calls=[json.loads(x) for x in self.calls.read_text().splitlines()]
+                self.assertFalse(any(c['args'][:3]==['docs','documents','get'] for c in calls))
+
+    def test_success_clears_failure_reason_after_metadata_recovery(self):
+        state=json.loads(self.before);state['last_failure_reason']='calendar-metadata'
+        self.checkpoint.write_text(json.dumps(state))
+        r=self.enumeration();self.assertEqual(r.returncode,0,r.stderr)
+        state=json.loads(self.checkpoint.read_text())
+        self.assertIsNone(state['last_failure_at']);self.assertIsNone(state['last_failure_reason'])
+
+    def test_absent_organizer_is_unknown_without_placeholder(self):
+        self.document(['Alex: actual source.\n'*60])
+        event={'summary':'Fixture','start':{'date':'2026-09-09'},'attachments':[{'title':'Notes by Gemini','fileId':'fixture-doc'}]}
+        r=self.enumeration(extra={'CALENDAR_MODE':'metadata','CALENDAR_EVENT':json.dumps(event)})
+        self.assertEqual(r.returncode,0,r.stderr)
+        self.assertIn('event-organizer: null\n',self.notes()[0].read_text())
+
+    def test_duplicate_or_malformed_pending_records_preserved_before_provider(self):
+        record=['fixture-doc','Fixture','2026-09-09T00:00:00Z','',[]]
+        for mode in ['duplicate','title','invitees']:
+            with self.subTest(mode=mode):
+                row=list(record)
+                if mode=='title':row[1]=[]
+                if mode=='invitees':row[4]='invalid'
+                entries=[{'document_id':'fixture-doc','record':row,'result':5}]
+                if mode=='duplicate':entries*=2
+                data=json.dumps({'account':'fixture@example.test','unresolved_sources':entries})
+                self.checkpoint.write_text(data)
+                r=self.enumeration();self.assertEqual(r.returncode,2,r.stderr)
+                self.assertFalse(self.calls.exists());self.assertEqual(self.checkpoint.read_text(),data)
+
 if __name__=='__main__':unittest.main(verbosity=2)

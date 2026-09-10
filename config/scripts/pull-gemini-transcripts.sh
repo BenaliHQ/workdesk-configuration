@@ -115,6 +115,15 @@ write_state() {
   mv "$tmp" "$STATE_FILE" || exit 2
 }
 
+record_enumeration_failure() {
+  local reason="$1" now fails
+  now="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+  fails="$(read_state_field consecutive_failures 0)"
+  write_state "$(jq -n --arg now "$now" --arg reason "$reason" --argjson fails "$((fails + 1))" '
+    {last_failure_at:$now, last_run_at:$now, last_run_pulled:0,
+     last_failure_reason:$reason, consecutive_failures:$fails}')"
+}
+
 read_state_field() {
   local field="$1"
   local default="$2"
@@ -183,7 +192,13 @@ if [[ -e "$STATE_FILE" || -L "$STATE_FILE" ]]; then
     ((.coverage_start_at == null) or (.coverage_start_at | type == "string" and test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"))) and
     ((.unresolved_sources == null) or (.unresolved_sources | type == "array" and all(.[];
       type == "object" and (.document_id | type == "string") and
-      (.record | type == "array" and length == 5) and .record[0] == .document_id)))
+      (.record | type == "array" and length == 5 and
+        (.[0] | type == "string" and test("^[A-Za-z0-9_-]+$")) and
+        (.[1] | type == "string" and test("[^[:space:]]")) and
+        (.[2] | type == "string" and length > 0) and
+        (.[3] | type == "string") and
+        (.[4] | type == "array" and all(.[]; type == "object"))) and .record[0] == .document_id))) and
+    (([.unresolved_sources[]?.document_id] | length) == ([.unresolved_sources[]?.document_id] | unique | length))
   ' "$STATE_FILE" >/dev/null 2>&1; then
     printf 'ERROR: invalid checkpoint; preserved for reconciliation\n' >&2
     exit 2
@@ -283,6 +298,7 @@ if ! gws drive about get --params '{"fields": "user(emailAddress)"}' >/dev/null 
     '{
        last_success_at: (if $prev_success == "" then null else $prev_success end),
        last_failure_at: $last_failure,
+       last_failure_reason: "account-verification",
        consecutive_failures: $fails,
        last_run_at: $last_failure,
        last_run_pulled: 0
@@ -551,6 +567,7 @@ if ! fetch_calendar_pages; then
     '{
        last_success_at: (if $prev_success == "" then null else $prev_success end),
        last_failure_at: $now,
+       last_failure_reason: "calendar-enumeration",
        consecutive_failures: $fails,
        last_run_at: $now,
        last_run_pulled: 0
@@ -562,19 +579,25 @@ fi
 docs_tsv="$(mktemp)"
 if ! jq -c '
   .items[]?
-  | select(.attachments != null)
+  | if (.attachments == null) then empty
+    elif (.attachments | type == "array" and all(.[]; type == "object")) then .
+    else error("Invalid calendar attachments") end
   | . as $e
-  | .attachments[]?
+  | .attachments[]
   | select(.title == "Notes by Gemini")
-  | [
-      .fileId,
-      ($e.summary // "Untitled meeting"),
-      ($e.start.dateTime // $e.start.date),
-      ($e.organizer.email // "?"),
-      ($e.attendees // [])
-    ]
+  | if (.fileId | type == "string" and test("^[A-Za-z0-9_-]+$")) and
+      ($e.summary | type == "string" and test("[^[:space:]]")) and
+      ($e.start | type == "object") and
+      (([$e.start.dateTime, $e.start.date] | map(select(. != null)) | length) == 1) and
+      (($e.start.dateTime // $e.start.date) | type == "string" and length > 0) and
+      (($e.organizer == null) or ($e.organizer | type == "object")) and
+      (($e.organizer.email == null) or ($e.organizer.email | type == "string")) and
+      (($e.attendees == null) or ($e.attendees | type == "array" and all(.[]; type == "object")))
+    then [.fileId, $e.summary, ($e.start.dateTime // $e.start.date), ($e.organizer.email // ""), ($e.attendees // [])]
+    else error("Incomplete or malformed Gemini calendar metadata") end
 ' "$events_json" > "$docs_tsv"; then
-  log "ERROR  malformed calendar attachment metadata; checkpoint preserved"
+  log "ERROR  malformed calendar attachment metadata; success preserved"
+  record_enumeration_failure "calendar-metadata"
   rm -f "$docs_tsv"
   exit 2
 fi
@@ -592,13 +615,14 @@ if ! jq -nc --slurpfile prior "$prior_state" --slurpfile current "$docs_tsv" '
   (reduce (($prior[0].unresolved_sources // [])[] | .record) as $r ({}; .[$r[0]] = $r)) + $fresh | .[]
 ' > "$merged_records"; then
   log "ERROR  unresolved-source replay metadata requires reconciliation"
+  record_enumeration_failure "replay-metadata"
   rm -f "$docs_tsv" "$merged_records"
   exit 2
 fi
 mv "$merged_records" "$docs_tsv" || exit 2
 
 total_found=$(wc -l < "$docs_tsv" | tr -d ' ')
-log "INFO   found $total_found Notes-by-Gemini attachments in calendar since $CUTOFF_ISO"
+log "INFO   reviewing $total_found Gemini sources from calendar and retained recovery records since $CUTOFF_ISO"
 
 pulled=0
 skipped=0
@@ -644,6 +668,7 @@ if [[ $failed -eq 0 && $stub -eq 0 && $no_access -eq 0 ]]; then
       '{
          last_success_at: $now,
          last_failure_at: null,
+         last_failure_reason: null,
          consecutive_failures: 0,
          last_run_at: $now,
          last_run_pulled: $pulled,
@@ -665,6 +690,7 @@ else
     '{
        last_success_at: (if $prev_success == "" then null else $prev_success end),
        last_failure_at: $now,
+       last_failure_reason: "unresolved-sources",
        consecutive_failures: $fails,
        last_run_at: $now,
        last_run_pulled: $pulled,
