@@ -81,22 +81,22 @@ slug_from_title() {
     | cut -c1-80
 }
 
-# Convert ISO timestamp (with optional offset) to operator-local YYYY-MM-DD
+# Convert a validated Calendar start to the operator-local calendar date.
+# All-day values already represent a date; timestamps must include an offset.
 iso_to_local_date() {
-  local ts="$1"
-  # Strip fractional seconds and any timezone offset/Z; treat as UTC.
-  local clean="${ts%%.*}"
-  clean="${clean%Z}"
-  # If the timestamp carries an offset like "2026-05-19T10:30:00-05:00",
-  # GNU/BSD `date -j -f` can't parse it directly — keep just YYYY-MM-DD as a
-  # cheap and reliable approximation; the operator-local date matches the
-  # offset already in the calendar timestamp.
-  if [[ "$ts" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}[+-][0-9]{2}:[0-9]{2}$ ]]; then
-    printf '%s' "${ts:0:10}"
-    return
-  fi
-  TZ=UTC date -j -f "%Y-%m-%dT%H:%M:%S" "$clean" "+%s" 2>/dev/null \
-    | xargs -I {} date -r {} "+%Y-%m-%d" 2>/dev/null
+  "${WORKDESK_PYTHON:-python3}" - "$1" <<'PYDATE'
+import datetime as dt, re, sys
+value = sys.argv[1]
+try:
+    if re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", value):
+        print(dt.date.fromisoformat(value).isoformat())
+    elif re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]+)?(?:Z|[+-][0-9]{2}:[0-9]{2})", value):
+        print(dt.datetime.fromisoformat(value.replace('Z', '+00:00')).astimezone().date().isoformat())
+    else:
+        raise ValueError()
+except ValueError:
+    sys.exit(1)
+PYDATE
 }
 
 write_state() {
@@ -365,9 +365,13 @@ write_intake_for_doc() {
   fi
 
   # Derive filename
-  local local_date slug filename target_path
-  local_date="$(iso_to_local_date "$event_start")"
-  [[ -z "$local_date" ]] && local_date="$(date "+%Y-%m-%d")"
+  local local_date slug filename target_path date_value heading_date
+  if [[ -z "$event_start" && "$FORCE_DOC_ID" == "$doc_id" ]]; then
+    local_date="undated"; date_value="null"; heading_date="meeting date unknown"
+  else
+    local_date="$(iso_to_local_date "$event_start")" || { log "ERROR  $doc_id invalid calendar start; no date inferred"; rm -f "$doc_json" "$transcript_file"; return 4; }
+    date_value="$local_date"; heading_date="$local_date"
+  fi
   slug="$(slug_from_title "$event_title")"
   [[ -z "$slug" ]] && slug="$(printf 'untitled-%s' "${doc_id:0:8}" | tr 'A-Z' 'a-z')"
   filename="${local_date}-${slug}.md"
@@ -413,20 +417,20 @@ write_intake_for_doc() {
     printf -- '---\n'
     printf -- 'type: source\n'
     printf -- 'source-kind: transcript\n'
-    printf -- 'date: %s\n' "$local_date"
+    printf -- 'date: %s\n' "$date_value"
     printf -- 'processed: false\n'
     printf -- 'processed-into: []\n'
     printf -- 'title: %s\n' "$(printf '%s' "$event_title" | jq -Rs '.')"
     printf -- 'gemini-doc-id: %s\n' "$doc_id"
     printf -- 'gemini-doc-url: %s\n' "$drive_url"
-    printf -- 'event-start: %s\n' "$(printf '%s' "$event_start" | jq -Rs '.')"
-    printf -- 'event-organizer: %s\n' "$(printf '%s' "$event_organizer" | jq -Rs '.')"
+    printf -- 'event-start: %s\n' "$(printf '%s' "$event_start" | jq -Rs 'if . == "" then null else . end')"
+    printf -- 'event-organizer: %s\n' "$(printf '%s' "$event_organizer" | jq -Rs 'if . == "" then null else . end')"
     printf -- 'attendees-from-source: []\n'
     printf -- 'calendar-invitees: %s\n' "$invitees_json"
     printf -- 'source-format: %s\n' "$SOURCE_FORMAT"
     printf -- 'pulled-at: %s\n' "$pulled_at"
     printf -- '---\n\n'
-    printf -- '# %s — %s (raw transcript)\n\n' "$event_title" "$local_date"
+    printf -- '# %s — %s (raw transcript)\n\n' "$event_title" "$heading_date"
     printf -- 'Verbatim transcript extracted from the "Notes by Gemini" Google Doc, **Transcript** tab. Speakers are name-resolved by Google (e.g., "Jane Doe: ..."). The Gemini-generated summary on the Notes tab is intentionally NOT pulled per [[../../config/rules/source-processing-pattern]] — synthesis happens at processing time from the verbatim, not from another system'"'"'s summary.\n\n'
     printf -- 'Calendar invitees are source metadata, not evidence of attendance. Determine participation from the transcript.\n\n'
     printf -- '## Transcript\n\n'
@@ -472,7 +476,7 @@ if [[ -n "$FORCE_DOC_ID" ]]; then
     exit 2
   fi
   title="$(printf '%s' "$meta" | jq -r '.title')"
-  write_intake_for_doc "$FORCE_DOC_ID" "$title" "$NOW_ISO" "(forced)" "[]"
+  write_intake_for_doc "$FORCE_DOC_ID" "$title" "" "" "[]"
   rc=$?
   # A single document is not evidence of complete calendar enumeration.
   # Preserve the existing watermark, including on dry-run and failure.

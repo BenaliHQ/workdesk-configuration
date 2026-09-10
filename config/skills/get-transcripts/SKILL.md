@@ -124,6 +124,10 @@ establishing attendance. The importer leaves `attendees-from-source: []` until
 participation can be determined from transcript evidence. Do not interpret that
 empty field as proof of an unattended meeting.
 
+A document-only Gemini pull may produce an `undated-` source with `date: null`.
+That preserves available raw text without inventing a meeting date. Report the
+missing calendar context; retrieval time is not a substitute occurrence date.
+
 Spot-check that frontmatter is well-formed on one new file from each source. Specifically:
 - `source-kind: transcript`
 - `processed: false`

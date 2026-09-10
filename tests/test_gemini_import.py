@@ -185,7 +185,7 @@ else:sys.exit(90)
 
     def test_existing_suffix_collision_is_preserved(self):
         import datetime
-        date=datetime.datetime.now().strftime('%Y-%m-%d')
+        date='undated'
         intake=self.vault/'system/intake';intake.mkdir(exist_ok=True)
         occupied=[intake/(date+'-fixture.md'),intake/(date+'-fixture-fixtur.md')]
         for p in occupied:p.write_text('Existing operator source: '+p.name)
@@ -237,7 +237,7 @@ else:sys.exit(90)
 
     def test_collision_body_mention_does_not_claim_identity(self):
         import datetime
-        date=datetime.datetime.now().strftime('%Y-%m-%d')
+        date='undated'
         intake=self.vault/'system/intake';intake.mkdir(exist_ok=True)
         other=intake/(date+'-fixture.md')
         other.write_text('---\ngemini-doc-id: other-document\n---\ngemini-doc-id: fixture-doc\n')
@@ -286,5 +286,28 @@ else:sys.exit(90)
         r=self.enumeration(extra={'CALENDAR_MODE':'metadata','CALENDAR_EVENT':json.dumps(event)})
         self.assertNotEqual(r.returncode,0);self.assertEqual(self.notes(),[])
         self.assertEqual(json.loads(self.checkpoint.read_text())['last_success_at'],'2026-09-01T00:00:00Z')
+
+    def test_single_document_without_calendar_context_stays_undated(self):
+        self.document(['Alex: no meeting date supplied.\n'*60]);r=self.run_import();self.assertEqual(r.returncode,0,r.stderr)
+        note=self.notes()[0];self.assertTrue(note.name.startswith('undated-'))
+        header=note.read_text().split('---',2)[1]
+        for value in ['date: null','event-start: null','event-organizer: null']:self.assertIn(value,header)
+        self.assertIn('meeting date unknown',note.read_text())
+
+    def test_all_day_calendar_date_is_preserved(self):
+        event={'summary':'All day fixture','start':{'date':'2026-09-01'},'attachments':[{'title':'Notes by Gemini','fileId':'fixture-doc'}]}
+        self.document(['Alex: source.\n'*60]);r=self.enumeration(extra={'CALENDAR_MODE':'metadata','CALENDAR_EVENT':json.dumps(event)})
+        self.assertEqual(r.returncode,0,r.stderr);self.assertTrue(self.notes()[0].name.startswith('2026-09-01-'))
+
+    def test_invalid_calendar_date_does_not_fall_back_to_today(self):
+        event={'summary':'Bad date fixture','start':{'date':'2026-02-30'},'attachments':[{'title':'Notes by Gemini','fileId':'fixture-doc'}]}
+        self.document(['Alex: source.\n'*60]);r=self.enumeration(extra={'CALENDAR_MODE':'metadata','CALENDAR_EVENT':json.dumps(event)})
+        self.assertNotEqual(r.returncode,0);self.assertEqual(self.notes(),[])
+        self.assertEqual(json.loads(self.checkpoint.read_text())['last_success_at'],'2026-09-01T00:00:00Z')
+
+    def test_offset_timestamp_uses_operator_timezone_date(self):
+        event={'summary':'Offset fixture','start':{'dateTime':'2026-09-09T00:30:00.123+14:00'},'attachments':[{'title':'Notes by Gemini','fileId':'fixture-doc'}]}
+        self.document(['Alex: source.\n'*60]);r=self.enumeration(extra={'TZ':'UTC','CALENDAR_MODE':'metadata','CALENDAR_EVENT':json.dumps(event)})
+        self.assertEqual(r.returncode,0,r.stderr);self.assertTrue(self.notes()[0].name.startswith('2026-09-08-'))
 
 if __name__=='__main__':unittest.main(verbosity=2)
