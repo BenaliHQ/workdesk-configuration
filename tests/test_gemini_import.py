@@ -320,6 +320,41 @@ else:sys.exit(90)
                 self.assertEqual(r.returncode,1,r.stderr);self.assertEqual(self.notes(),[])
                 state=json.loads(self.checkpoint.read_text())
                 self.assertEqual(state['last_success_at'],'2026-09-01T00:00:00Z')
-                self.assertEqual(state['unresolved_sources'],[{'document_id':'fixture-doc','result':result}])
+                self.assertEqual(state['unresolved_sources'][0]['document_id'],'fixture-doc')
+                self.assertEqual(state['unresolved_sources'][0]['result'],result)
+                self.assertEqual(state['unresolved_sources'][0]['record'][0],'fixture-doc')
+
+    def test_unresolved_source_retried_when_calendar_attachment_disappears(self):
+        event={'summary':'Recovery fixture','start':{'dateTime':'2026-09-09T14:00:00Z'},'attachments':[{'title':'Notes by Gemini','fileId':'fixture-doc'}]}
+        self.doc.write_text('{"error":{"code":403}}')
+        r=self.enumeration(extra={'CALENDAR_MODE':'metadata','CALENDAR_EVENT':json.dumps(event)});self.assertEqual(r.returncode,1,r.stderr)
+        r=self.enumeration();self.assertEqual(r.returncode,1,r.stderr)
+        self.assertEqual(len(json.loads(self.checkpoint.read_text())['unresolved_sources']),1)
+        self.document(['Alex: recovered source.\n'*60]);r=self.enumeration();self.assertEqual(r.returncode,0,r.stderr)
+        self.assertEqual(len(self.notes()),1);self.assertEqual(json.loads(self.checkpoint.read_text())['unresolved_sources'],[])
+
+    def test_auth_failure_preserves_existing_unresolved_queue(self):
+        record=['fixture-doc','Recovery fixture','2026-09-09T14:00:00Z','',[]]
+        pending=[{'document_id':'fixture-doc','result':5,'record':record}]
+        self.checkpoint.write_text(json.dumps({'account':'fixture@example.test','last_success_at':None,'unresolved_sources':pending,'coverage_start_at':'2026-09-01T00:00:00Z'}))
+        r=self.enumeration(extra={'WRONG_IDENTITY':'1'});self.assertEqual(r.returncode,2)
+        state=json.loads(self.checkpoint.read_text());self.assertEqual(state['unresolved_sources'],pending)
+        self.assertIsNone(state['last_success_at']);self.assertEqual(state['coverage_start_at'],'2026-09-01T00:00:00Z')
+
+    def test_first_failure_records_lookback_anchor_without_claiming_success(self):
+        self.checkpoint.unlink()
+        r=self.enumeration(extra={'WRONG_IDENTITY':'1'});self.assertEqual(r.returncode,2,r.stderr)
+        state=json.loads(self.checkpoint.read_text());self.assertIsNone(state['last_success_at'])
+        self.assertTrue(state['coverage_start_at'].endswith('Z'))
+        state['coverage_start_at']='2026-09-01T00:00:00Z';self.checkpoint.write_text(json.dumps(state))
+        r=self.enumeration();self.assertEqual(r.returncode,0,r.stderr)
+        calls=[json.loads(x) for x in self.calls.read_text().splitlines()]
+        page=next(c for c in calls if c['args'][:3]==['calendar','events','list'])
+        params=json.loads(page['args'][page['args'].index('--params')+1])
+        self.assertLessEqual(params['timeMin'],'2026-09-01T00:00:00Z')
+
+    def test_invalid_recovery_date_fails_before_provider(self):
+        state=json.loads(self.before);state['coverage_start_at']='2026-02-30T00:00:00Z';self.checkpoint.write_text(json.dumps(state))
+        r=self.enumeration();self.assertEqual(r.returncode,2);self.assertFalse(self.calls.exists())
 
 if __name__=='__main__':unittest.main(verbosity=2)

@@ -104,7 +104,13 @@ write_state() {
   mkdir -p "$STATE_DIR" || exit 2
   local tmp
   tmp="$(mktemp "$STATE_DIR/.checkpoint-XXXXXXXX")" || exit 2
-  printf '%s\n' "$content" | jq --arg account "$ACCOUNT" '. + {account: $account}' > "$tmp" || exit 2
+  local prior=/dev/null coverage_start
+  [[ -f "$STATE_FILE" ]] && prior="$STATE_FILE"
+  coverage_start="${CUTOFF_ISO:-$(date -u -r "$(( $(date -u +%s) - DAYS * 86400 ))" '+%Y-%m-%dT%H:%M:%SZ')}"
+  printf '%s\n' "$content" | jq --arg account "$ACCOUNT" --arg start "$coverage_start" --slurpfile prior "$prior" '
+    ($prior[0] // {}) as $old | $old + . + {account: $account,
+      coverage_start_at: ($old.coverage_start_at // $start)}
+  ' > "$tmp" || exit 2
   mv "$tmp" "$STATE_FILE" || exit 2
 }
 
@@ -161,16 +167,22 @@ if [[ -e "$STATE_FILE" || -L "$STATE_FILE" ]]; then
   if [[ ! -f "$STATE_FILE" || -L "$STATE_FILE" ]] || ! jq -e --arg account "$ACCOUNT" '
     type == "object" and .account == $account and
     ((.last_success_at == null) or (.last_success_at | type == "string" and test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"))) and
-    ((.consecutive_failures == null) or (.consecutive_failures | type == "number" and . >= 0 and floor == .))
+    ((.consecutive_failures == null) or (.consecutive_failures | type == "number" and . >= 0 and floor == .)) and
+    ((.coverage_start_at == null) or (.coverage_start_at | type == "string" and test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"))) and
+    ((.unresolved_sources == null) or (.unresolved_sources | type == "array" and all(.[];
+      type == "object" and (.document_id | type == "string") and
+      (.record | type == "array" and length == 5) and .record[0] == .document_id)))
   ' "$STATE_FILE" >/dev/null 2>&1; then
     printf 'ERROR: invalid checkpoint; preserved for reconciliation\n' >&2
     exit 2
   fi
-  checkpoint_date="$(jq -r '.last_success_at // empty' "$STATE_FILE")"
-  if [[ -n "$checkpoint_date" ]] && ! date -j -u -f "%Y-%m-%dT%H:%M:%SZ" "$checkpoint_date" +%s >/dev/null 2>&1; then
-    printf 'ERROR: invalid checkpoint date; preserved for reconciliation\n' >&2
-    exit 2
-  fi
+  for checkpoint_field in last_success_at coverage_start_at; do
+    checkpoint_date="$(jq -r --arg field "$checkpoint_field" '.[$field] // empty' "$STATE_FILE")"
+    if [[ -n "$checkpoint_date" ]] && ! iso_to_local_date "$checkpoint_date" >/dev/null 2>&1; then
+      printf 'ERROR: invalid checkpoint date; preserved for reconciliation\n' >&2
+      exit 2
+    fi
+  done
 fi
 
 # ── --status ────────────────────────────────────────────────────────────────
@@ -182,6 +194,7 @@ if [[ $SHOW_STATUS -eq 1 ]]; then
       "  last_failure_at:    \(.last_failure_at // "never")",
       "  consecutive_fails:  \(.consecutive_failures // 0)",
       "  files_last_run:     \(.last_run_pulled // 0)",
+      "  unresolved_sources: \((.unresolved_sources // []) | length)",
       "  last_run_at:        \(.last_run_at // "never")"
     ' "$STATE_FILE"
     last_success="$(jq -r '.last_success_at // empty' "$STATE_FILE")"
@@ -215,12 +228,14 @@ fi
 
 # Auto-extend lookback if last success was older than --days
 last_success_at="$(read_state_field "last_success_at" "")"
-if [[ -n "$last_success_at" && -z "$FORCE_DOC_ID" && $BACKFILL -eq 0 ]]; then
-  last_epoch="$(TZ=UTC date -j -f "%Y-%m-%dT%H:%M:%SZ" "$last_success_at" "+%s" 2>/dev/null || echo 0)"
+lookback_at="$last_success_at"
+[[ -n "$lookback_at" ]] || lookback_at="$(read_state_field "coverage_start_at" "")"
+if [[ -n "$lookback_at" && -z "$FORCE_DOC_ID" && $BACKFILL -eq 0 ]]; then
+  last_epoch="$(TZ=UTC date -j -f "%Y-%m-%dT%H:%M:%SZ" "$lookback_at" "+%s" 2>/dev/null || echo 0)"
   now_epoch="$(date -u "+%s")"
   delta_days=$(( (now_epoch - last_epoch + 86399) / 86400 ))
   if [[ $delta_days -gt $DAYS ]]; then
-    log "INFO   last success was $delta_days days ago; extending lookback from $DAYS to $delta_days"
+    log "INFO   coverage requires $delta_days days; extending lookback from $DAYS to $delta_days"
     DAYS=$delta_days
   fi
 fi
@@ -558,6 +573,24 @@ if ! jq -c '
   exit 2
 fi
 
+# Replay unresolved sources even if no longer attached in the current query.
+# Current calendar metadata takes precedence, but conflicting current attachments
+# for one source ID require reconciliation instead of selecting an arbitrary date.
+prior_state=/dev/null
+[[ -f "$STATE_FILE" ]] && prior_state="$STATE_FILE"
+merged_records="$(mktemp)" || exit 2
+if ! jq -nc --slurpfile prior "$prior_state" --slurpfile current "$docs_tsv" '
+  (reduce $current[] as $r ({};
+    if has($r[0]) and .[$r[0]] != $r then error("Conflicting calendar source records")
+    else .[$r[0]] = $r end)) as $fresh |
+  (reduce (($prior[0].unresolved_sources // [])[] | .record) as $r ({}; .[$r[0]] = $r)) + $fresh | .[]
+' > "$merged_records"; then
+  log "ERROR  unresolved-source replay metadata requires reconciliation"
+  rm -f "$docs_tsv" "$merged_records"
+  exit 2
+fi
+mv "$merged_records" "$docs_tsv" || exit 2
+
 total_found=$(wc -l < "$docs_tsv" | tr -d ' ')
 log "INFO   found $total_found Notes-by-Gemini attachments in calendar since $CUTOFF_ISO"
 
@@ -587,7 +620,7 @@ while IFS= read -r record; do
   esac
   case $source_result in
     0|2|3) ;;
-    *) unresolved_sources="$(printf '%s' "$unresolved_sources" | jq --arg id "$doc_id" --argjson result "$source_result" '. + [{document_id:$id, result:$result}]')" ;;
+    *) unresolved_sources="$(printf '%s' "$unresolved_sources" | jq --arg id "$doc_id" --argjson result "$source_result" --argjson record "$record" '. + [{document_id:$id, result:$result, record:$record}]')" ;;
   esac
   sleep 0.2
 done < "$docs_tsv"

@@ -111,9 +111,14 @@ Gemini-specific counts to expose:
 - **no_access** — The document request returned 403/404. Access or availability needs review; the code alone does not establish who owns the document or why it is unavailable.
 
 Either count makes Gemini coverage incomplete (exit 1) and preserves the last
-successful enumeration checkpoint. Its latest `unresolved_sources` list records
-document IDs and result codes for review. These records are not permanent skips
-or a completed recovery queue; preserve unresolved evidence until reconciled.
+successful enumeration checkpoint. Its `unresolved_sources` queue retains IDs,
+result codes and the original calendar context. Later enumeration retries those
+documents even if the attachment disappears. A verified existing or newly
+published source clears its entry; absence from a query does not. Authentication
+and pagination failures preserve the queue. An initial authentication failure
+records a coverage-start anchor without claiming success. Explicit dispositions
+and concurrent-run verification remain separate gates; do not delete entries
+just to make a run appear healthy.
 
 If anything failed (true `failed > 0`), point at the log files:
 - `system/cron-pull-granola.log`
