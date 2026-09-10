@@ -39,6 +39,7 @@ elif args[:3]==['drive','files','export']:
  output=Path(args[args.index('--output')+1]);assert not output.is_absolute()
  output.write_bytes(b'Unexpected layout without transcript section' if mode=='no-body' else b'Attendees\r\nAlex\r\nTranscript\r\nAlex: Preserve this exact source statement.\r\n')
  if mode=='long-body':output.write_text('Attendees\nAlex\nTranscript\n'+'Alex: Preserve this exact source statement.\n'*3000)
+ if mode=='headerless':output.write_bytes(b'Alex: Preserve the original turn.\nRobin: Understood.\n')
 else:sys.exit(90)
 '''
 
@@ -175,6 +176,25 @@ class GoogleImportTests(unittest.TestCase):
         self.assertEqual(len(self.notes()),1)
         body=self.notes()[0].read_text().split('## Transcript\n\n',1)[1]
         self.assertEqual(body,'Alex: Preserve this exact source statement.\n'*3000)
+
+    def test_headerless_recovery_requires_reviewed_hash_and_single_file(self):
+        raw=b'Alex: Preserve the original turn.\nRobin: Understood.\n'
+        digest=hashlib.sha256(raw).hexdigest()
+        self.assertEqual(self.run_import(mode='headerless').returncode,1)
+        self.assertEqual(self.notes(),[])
+        args=['--file-id','id-first','--force','--reviewed-headerless-sha256']
+        self.assertEqual(self.run_import(args=args+['0'*64],mode='headerless').returncode,1)
+        self.assertEqual(self.notes(),[])
+        result=self.run_import(args=args+[digest],mode='headerless');self.assertEqual(result.returncode,0,result.stderr)
+        text=self.notes()[0].read_text()
+        self.assertEqual(text.split('## Transcript\n\n',1)[1],raw.decode())
+        self.assertIn(digest,text)
+        self.assertIn('attendees-from-source:\n  []',text)
+        self.assertIsNone(json.loads(self.checkpoint().read_text())['last_success_at'])
+
+    def test_headerless_option_rejected_without_single_file_scope(self):
+        self.assertEqual(self.run_import(args=['--reviewed-headerless-sha256','0'*64]).returncode,2)
+        self.assertEqual(self.events(),[])
 
 
 if __name__=='__main__':unittest.main()

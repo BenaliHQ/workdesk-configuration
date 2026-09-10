@@ -21,6 +21,7 @@
 #   bash config/scripts/pull-google-transcripts.sh --account you@example.com --days 30 --backfill    # >7 requires --backfill
 #   bash config/scripts/pull-google-transcripts.sh --account you@example.com --dry-run
 #   bash config/scripts/pull-google-transcripts.sh --account you@example.com --file-id <id> --force
+#   Add --reviewed-headerless-sha256 <raw-export-sha256> only after source review.
 #   bash config/scripts/pull-google-transcripts.sh --account you@example.com --status
 #   bash config/scripts/pull-google-transcripts.sh --account you@example.com --help
 #
@@ -52,6 +53,7 @@ FORCE_FILE_ID=""
 FORCE=0
 SHOW_STATUS=0
 ACCOUNT="${WORKDESK_GWS_ACCOUNT:-}"
+HEADERLESS_SHA256=""
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 log() {
@@ -129,6 +131,9 @@ while [[ $# -gt 0 ]]; do
     --dry-run)  DRY_RUN=1; shift ;;
     --file-id)  [[ $# -ge 2 && "$2" =~ ^[A-Za-z0-9_-]+$ ]] || { echo "--file-id requires a Drive ID" >&2; exit 2; }; FORCE_FILE_ID="$2"; shift 2 ;;
     --force)    FORCE=1; shift ;;
+    --reviewed-headerless-sha256)
+      [[ $# -ge 2 && "$2" =~ ^[0-9a-f]{64}$ ]] || { echo "A reviewed raw-export SHA-256 is required" >&2; exit 2; }
+      HEADERLESS_SHA256="$2"; shift 2 ;;
     --status)   SHOW_STATUS=1; shift ;;
     --help|-h)
       sed -n '2,29p' "$0" | sed 's/^# \{0,1\}//'
@@ -202,6 +207,10 @@ if [[ $SHOW_STATUS -eq 1 ]]; then
 fi
 
 # ── Validate args ───────────────────────────────────────────────────────────
+if [[ -n "$HEADERLESS_SHA256" && ( -z "$FORCE_FILE_ID" || $FORCE -ne 1 ) ]]; then
+  echo "Reviewed headerless recovery requires --file-id and --force" >&2
+  exit 2
+fi
 if [[ -n "$FORCE_FILE_ID" && $FORCE -eq 0 ]]; then
   echo "Error: --file-id requires --force" >&2
   exit 2
@@ -338,6 +347,14 @@ write_intake_for_doc() {
     return 4
   fi
 
+  # A headerless recovery is bound to the exact raw export reviewed by the
+  # operator/agent. It is never an automatic fallback for arbitrary documents.
+  if [[ -n "$HEADERLESS_SHA256" && "$(shasum -a 256 "$body_tmp" | cut -d ' ' -f 1)" != "$HEADERLESS_SHA256" ]]; then
+    log "ERROR  $file_id reviewed export changed; source not published"
+    rm -f "$body_tmp"; rmdir "$body_dir"
+    return 4
+  fi
+
   # Strip BOM if present
   if head -c 3 "$body_tmp" | od -An -c | grep -q '357 273 277'; then
     tail -c +4 "$body_tmp" > "$body_tmp.unbomb"
@@ -363,6 +380,14 @@ write_intake_for_doc() {
   # Extract body — everything after the "Transcript" line
   local transcript_body
   transcript_body="$(awk 'f{print} /^Transcript[[:space:]]*$/{f=1}' "$body_tmp")"
+  if [[ -n "$HEADERLESS_SHA256" ]]; then
+    if grep -qE '^Transcript[[:space:]]*$' "$body_tmp"; then
+      log "ERROR  $file_id has a transcript heading; reviewed headerless recovery does not apply"
+      rm -f "$body_tmp"; rmdir "$body_dir"
+      return 4
+    fi
+    transcript_body="$(cat "$body_tmp")"
+  fi
   # Bash 3.2 pattern replacement is prohibitively slow on long transcripts.
   # Consume the full stream (no grep -q) so pipefail cannot mistake SIGPIPE
   # from an early reader exit for an empty body.
@@ -397,6 +422,9 @@ write_intake_for_doc() {
     printf -- 'pulled-at: %s\n' "$pulled_at"
     printf -- '---\n\n'
     printf -- '# %s — %s (raw transcript)\n\n' "$title" "$local_date"
+    if [[ -n "$HEADERLESS_SHA256" ]]; then
+      printf -- 'Source layout: headerless export reviewed for this document. Raw export SHA-256: `%s`. The full export is preserved below after line-ending normalization; no attendance was inferred from speaker names.\n\n' "$HEADERLESS_SHA256"
+    fi
     printf -- 'Verbatim Google Meet transcript. Speakers are name-resolved by Google (e.g., "Martin Holland: …") so the processing pass can map directly to `atlas/people/` per [[../../config/objects/meeting]] step 3 without diarization-label resolution. The `attendees-from-source` field above is the list embedded by Google in the doc header; cross-reference against speaker turns during processing.\n\n'
     printf -- '## Transcript\n\n'
     printf -- '%s\n' "$transcript_body"
