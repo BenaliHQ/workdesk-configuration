@@ -40,6 +40,7 @@
 
 set -uo pipefail
 umask 077
+ORIGINAL_ARGS=("$@")
 
 # ── Constants ────────────────────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -161,6 +162,17 @@ ACCOUNT_KEY="$(printf '%s' "$ACCOUNT" | shasum -a 256 | cut -c1-32)"
 STATE_DIR="${WORKDESK_STATE_HOME:-$HOME/.local/state/workdesk}/$VAULT_KEY/gemini-transcripts/$ACCOUNT_KEY"
 STATE_FILE="$STATE_DIR/pull-gemini.json"
 LOG_FILE="$STATE_DIR/pull-gemini-transcripts.log"
+
+# Serialize both account routes before reading any mutable checkpoint. The host
+# lock is deliberately outside the account directory, and is never removed.
+# Read-only status can inspect atomically published checkpoints without locking.
+if [[ $SHOW_STATUS -eq 0 ]]; then
+  IMPORT_LOCK="${WORKDESK_STATE_HOME:-$HOME/.local/state/workdesk}/$VAULT_KEY/gemini-transcripts/import.lock"
+  if [[ -z "${WORKDESK_GEMINI_LOCK_FD:-}" ]]; then
+    exec "${WORKDESK_PYTHON:-python3}" "$SCRIPT_DIR/lib/gemini_import_lock.py" run "$IMPORT_LOCK" "$0" "${ORIGINAL_ARGS[@]}"
+  fi
+  "${WORKDESK_PYTHON:-python3}" "$SCRIPT_DIR/lib/gemini_import_lock.py" verify "$IMPORT_LOCK" || exit 2
+fi
 
 # Refuse damaged checkpoints rather than resetting history or widening a query.
 if [[ -e "$STATE_FILE" || -L "$STATE_FILE" ]]; then

@@ -1,4 +1,5 @@
 """Run the Gemini importer against synthetic Docs responses in a temporary vault."""
+import fcntl
 import hashlib
 import json
 import os
@@ -19,7 +20,7 @@ class GeminiImportTests(unittest.TestCase):
         self.vault = self.root/'vault'
         scripts = self.vault/'config/scripts'
         (scripts/'lib').mkdir(parents=True)
-        for name in ['pull-gemini-transcripts.sh','lib/gws-layout.sh','lib/gws_account.py','lib/gemini_source_identity.py','lib/gemini_document_text.py']:
+        for name in ['pull-gemini-transcripts.sh','lib/gws-layout.sh','lib/gws_account.py','lib/gemini_source_identity.py','lib/gemini_document_text.py','lib/gemini_import_lock.py']:
             shutil.copy2(ROOT/'config/scripts'/name,scripts/name)
         self.script = scripts/'pull-gemini-transcripts.sh'
         (self.vault/'system/transcripts').mkdir(parents=True)
@@ -66,6 +67,7 @@ else:sys.exit(90)
         self.env=dict(os.environ,HOME=str(home),XDG_CONFIG_HOME=str(home/'.config'),PATH=str(self.bin)+':'+os.environ['PATH'],DOC_FIXTURE=str(self.doc),
             WORKDESK_PYTHON=sys.executable,WORKDESK_GWS_BIN=str(gws),WORKDESK_STATE_HOME=str(self.state),WORKDESK_GWS_ACCOUNTS=json.dumps(routes),CALLS=str(self.calls),GOOGLE_WORKSPACE_CLI_TOKEN='synthetic-conflicting-token')
         self.env.pop('WORKDESK_GWS_ACCOUNT',None)
+        self.env.pop('WORKDESK_GEMINI_LOCK_FD',None)
         self.legacy=self.vault/'config/state/pull-gemini.json'
         self.legacy.parent.mkdir(parents=True)
         self.legacy.write_text('{"last_success_at":"2099-01-01T00:00:00Z"}')
@@ -374,5 +376,27 @@ else:sys.exit(90)
                 else:tab['documentTab']['body']['content'][0]['paragraph']['elements'].append({'inlineObjectElement':{'inlineObjectId':'image'}} if mode=='image' else {'dateElement':{'dateElementProperties':{}}})
                 self.doc.write_text(json.dumps(data));r=self.run_import()
                 self.assertNotEqual(r.returncode,0);self.assertEqual(self.notes(),[]);self.assertEqual(self.checkpoint.read_bytes(),self.before)
+
+    def test_vault_lock_blocks_both_accounts_before_provider_and_releases(self):
+        lock = self.checkpoint.parent.parent/'import.lock'
+        with lock.open('a') as held:
+            fcntl.flock(held, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            for account in ['fixture@example.test','second@example.test']:
+                r=self.enumeration(account)
+                self.assertEqual(r.returncode,2,r.stderr)
+                self.assertIn('already running',r.stderr)
+                self.assertFalse(self.calls.exists())
+                self.assertEqual(self.checkpoint.read_bytes(),self.before)
+            r=self.enumeration(args=['--status'])
+            self.assertEqual(r.returncode,0,r.stderr)
+        for account in ['fixture@example.test','second@example.test']:
+            r=self.enumeration(account)
+            self.assertEqual(r.returncode,0,r.stderr)
+
+    def test_invalid_inherited_lock_cannot_skip_serialization(self):
+        r=self.enumeration(extra={'WORKDESK_GEMINI_LOCK_FD':'99999'})
+        self.assertEqual(r.returncode,2,r.stderr)
+        self.assertFalse(self.calls.exists())
+        self.assertEqual(self.checkpoint.read_bytes(),self.before)
 
 if __name__=='__main__':unittest.main(verbosity=2)
