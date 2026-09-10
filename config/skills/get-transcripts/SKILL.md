@@ -45,10 +45,11 @@ Resolve the requested Google accounts from the operator's request or an
 explicit existing job configuration before running Google status or pulls.
 Do not infer an account from the shell's current login or assume all configured
 accounts belong in this request. Pass `--account` separately for each selected
-account to the standalone Google importer, including `--status`. See
+account to both Google-backed importers, including `--status`. See
 `config/rules/tools/gws.md` for host-local routes and checkpoint migration.
-Do not pass this new flag to the Gemini script unless its own interface supports
-it; verify and report that source's actual account coverage separately.
+Confirm the installed script supports `--account`. If an older installation
+does not, report the version mismatch and update it before pulling; do not
+fall back to an unqualified Google or Gemini run.
 
 Run all selected scripts with `--status` and surface the result. The operator should see:
 
@@ -70,7 +71,7 @@ If any source shows `HEALTH: STALE` (>36h since last success) or `consecutive_fa
   - `google` → only `pull-google-transcripts.sh`
   - `gemini` → only `pull-gemini-transcripts.sh`
 - `--dry-run` and `--status` pass through.
-- Google `--account` passes through to both status and pull. Multiple approved
+- Google and Gemini `--account` pass through to both status and pull. Multiple approved
   accounts run sequentially, each with its own checkpoint and reported result.
 
 ### 3. Run pulls
@@ -78,7 +79,7 @@ If any source shows `HEALTH: STALE` (>36h since last success) or `consecutive_fa
 Before pulling, check the selected jobs' current owners and running processes.
 Do not race a scheduled writer or another manual pull. A timeout alone does not
 prove a writer stopped. Run the selected sources and Google accounts sequentially.
-Google progress is now host-local and account-scoped; an unattributed legacy
+Google and Gemini progress are host-local and account-scoped; an unattributed legacy
 checkpoint is not a valid automatic starting point for another account.
 
 Capture the tail of each log:
@@ -113,7 +114,8 @@ If anything failed (true `failed > 0`), point at the log files:
 - `system/cron-pull-granola.log`
 - Google: the selected account's `pull-google-transcripts.log` beside its
   host-local checkpoint, as documented in `config/rules/tools/gws.md`
-- `system/cron-pull-gemini-transcripts.log`
+- Gemini: the selected account's `pull-gemini-transcripts.log` beside its
+  host-local checkpoint, as documented in `config/rules/tools/gws.md`
 
 ### 5. Verify (when ≥1 new file pulled)
 

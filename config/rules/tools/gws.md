@@ -128,6 +128,17 @@ If you skip the push, local gws keeps working — but Infisical's synced copy go
 
 ### Transcript importer account selection
 
+`pull-gemini-transcripts.sh` also requires an explicit account and uses the
+same verified routing component. Its separate checkpoint and log directory is
+`${WORKDESK_STATE_HOME:-$HOME/.local/state/workdesk}/<vault-hash>/gemini-transcripts/<account-hash>/`.
+The old synced `config/state/pull-gemini.json` is preserved but never adopted
+automatically. Calendar pagination completes before source publication; failed
+pages, malformed page envelopes and repeated page tokens preserve prior success.
+Single-document recovery requires `--doc-id ID --force` and never advances
+enumeration progress. Dry runs never change the checkpoint, including failures.
+This account boundary does not certify source publication, nested document
+coverage or the completeness of calendar attachment discovery.
+
 `pull-google-transcripts.sh` requires `--account you@example.com` or
 `WORKDESK_GWS_ACCOUNT`, plus the host-local route documented above. Set
 `WORKDESK_GWS_BIN` to the absolute executable when the scheduler's PATH does not

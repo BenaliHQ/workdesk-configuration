@@ -25,13 +25,13 @@
 # `title: "Notes by Gemini"` is the only reliable signal.
 #
 # Usage:
-#   bash config/scripts/pull-gemini-transcripts.sh                         # default: --days 1
-#   bash config/scripts/pull-gemini-transcripts.sh --days 7
-#   bash config/scripts/pull-gemini-transcripts.sh --days 30 --backfill    # >7 requires --backfill
-#   bash config/scripts/pull-gemini-transcripts.sh --dry-run
-#   bash config/scripts/pull-gemini-transcripts.sh --doc-id <id> --force
-#   bash config/scripts/pull-gemini-transcripts.sh --status
-#   bash config/scripts/pull-gemini-transcripts.sh --help
+#   bash config/scripts/pull-gemini-transcripts.sh --account you@example.com                         # default: --days 1
+#   bash config/scripts/pull-gemini-transcripts.sh --account you@example.com --days 7
+#   bash config/scripts/pull-gemini-transcripts.sh --account you@example.com --days 30 --backfill    # >7 requires --backfill
+#   bash config/scripts/pull-gemini-transcripts.sh --account you@example.com --dry-run
+#   bash config/scripts/pull-gemini-transcripts.sh --account you@example.com --doc-id <id> --force
+#   bash config/scripts/pull-gemini-transcripts.sh --account you@example.com --status
+#   bash config/scripts/pull-gemini-transcripts.sh --account you@example.com --help
 #
 # Exit codes:
 #   0  success (may include zero new pulls)
@@ -39,14 +39,15 @@
 #   2  hard failure (auth, bad args, API unreachable)
 
 set -uo pipefail
+umask 077
 
 # ── Constants ────────────────────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VAULT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 INTAKE_DIR="$VAULT_ROOT/system/intake"
 TRANSCRIPTS_DIR="$VAULT_ROOT/system/transcripts"
-STATE_FILE="$VAULT_ROOT/config/state/pull-gemini.json"
-LOG_FILE="$VAULT_ROOT/system/cron-pull-gemini-transcripts.log"
+STATE_FILE=""
+LOG_FILE=""
 SOURCE_FORMAT="gemini-meet-transcript"
 
 # Skip Gemini Docs whose Transcript tab is below this character count — those
@@ -62,10 +63,13 @@ DRY_RUN=0
 FORCE_DOC_ID=""
 FORCE=0
 SHOW_STATUS=0
+ACCOUNT="${WORKDESK_GWS_ACCOUNT:-}"
+ACCOUNT_FLAG=0
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 log() {
   local ts
+  mkdir -p "$(dirname "$LOG_FILE")" || return 1
   ts="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
   printf '%s %s\n' "$ts" "$*" | tee -a "$LOG_FILE" >&2
 }
@@ -97,10 +101,12 @@ iso_to_local_date() {
 
 write_state() {
   local content="$1"
-  mkdir -p "$(dirname "$STATE_FILE")"
-  local tmp="$STATE_FILE.tmp.$$"
-  printf '%s\n' "$content" > "$tmp"
-  mv "$tmp" "$STATE_FILE"
+  [[ $DRY_RUN -eq 1 ]] && return 0
+  mkdir -p "$STATE_DIR" || exit 2
+  local tmp
+  tmp="$(mktemp "$STATE_DIR/.checkpoint-XXXXXXXX")" || exit 2
+  printf '%s\n' "$content" | jq --arg account "$ACCOUNT" '. + {account: $account}' > "$tmp" || exit 2
+  mv "$tmp" "$STATE_FILE" || exit 2
 }
 
 read_state_field() {
@@ -118,10 +124,13 @@ read_state_field() {
 # ── Parse args ──────────────────────────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --days)     DAYS="$2"; shift 2 ;;
+    --account)
+      [[ $# -ge 2 && -n "$2" && $ACCOUNT_FLAG -eq 0 ]] || { echo "Specify --account once with an email" >&2; exit 2; }
+      ACCOUNT="$2"; ACCOUNT_FLAG=1; shift 2 ;;
+    --days)     [[ $# -ge 2 && "$2" =~ ^[1-9][0-9]*$ ]] || { echo "--days requires a positive integer" >&2; exit 2; }; DAYS="$2"; shift 2 ;;
     --backfill) BACKFILL=1; shift ;;
     --dry-run)  DRY_RUN=1; shift ;;
-    --doc-id)   FORCE_DOC_ID="$2"; FORCE=1; shift 2 ;;
+    --doc-id)   [[ $# -ge 2 && "$2" =~ ^[A-Za-z0-9_-]+$ ]] || { echo "--doc-id requires a document ID" >&2; exit 2; }; FORCE_DOC_ID="$2"; shift 2 ;;
     --force)    FORCE=1; shift ;;
     --status)   SHOW_STATUS=1; shift ;;
     --help|-h)
@@ -136,9 +145,38 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+# Do not use a shell-default account, even when it currently works.
+if [[ ! "$ACCOUNT" =~ ^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$ ]]; then
+  echo "ERROR: specify --account email or WORKDESK_GWS_ACCOUNT" >&2
+  exit 2
+fi
+ACCOUNT="$(printf '%s' "$ACCOUNT" | tr '[:upper:]' '[:lower:]')"
+VAULT_KEY="$(printf '%s' "$VAULT_ROOT" | shasum -a 256 | cut -c1-16)"
+ACCOUNT_KEY="$(printf '%s' "$ACCOUNT" | shasum -a 256 | cut -c1-32)"
+STATE_DIR="${WORKDESK_STATE_HOME:-$HOME/.local/state/workdesk}/$VAULT_KEY/gemini-transcripts/$ACCOUNT_KEY"
+STATE_FILE="$STATE_DIR/pull-gemini.json"
+LOG_FILE="$STATE_DIR/pull-gemini-transcripts.log"
+
+# Refuse damaged checkpoints rather than resetting history or widening a query.
+if [[ -e "$STATE_FILE" || -L "$STATE_FILE" ]]; then
+  if [[ ! -f "$STATE_FILE" || -L "$STATE_FILE" ]] || ! jq -e --arg account "$ACCOUNT" '
+    type == "object" and .account == $account and
+    ((.last_success_at == null) or (.last_success_at | type == "string" and test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"))) and
+    ((.consecutive_failures == null) or (.consecutive_failures | type == "number" and . >= 0 and floor == .))
+  ' "$STATE_FILE" >/dev/null 2>&1; then
+    printf 'ERROR: invalid checkpoint; preserved for reconciliation\n' >&2
+    exit 2
+  fi
+  checkpoint_date="$(jq -r '.last_success_at // empty' "$STATE_FILE")"
+  if [[ -n "$checkpoint_date" ]] && ! date -j -u -f "%Y-%m-%dT%H:%M:%SZ" "$checkpoint_date" +%s >/dev/null 2>&1; then
+    printf 'ERROR: invalid checkpoint date; preserved for reconciliation\n' >&2
+    exit 2
+  fi
+fi
+
 # ── --status ────────────────────────────────────────────────────────────────
 if [[ $SHOW_STATUS -eq 1 ]]; then
-  echo "Gemini Meet transcripts pull status:"
+  echo "Gemini Meet transcripts pull status for $ACCOUNT:"
   if [[ -f "$STATE_FILE" ]]; then
     jq -r '
       "  last_success_at:    \(.last_success_at // "never")",
@@ -191,26 +229,25 @@ fi
 mkdir -p "$INTAKE_DIR" "$(dirname "$STATE_FILE")"
 
 # ── Pre-flight ──────────────────────────────────────────────────────────────
-if ! command -v gws >/dev/null 2>&1; then
+GWS_BIN="${WORKDESK_GWS_BIN:-$(type -P gws || true)}"
+if [[ "$GWS_BIN" != /* || ! -x "$GWS_BIN" ]]; then
   log "ERROR  gws CLI not on PATH"
   exit 2
 fi
 
-# ── gws state gate ──────────────────────────────────────────────────────────
-# gws reads OAuth state from disk — location and file layout depend on the
-# CLI version (pre-0.22: ~/Library/Application Support/gws with per-account
-# credentials; 0.22+: ~/.config/gws with a single credentials.enc). If the
-# state files are missing under either layout, gws was never set up on this
-# machine (or its state was wiped): that's a configuration error, not a
-# transient condition — surface it instead of skipping silently.
-source "$SCRIPT_DIR/lib/gws-layout.sh"
-if ! wd_gws_state_present; then
-  log "ERROR  gws auth state missing (checked ~/Library/Application Support/gws and ~/.config/gws) — run config/scripts/setup-gws.sh"
-  exit 2
-fi
+# Route every direct CLI call through identity verification. No shell startup
+# file is assumed by cron or launchd, and no credential value is exported.
+gws() {
+  "${WORKDESK_PYTHON:-python3}" "$SCRIPT_DIR/lib/gws_account.py" "$GWS_BIN" --account "$ACCOUNT" "$@"
+}
 
+# ── gws state gate ──────────────────────────────────────────────────────────
+# Verify access through the supported CLI read below. Filesystem layouts differ
+# across gws versions and do not prove that the active credential store is usable.
+# Do not inspect or export credentials, or reject a working keyring-backed login
+# merely because an older state directory is present or missing.
 if ! gws drive about get --params '{"fields": "user(emailAddress)"}' >/dev/null 2>&1; then
-  log "ERROR  gws auth failed — run \`gws auth login --account you@example.com\`"
+  log "ERROR  Google account verification failed; check the explicit account route and dedicated login flow"
   prev_fails="$(read_state_field "consecutive_failures" "0")"
   new_fails=$(( prev_fails + 1 ))
   write_state "$(jq -n \
@@ -218,7 +255,7 @@ if ! gws drive about get --params '{"fields": "user(emailAddress)"}' >/dev/null 
     --argjson fails "$new_fails" \
     --arg prev_success "$last_success_at" \
     '{
-       last_success_at: ($prev_success | select(. != "")),
+       last_success_at: (if $prev_success == "" then null else $prev_success end),
        last_failure_at: $last_failure,
        consecutive_failures: $fails,
        last_run_at: $last_failure,
@@ -412,7 +449,36 @@ PARAMS_JSON="$(jq -n --arg tmin "$CUTOFF_ISO" --arg tmax "$TIME_MAX_ISO" \
 events_json="$(mktemp)"
 trap 'rm -f "$events_json"' EXIT
 
-if ! gws calendar events list --params "$PARAMS_JSON" --format json > "$events_json" 2>/dev/null; then
+# Finish and validate every page before publishing any transcript source.
+fetch_calendar_pages() {
+  local page token="" params count=0 next merged seen
+  page="$(mktemp)" || return 1
+  merged="$(mktemp)" || { rm -f "$page"; return 1; }
+  seen="$(mktemp)" || { rm -f "$page" "$merged"; return 1; }
+  printf '{"items":[]}\n' > "$events_json"
+  while :; do
+    count=$((count + 1))
+    if [[ $count -gt 10000 ]]; then rm -f "$page" "$merged" "$seen"; return 1; fi
+    params="$(printf '%s' "$PARAMS_JSON" | jq --arg token "$token" 'if $token == "" then . else . + {pageToken:$token} end')"
+    if ! gws calendar events list --params "$params" --format json > "$page" 2>/dev/null || ! jq -e '
+      type == "object" and (has("error") | not) and
+      ((has("items") | not) or (.items | type == "array" and all(.[]; type == "object"))) and
+      ((has("nextPageToken") | not) or (.nextPageToken | type == "string" and length > 0 and (test("[\u0000-\u001f]") | not)))
+    ' "$page" >/dev/null 2>&1; then
+      rm -f "$page" "$merged" "$seen"; return 1
+    fi
+    jq -s '{items: (.[0].items + (.[1].items // []))}' "$events_json" "$page" > "$merged" || { rm -f "$page" "$merged" "$seen"; return 1; }
+    cat "$merged" > "$events_json" || { rm -f "$page" "$merged" "$seen"; return 1; }
+    next="$(jq -r '.nextPageToken // empty' "$page")"
+    [[ -z "$next" ]] && break
+    if grep -Fxq -- "$next" "$seen"; then rm -f "$page" "$merged" "$seen"; return 1; fi
+    printf '%s\n' "$next" >> "$seen"
+    token="$next"
+  done
+  rm -f "$page" "$merged" "$seen"
+}
+
+if ! fetch_calendar_pages; then
   log "ERROR  gws calendar events list failed"
   prev_fails="$(read_state_field "consecutive_failures" "0")"
   new_fails=$(( prev_fails + 1 ))
@@ -421,7 +487,7 @@ if ! gws calendar events list --params "$PARAMS_JSON" --format json > "$events_j
     --argjson fails "$new_fails" \
     --arg prev_success "$last_success_at" \
     '{
-       last_success_at: ($prev_success | select(. != "")),
+       last_success_at: (if $prev_success == "" then null else $prev_success end),
        last_failure_at: $now,
        consecutive_failures: $fails,
        last_run_at: $now,
@@ -501,7 +567,7 @@ else
     --argjson fails "$new_fails" \
     --arg prev_success "$prev_success" \
     '{
-       last_success_at: ($prev_success | select(. != "")),
+       last_success_at: (if $prev_success == "" then null else $prev_success end),
        last_failure_at: $now,
        consecutive_failures: $fails,
        last_run_at: $now,
