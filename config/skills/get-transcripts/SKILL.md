@@ -107,8 +107,13 @@ Next: /process-transcripts to extract into atlas/meetings, decisions, people.
 ```
 
 Gemini-specific counts to expose:
-- **stub** — Notes-by-Gemini Doc exists but its Transcript tab is below the 500-char threshold (transcription failed; usually multilingual or silent meeting). Skipped permanently.
-- **no_access** — calendar event has a Notes-by-Gemini attachment but the Doc lives in another organizer's Drive and isn't shared. 403/404 — skipped permanently, not counted as failure.
+- **stub** — Extracted text is below the importer's minimum length. It needs review; length alone does not establish transcription failure or absence of useful content.
+- **no_access** — The document request returned 403/404. Access or availability needs review; the code alone does not establish who owns the document or why it is unavailable.
+
+Either count makes Gemini coverage incomplete (exit 1) and preserves the last
+successful enumeration checkpoint. Its latest `unresolved_sources` list records
+document IDs and result codes for review. These records are not permanent skips
+or a completed recovery queue; preserve unresolved evidence until reconciled.
 
 If anything failed (true `failed > 0`), point at the log files:
 - `system/cron-pull-granola.log`
@@ -154,8 +159,8 @@ and look for same-day files with overlapping titles.
 | `ERROR  gws auth failed` | gws token expired | `gws auth login --account you@example.com`, then `bash config/scripts/gws-push-tokens-to-infisical.sh` per [[../../config/rules/tools/gws]] |
 | All scripts hard-fail (exit 2) | gws auth state missing (`~/Library/Application Support/gws` pre-0.22, `~/.config/gws` on gws 0.22+) | Run `bash config/scripts/setup-gws.sh` |
 | `consecutive_fails > 3` | Auth has been broken for multiple cron runs | Always check `--status` first; run remediation above |
-| Gemini script reports `no_access > 0` | Meeting was organized by someone else and they didn't share the Notes-by-Gemini Doc | Expected and harmless — those transcripts live in the organizer's Drive. Ask them to share (View access is enough) and the next run picks them up. |
-| Gemini script reports `stub > 0` | Gemini transcription failed for that meeting (multilingual, silent, or under the language threshold) | The recording still exists in Drive — would need self-hosted transcription (Whisper) to recover. Out of scope for this skill. |
+| Gemini script reports `no_access > 0` | A requested document was unavailable (403/404); cause unverified | Report incomplete coverage and retain its source ID. Verify the selected account and document access before proposing recovery. |
+| Gemini script reports `stub > 0` | Extracted text fell below the importer threshold | Review the actual document and extraction layout; do not assume a recording exists or transcription failed. |
 
 ## What NOT to do
 
@@ -164,7 +169,7 @@ and look for same-day files with overlapping titles.
 - **Don't change the scripts' default behavior without a corresponding rule update.** The scripts also run via cron (daily); divergence between the manual and cron paths breaks the audit log in `config/state/pull-*.json`.
 - **Don't move pulled files out of `system/intake/`** in this skill. The intake → process → archive flow is enforced by [[../../config/rules/source-processing-pattern]]; only `/process-transcripts` moves files to `system/transcripts/`.
 - **Don't run with `--days > 14` casually.** The cron runs daily; if state shows last success <2 days ago, `--days 7` (default) is plenty. Wider lookback is for catching up after auth outages.
-- **Don't claim done if any pull reported `failed > 0`.** The `stub` and `no_access` counters are NOT failures — they're tracked permanent skips. Only `failed > 0` warrants investigation.
+- **Don't claim complete coverage if a pull failed or Gemini reported `stub > 0` or `no_access > 0`.** Report the unresolved source IDs and scope. Zero technical failures is not proof that every discovered transcript was captured.
 - **Don't dedupe across sources at pull time.** Same human meeting captured by multiple sources is by design — `/process-transcripts` is where the operator picks the strongest verbatim per meeting.
 
 ## Cron coexistence

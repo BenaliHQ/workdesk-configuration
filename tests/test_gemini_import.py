@@ -310,4 +310,16 @@ else:sys.exit(90)
         self.document(['Alex: source.\n'*60]);r=self.enumeration(extra={'TZ':'UTC','CALENDAR_MODE':'metadata','CALENDAR_EVENT':json.dumps(event)})
         self.assertEqual(r.returncode,0,r.stderr);self.assertTrue(self.notes()[0].name.startswith('2026-09-08-'))
 
+    def test_unavailable_and_short_transcripts_require_review_without_success_advance(self):
+        event={'summary':'Unresolved fixture','start':{'dateTime':'2026-09-09T14:00:00Z'},'attachments':[{'title':'Notes by Gemini','fileId':'fixture-doc'}]}
+        for mode,result in [('short',1),('denied',5)]:
+            with self.subTest(mode=mode):
+                if mode=='short':self.document(['Brief actual transcript.\n'])
+                else:self.doc.write_text('{"error":{"code":403}}')
+                r=self.enumeration(extra={'CALENDAR_MODE':'metadata','CALENDAR_EVENT':json.dumps(event)})
+                self.assertEqual(r.returncode,1,r.stderr);self.assertEqual(self.notes(),[])
+                state=json.loads(self.checkpoint.read_text())
+                self.assertEqual(state['last_success_at'],'2026-09-01T00:00:00Z')
+                self.assertEqual(state['unresolved_sources'],[{'document_id':'fixture-doc','result':result}])
+
 if __name__=='__main__':unittest.main(verbosity=2)

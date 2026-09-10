@@ -50,10 +50,9 @@ STATE_FILE=""
 LOG_FILE=""
 SOURCE_FORMAT="gemini-meet-transcript"
 
-# Skip Gemini Docs whose Transcript tab is below this character count — those
-# are the stub messages Gemini writes when transcription failed (multilingual,
-# silent meeting, etc.).  500 chars is well below any real meeting (a 1-minute
-# back-and-forth runs ~1500 chars) and well above the stub template (~200).
+# Text below this byte threshold requires review. It may be a short genuine
+# transcript, a provider notice, or an unsupported extraction layout; length
+# alone does not establish the cause. Such sources do not count as full coverage.
 MIN_TRANSCRIPT_CHARS=500
 
 # ── Defaults ─────────────────────────────────────────────────────────────────
@@ -300,11 +299,8 @@ write_intake_for_doc() {
 
   # Fetch the Doc with all tab content.  Capture output unconditionally —
   # gws prints the API error JSON to stdout AND exits non-zero on 403/404,
-  # so we need to inspect the body regardless of exit code.  403 (no
-  # permission) and 404 (not found) happen when the meeting was organized
-  # by someone else and they didn't share the Gemini Doc.  Those are
-  # permanent: don't count as retryable failure or consecutive_failures
-  # climbs every run.
+  # so we need to inspect the body regardless of exit code. A 403/404 leaves
+  # the source unresolved; it does not prove an ownership or sharing cause.
   local doc_json doc_exit=0
   doc_json="$(mktemp)" || return 4
   gws docs documents get \
@@ -359,7 +355,7 @@ write_intake_for_doc() {
   size="$(wc -c < "$transcript_file" | tr -d ' ')"
 
   if [[ $size -lt $MIN_TRANSCRIPT_CHARS ]]; then
-    log "SKIP   $doc_id stub-transcript size=${size}b title=\"$event_title\""
+    log "SKIP   $doc_id short-transcript-needs-review size=${size}b title=\"$event_title\""
     rm -f "$doc_json" "$transcript_file"
     return 1
   fi
@@ -570,6 +566,7 @@ skipped=0
 stub=0
 no_access=0
 failed=0
+unresolved_sources='[]'
 
 while IFS= read -r record; do
   [[ -z "$record" ]] && continue
@@ -579,7 +576,8 @@ while IFS= read -r record; do
   event_organizer="$(printf '%s' "$record" | jq -r '.[3]')"
   attendees_json="$(printf '%s' "$record" | jq -c '.[4]')"
   write_intake_for_doc "$doc_id" "$event_title" "$event_start" "$event_organizer" "$attendees_json"
-  case $? in
+  source_result=$?
+  case $source_result in
     0) pulled=$((pulled + 1)) ;;
     1) stub=$((stub + 1)) ;;
     2) skipped=$((skipped + 1)) ;;
@@ -587,13 +585,17 @@ while IFS= read -r record; do
     5) no_access=$((no_access + 1)) ;;
     *) failed=$((failed + 1)) ;;
   esac
+  case $source_result in
+    0|2|3) ;;
+    *) unresolved_sources="$(printf '%s' "$unresolved_sources" | jq --arg id "$doc_id" --argjson result "$source_result" '. + [{document_id:$id, result:$result}]')" ;;
+  esac
   sleep 0.2
 done < "$docs_tsv"
 rm -f "$docs_tsv"
 
 # ── State + summary ─────────────────────────────────────────────────────────
 now="$NOW_ISO"
-if [[ $failed -eq 0 ]]; then
+if [[ $failed -eq 0 && $stub -eq 0 && $no_access -eq 0 ]]; then
   if [[ $DRY_RUN -eq 1 ]]; then
     log "INFO   done (dry-run): pulled=$pulled skipped=$skipped stub=$stub no_access=$no_access failed=0 (state file NOT updated)"
   else
@@ -605,7 +607,8 @@ if [[ $failed -eq 0 ]]; then
          last_failure_at: null,
          consecutive_failures: 0,
          last_run_at: $now,
-         last_run_pulled: $pulled
+         last_run_pulled: $pulled,
+         unresolved_sources: []
        }')"
     log "INFO   done: pulled=$pulled skipped=$skipped stub=$stub no_access=$no_access failed=0"
   fi
@@ -618,13 +621,15 @@ else
     --arg now "$now" \
     --argjson pulled "$pulled" \
     --argjson fails "$new_fails" \
+    --argjson unresolved "$unresolved_sources" \
     --arg prev_success "$prev_success" \
     '{
        last_success_at: (if $prev_success == "" then null else $prev_success end),
        last_failure_at: $now,
        consecutive_failures: $fails,
        last_run_at: $now,
-       last_run_pulled: $pulled
+       last_run_pulled: $pulled,
+       unresolved_sources: $unresolved
      }')"
   log "WARN   partial: pulled=$pulled skipped=$skipped stub=$stub no_access=$no_access failed=$failed consec_fails=$new_fails"
   exit 1
