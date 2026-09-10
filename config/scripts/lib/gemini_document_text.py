@@ -10,6 +10,10 @@ import sys
 from pathlib import Path
 
 
+class MissingTranscript(ValueError):
+    pass
+
+
 def unique(pairs):
     result = {}
     for key, value in pairs:
@@ -35,6 +39,8 @@ def extract(data, expected):
             visit(tab.get('childTabs', []), depth + 1)
 
     visit(data.get('tabs'))
+    if not selected:
+        raise MissingTranscript('No Transcript tab returned')
     if len(selected) != 1:
         raise ValueError('Expected exactly one Transcript tab')
     content = selected[0].get('documentTab', {}).get('body', {}).get('content')
@@ -82,6 +88,9 @@ if __name__ == '__main__':
         data = json.loads(Path(sys.argv[1]).read_text(), object_pairs_hook=unique)
         text = extract(data, sys.argv[2])
         sys.stdout.buffer.write(text.encode('utf-8'))
+    except MissingTranscript:
+        print('No Transcript tab returned; summary tabs are not a substitute.', file=sys.stderr)
+        sys.exit(3)
     except (OSError, ValueError, TypeError, AttributeError, KeyError, RecursionError):
         print('Transcript structure is missing, ambiguous or unsupported; source not published.', file=sys.stderr)
         sys.exit(2)

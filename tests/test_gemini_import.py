@@ -464,4 +464,23 @@ else:sys.exit(90)
             r=self.enumeration(args=args);self.assertEqual(r.returncode,2,r.stderr)
             self.assertFalse(self.calls.exists());self.assertEqual(self.checkpoint.read_bytes(),self.before)
 
+    def test_missing_transcript_remains_gap_then_recovers(self):
+        event={'summary':'Missing transcript fixture','start':{'date':'2026-09-09'},'attachments':[{'title':'Notes by Gemini','fileId':'fixture-doc'}]}
+        self.doc.write_text(json.dumps({'documentId':'fixture-doc','tabs':[{'tabProperties':{'title':'Full notes'},'documentTab':{'body':{'content':[{'paragraph':{'elements':[{'textRun':{'content':'Summary must never become transcript.\n'*50}}]}}]}}}]}))
+        r=self.enumeration(extra={'CALENDAR_MODE':'metadata','CALENDAR_EVENT':json.dumps(event)})
+        self.assertEqual(r.returncode,1,r.stderr);self.assertEqual(self.notes(),[])
+        state=json.loads(self.checkpoint.read_text());self.assertEqual(state['unresolved_sources'][0]['result'],6)
+        self.assertEqual(state['last_success_at'],'2026-09-01T00:00:00Z')
+        r=self.enumeration(args=['--status']);self.assertIn('HEALTH: INCOMPLETE',r.stdout)
+        self.assertIn('missing Transcript tab',r.stdout);self.assertNotIn('HEALTH: ok',r.stdout)
+        self.document(['Alex: Transcript now available.\n'*60])
+        r=self.enumeration();self.assertEqual(r.returncode,0,r.stderr)
+        self.assertEqual(len(self.notes()),1);self.assertEqual(json.loads(self.checkpoint.read_text())['unresolved_sources'],[])
+
+    def test_status_does_not_hide_failure_behind_recent_success(self):
+        state={'account':'fixture@example.test','last_success_at':'2099-01-01T00:00:00Z','consecutive_failures':1}
+        self.checkpoint.write_text(json.dumps(state));r=self.enumeration(args=['--status'])
+        self.assertEqual(r.returncode,0,r.stderr);self.assertIn('HEALTH: INCOMPLETE',r.stdout)
+        self.assertNotIn('HEALTH: ok',r.stdout);self.assertFalse(self.calls.exists())
+
 if __name__=='__main__':unittest.main(verbosity=2)

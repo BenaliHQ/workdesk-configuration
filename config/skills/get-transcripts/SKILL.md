@@ -55,9 +55,9 @@ Run all selected scripts with `--status` and surface the result. The operator sh
 
 - Last successful pull (timestamp + hours ago)
 - Consecutive failures (if any)
-- HEALTH: ok / STALE
+- HEALTH: ok / STALE / INCOMPLETE / UNKNOWN (as supported by the selected importer)
 
-If any source shows `HEALTH: STALE` (>36h since last success) or `consecutive_fails ≥ 1`, call that out — auth or API issues need fixing before the pull will succeed.
+If any source shows `HEALTH: STALE` (>36h since last success) or `HEALTH: INCOMPLETE`, `HEALTH: UNKNOWN`, or `consecutive_fails ≥ 1`, call that out — auth or API issues need fixing before the pull will succeed.
 
 ### 2. Decide flags
 
@@ -166,6 +166,7 @@ and look for same-day files with overlapping titles.
 | `consecutive_fails > 3` | Auth has been broken for multiple cron runs | Always check `--status` first; run remediation above |
 | Gemini script reports `no_access > 0` | A requested document was unavailable (403/404); cause unverified | Report incomplete coverage and retain its source ID. Verify the selected account and document access before proposing recovery. |
 | Gemini script reports `stub > 0` | Extracted text fell below the importer threshold | Review the actual document and extraction layout; do not assume a recording exists or transcription failed. |
+| Gemini script reports `missing_transcript > 0` | The returned document has no Transcript tab | Keep its source ID and calendar context for retry. Report a coverage gap; Notes/Full notes are not substitutes. If transcription appears later, replay can import it. |
 
 For a legitimate short Gemini transcript, inspect the full extracted display text
 and record its SHA-256 before recovery. Use `--doc-id ID --force
@@ -184,7 +185,7 @@ Missing Transcript tabs remain gaps; do not substitute Notes or Full notes.
 - **Don't change the scripts' default behavior without a corresponding rule update.** The scripts also run via cron (daily); divergence between the manual and cron paths breaks the audit log in `config/state/pull-*.json`.
 - **Don't move pulled files out of `system/intake/`** in this skill. The intake → process → archive flow is enforced by [[../../config/rules/source-processing-pattern]]; only `/process-transcripts` moves files to `system/transcripts/`.
 - **Don't run with `--days > 14` casually.** The cron runs daily; if state shows last success <2 days ago, `--days 7` (default) is plenty. Wider lookback is for catching up after auth outages.
-- **Don't claim complete coverage if a pull failed or Gemini reported `stub > 0` or `no_access > 0`.** Report the unresolved source IDs and scope. Zero technical failures is not proof that every discovered transcript was captured.
+- **Don't claim complete coverage if a pull failed or Gemini reported `stub > 0`, `missing_transcript > 0`, or `no_access > 0`.** Report the unresolved source IDs and scope. Zero technical failures is not proof that every discovered transcript was captured.
 - **Don't dedupe across sources at pull time.** Same human meeting captured by multiple sources is by design — `/process-transcripts` is where the operator picks the strongest verbatim per meeting.
 
 ## Cron coexistence

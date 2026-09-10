@@ -229,6 +229,17 @@ if [[ $SHOW_STATUS -eq 1 ]]; then
       "  unresolved_sources: \((.unresolved_sources // []) | length)",
       "  last_run_at:        \(.last_run_at // "never")"
     ' "$STATE_FILE"
+    unresolved_count="$(jq '(.unresolved_sources // []) | length' "$STATE_FILE")"
+    failures="$(jq '.consecutive_failures // 0' "$STATE_FILE")"
+    jq -r '.unresolved_sources[]? | "  source \(.document_id): " +
+      (if .result == 6 then "missing Transcript tab; retained for retry"
+       elif .result == 1 then "short transcript; content review required"
+       elif .result == 5 then "document unavailable; cause unverified"
+       else "import failure; inspect log" end)' "$STATE_FILE"
+    if [[ $unresolved_count -gt 0 || $failures -gt 0 ]]; then
+      echo "  HEALTH: INCOMPLETE (unresolved sources or failed attempts)"
+      exit 0
+    fi
     last_success="$(jq -r '.last_success_at // empty' "$STATE_FILE")"
     if [[ -n "$last_success" ]]; then
       last_epoch="$(TZ=UTC date -j -f "%Y-%m-%dT%H:%M:%SZ" "${last_success%.*Z}Z" "+%s" 2>/dev/null || echo 0)"
@@ -240,6 +251,8 @@ if [[ $SHOW_STATUS -eq 1 ]]; then
       else
         echo "  HEALTH: ok"
       fi
+    else
+      echo "  HEALTH: UNKNOWN (no successful enumeration recorded)"
     fi
   else
     echo "  (no state file — script has never run successfully)"
@@ -392,9 +405,15 @@ write_intake_for_doc() {
   # Shell command substitution and line-oriented filters would strip them.
   local transcript_file
   transcript_file="$(mktemp)" || return 4
-  if ! "${WORKDESK_PYTHON:-python3}" "$SCRIPT_DIR/lib/gemini_document_text.py" "$doc_json" "$doc_id" > "$transcript_file"; then
-    log "ERROR  $doc_id invalid document response"
+  local extract_result=0
+  "${WORKDESK_PYTHON:-python3}" "$SCRIPT_DIR/lib/gemini_document_text.py" "$doc_json" "$doc_id" > "$transcript_file" || extract_result=$?
+  if [[ $extract_result -ne 0 ]]; then
     rm -f "$doc_json" "$transcript_file"
+    if [[ $extract_result -eq 3 ]]; then
+      log "GAP    $doc_id no Transcript tab returned; retain for retry, never substitute summary"
+      return 6
+    fi
+    log "ERROR  $doc_id invalid document response"
     return 4
   fi
 
@@ -649,6 +668,7 @@ pulled=0
 skipped=0
 stub=0
 no_access=0
+missing_transcript=0
 failed=0
 unresolved_sources='[]'
 
@@ -667,6 +687,7 @@ while IFS= read -r record; do
     2) skipped=$((skipped + 1)) ;;
     3) pulled=$((pulled + 1)) ;;
     5) no_access=$((no_access + 1)) ;;
+    6) missing_transcript=$((missing_transcript + 1)) ;;
     *) failed=$((failed + 1)) ;;
   esac
   case $source_result in
@@ -679,9 +700,9 @@ rm -f "$docs_tsv"
 
 # ── State + summary ─────────────────────────────────────────────────────────
 now="$NOW_ISO"
-if [[ $failed -eq 0 && $stub -eq 0 && $no_access -eq 0 ]]; then
+if [[ $failed -eq 0 && $stub -eq 0 && $no_access -eq 0 && $missing_transcript -eq 0 ]]; then
   if [[ $DRY_RUN -eq 1 ]]; then
-    log "INFO   done (dry-run): pulled=$pulled skipped=$skipped stub=$stub no_access=$no_access failed=0 (state file NOT updated)"
+    log "INFO   done (dry-run): pulled=$pulled skipped=$skipped stub=$stub no_access=$no_access missing_transcript=$missing_transcript failed=0 (state file NOT updated)"
   else
     write_state "$(jq -n \
       --arg now "$now" \
@@ -695,7 +716,7 @@ if [[ $failed -eq 0 && $stub -eq 0 && $no_access -eq 0 ]]; then
          last_run_pulled: $pulled,
          unresolved_sources: []
        }')"
-    log "INFO   done: pulled=$pulled skipped=$skipped stub=$stub no_access=$no_access failed=0"
+    log "INFO   done: pulled=$pulled skipped=$skipped stub=$stub no_access=$no_access missing_transcript=$missing_transcript failed=0"
   fi
   exit 0
 else
@@ -717,6 +738,6 @@ else
        last_run_pulled: $pulled,
        unresolved_sources: $unresolved
      }')"
-  log "WARN   partial: pulled=$pulled skipped=$skipped stub=$stub no_access=$no_access failed=$failed consec_fails=$new_fails"
+  log "WARN   partial: pulled=$pulled skipped=$skipped stub=$stub no_access=$no_access missing_transcript=$missing_transcript failed=$failed consec_fails=$new_fails"
   exit 1
 fi
