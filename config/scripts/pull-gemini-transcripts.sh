@@ -354,13 +354,7 @@ write_intake_for_doc() {
   # Shell command substitution and line-oriented filters would strip them.
   local transcript_file
   transcript_file="$(mktemp)" || return 4
-  if ! jq -j '
-    .tabs[]?
-    | select(.tabProperties.title == "Transcript")
-    | .documentTab.body.content[]?
-    | .paragraph?.elements[]?
-    | .textRun?.content // empty
-  ' "$doc_json" > "$transcript_file"; then
+  if ! "${WORKDESK_PYTHON:-python3}" "$SCRIPT_DIR/lib/gemini_document_text.py" "$doc_json" "$doc_id" > "$transcript_file"; then
     log "ERROR  $doc_id invalid document response"
     rm -f "$doc_json" "$transcript_file"
     return 4

@@ -19,7 +19,7 @@ class GeminiImportTests(unittest.TestCase):
         self.vault = self.root/'vault'
         scripts = self.vault/'config/scripts'
         (scripts/'lib').mkdir(parents=True)
-        for name in ['pull-gemini-transcripts.sh','lib/gws-layout.sh','lib/gws_account.py','lib/gemini_source_identity.py']:
+        for name in ['pull-gemini-transcripts.sh','lib/gws-layout.sh','lib/gws_account.py','lib/gemini_source_identity.py','lib/gemini_document_text.py']:
             shutil.copy2(ROOT/'config/scripts'/name,scripts/name)
         self.script = scripts/'pull-gemini-transcripts.sh'
         (self.vault/'system/transcripts').mkdir(parents=True)
@@ -356,5 +356,23 @@ else:sys.exit(90)
     def test_invalid_recovery_date_fails_before_provider(self):
         state=json.loads(self.before);state['coverage_start_at']='2026-02-30T00:00:00Z';self.checkpoint.write_text(json.dumps(state))
         r=self.enumeration();self.assertEqual(r.returncode,2);self.assertFalse(self.calls.exists())
+
+    def test_nested_transcript_and_date_display_text_preserved(self):
+        self.document(['Alex: exact source.\n'*60]);data=json.loads(self.doc.read_text())
+        transcript=data['tabs'].pop()
+        transcript['documentTab']['body']['content'][0]['paragraph']['elements'].insert(0,{'dateElement':{'dateElementProperties':{'displayText':'Sep 2, 2026'}}})
+        data['tabs'].append({'tabProperties':{'title':'Container'},'childTabs':[transcript]})
+        self.doc.write_text(json.dumps(data));r=self.run_import();self.assertEqual(r.returncode,0,r.stderr)
+        body=self.notes()[0].read_text().split('## Transcript\n\n',1)[1]
+        self.assertEqual(body,'Sep 2, 2026'+'Alex: exact source.\n'*60)
+
+    def test_unsupported_content_and_duplicate_transcript_tabs_fail_closed(self):
+        for mode in ['image','duplicate-tab','missing-display']:
+            with self.subTest(mode=mode):
+                self.document(['Alex: exact source.\n'*60]);data=json.loads(self.doc.read_text());tab=data['tabs'][-1]
+                if mode=='duplicate-tab':data['tabs'].append(tab)
+                else:tab['documentTab']['body']['content'][0]['paragraph']['elements'].append({'inlineObjectElement':{'inlineObjectId':'image'}} if mode=='image' else {'dateElement':{'dateElementProperties':{}}})
+                self.doc.write_text(json.dumps(data));r=self.run_import()
+                self.assertNotEqual(r.returncode,0);self.assertEqual(self.notes(),[]);self.assertEqual(self.checkpoint.read_bytes(),self.before)
 
 if __name__=='__main__':unittest.main(verbosity=2)
