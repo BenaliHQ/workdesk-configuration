@@ -126,6 +126,30 @@ If you skip the push, local gws keeps working — but Infisical's synced copy go
 
 ## Known Limitations
 
+### Transcript importer account selection
+
+`pull-google-transcripts.sh` requires `--account you@example.com` or
+`WORKDESK_GWS_ACCOUNT`, plus the host-local route documented above. Set
+`WORKDESK_GWS_BIN` to the absolute executable when the scheduler's PATH does not
+include it. Every direct API call verifies that route and the authenticated
+principal through `config/scripts/lib/gws_account.py`; shell startup files are
+not required. This verifies identity, not approval for an outbound operation.
+
+Checkpoints and logs live under
+`${WORKDESK_STATE_HOME:-$HOME/.local/state/workdesk}/<vault-hash>/google-transcripts/<account-hash>/`.
+The checkpoint also records its account and rejects mismatches. Unattributed
+older checkpoints remain untouched and are not automatic fallbacks. Before
+cutover, reconcile the old checkpoint's account from execution evidence and
+choose an explicit initial lookback for each account. A new account defaults
+to one day; that is not historical coverage. A lookback above seven days needs
+`--backfill`. Keep one active scheduled owner and serialize runs for a vault.
+
+All listing pages must validate before any document export. A successful
+enumeration records its start time as the next watermark, with a one-second
+overlap on catch-up. `--dry-run` never changes checkpoints. A single-file pull
+requires both `--file-id` and `--force`; it never advances the enumeration
+watermark, and an existing note is preserved for explicit reconciliation.
+
 - **Pushes need a live Infisical session.** If your `infisical login` session has expired, push scripts log `FAILED to push` to `system/log/gws-push.log` and keep going — local gws is unaffected. Re-run `infisical login`, then the push.
 - **One OAuth app per Workspace org.** Each account's encrypted credential is self-contained (carries its own client_id/secret), so accounts from different orgs coexist in one gws install. `client_secret.json` and the wrapper's env-var injection only matter at `gws auth login` time — the wrapper picks the org's app from the `--account` email domain.
 - **Suffix derivation is domain-based.** `alex@example.com` → `EXAMPLE`, `alex@client-co.example` → `CLIENTCO`. Two accounts on the *same* domain would collide — add a disambiguating scheme before that ever happens.

@@ -43,3 +43,4 @@ jobs:
         run: |
           python3 tests/gws-wrapper-test.py
           python3 -m unittest discover -s tests -p "test_gws_account.py" -v
+          python3 -m unittest discover -s tests -p "test_google_import.py" -v
