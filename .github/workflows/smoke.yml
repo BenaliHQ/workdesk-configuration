@@ -26,6 +26,8 @@ jobs:
         run: ./tests/feedback-throttle-test.sh
       - name: Reliability regression fixtures
         run: python3 -m unittest discover -s tests -p "test_reliability.py" -v
+      - name: Direct-edit destination parser
+        run: python3 -m unittest discover -s tests -p "test_edit_target_paths.py" -v
       - name: Source completion and search refresh fixtures
         run: |
           python3 -m venv "$RUNNER_TEMP/workdesk-test-runtime"
