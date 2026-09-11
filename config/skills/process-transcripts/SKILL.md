@@ -182,7 +182,7 @@ The `[REVIEW]` flood-guard cap (≤7 per session) applies to `[REVIEW]` proposal
 
 ### 8. Verify outputs before completion
 
-Verify every required meeting, decision, substantive entity update and routed commitment exists, cites the source, and agrees with the source. Check the planned output list against the actual files; a missing required update keeps the run incomplete. No-content sources use an explicit disposition instead of an invented meeting.
+Verify every required meeting, decision, substantive entity update and routed commitment exists, cites the source, and agrees with the source. Check the planned output list against the actual files; a missing required update keeps the run incomplete. Include processing receipts and other structured sidecars in the factual review: a label such as `mentioned_not_attending` asserts absence even if the meeting prose says presence is unknown. Keep unresolved attendance explicitly unknown in every representation; do not group mentions with confirmed absences. No-content sources use an explicit disposition instead of an invented meeting.
 
 Obtain the host-local Python path using `bash config/scripts/migrate.sh source-runtime` (runtime preparation is described in step 9). Run the read-only verification below on every created/updated knowledge note, repeating `--output` for each actual path:
 

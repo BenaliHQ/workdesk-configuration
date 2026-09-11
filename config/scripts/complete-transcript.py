@@ -6,6 +6,7 @@ already be established. Receipts and original bytes support reconciliation
 after interruption; a receipt is not a factual-accuracy certification.
 """
 import argparse
+from datetime import date
 import hashlib
 import json
 import os
@@ -85,6 +86,65 @@ def verify_output_properties(root, outputs):
             if 'attendees' in data and (not isinstance(data['attendees'], list) or
                     any(not isinstance(value, str) or not value.strip() for value in data['attendees'])):
                 raise ValueError('Meeting attendees must be a list of strings: ' + name)
+
+
+
+def verify_weekly_review(root, outputs):
+    """Read-only weekly briefing structure; facts and coverage need review."""
+    import yaml
+    required_sections = {
+        "what you shipped", "what's stalled", "what's coming",
+        "proposed closures + promotions",
+    }
+    # Reuse the output parser's unique-key and managed-path checks first.
+    verify_output_properties(root, outputs)
+    for name in outputs:
+        text = safe_path(root.resolve(), name).read_text()
+        if not text.startswith('---\n') or '\n---\n' not in text[4:]:
+            raise ValueError('Weekly review requires frontmatter: ' + name)
+        header, body = text[4:].split('\n---\n', 1)
+        data = yaml.safe_load(header)
+        for key, expected in [('type', 'signal'), ('shape', 'briefing'), ('schedule', 'weekly')]:
+            if data.get(key) != expected:
+                raise ValueError('Weekly review requires ' + key + ': ' + expected)
+        for key in ('date', 'week-of'):
+            value = data.get(key)
+            if type(value) is date:
+                continue
+            if not isinstance(value, str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}', value):
+                raise ValueError('Weekly review requires an ISO date for ' + key)
+            date.fromisoformat(value)
+        sources = data.get('sources')
+        if not isinstance(sources, list) or not sources or any(
+                not isinstance(item, str) or not item.strip() for item in sources):
+            raise ValueError('Weekly review requires a nonempty sources list')
+        # Fenced examples cannot stand in for the briefing itself.
+        sections = {}
+        current = None
+        fence = None
+        body = re.sub(r'<!--.*?-->', '', body, flags=re.S)
+        for line in body.splitlines():
+            marker = re.match(r'^ {0,3}(`{3,}|~{3,})(.*)$', line)
+            if marker:
+                run, tail = marker.groups()
+                if fence is None:
+                    fence = run
+                elif run[0] == fence[0] and len(run) >= len(fence) and not tail.strip():
+                    fence = None
+                continue
+            if fence is not None:
+                continue
+            heading = re.match(r'^ {0,3}##[ \t]+(.+?)\s*#*\s*$', line)
+            if heading:
+                current = heading.group(1).replace('’', "'").casefold().strip()
+                sections.setdefault(current, [])
+            elif re.match(r'^ {0,3}#[ \t]+', line):
+                current = None
+            elif current is not None and line.strip() and not re.match(r'^ {0,3}#{3,}[ \t]+', line):
+                sections[current].append(line.strip())
+        missing = sorted(section for section in required_sections if not sections.get(section))
+        if missing:
+            raise ValueError('Weekly review needs nonempty sections: ' + ', '.join(missing))
 
 
 def verify_outputs(root, outputs):
@@ -323,7 +383,10 @@ if __name__ == '__main__':
     parser.add_argument('--verify-outputs', action='store_true', help='Read-only declared-property and link checks for --output notes')
     parser.add_argument('--verify-extraction', action='store_true', help='Read-only source links plus declared properties and links for --output notes')
     parser.add_argument('--resume-receipt', type=Path, help='Recover an interrupted transition with unchanged source/output hashes')
+    parser.add_argument('--weekly-review', action='store_true', help='Require weekly briefing properties and sections with --verify-outputs')
     args = parser.parse_args()
+    if args.weekly_review and not args.verify_outputs:
+        parser.error('--weekly-review requires --verify-outputs')
     if args.verify_extraction:
         if not args.source or not args.output or args.verify_outputs or args.receipts or args.verify_receipt or args.resume_receipt or args.reason or args.disposition != 'processed':
             parser.error('Extraction verification requires --source and --output and cannot be combined with other modes')
@@ -332,6 +395,8 @@ if __name__ == '__main__':
     elif args.verify_outputs:
         if not args.output or args.source or args.receipts or args.verify_receipt or args.resume_receipt or args.reason or args.disposition != 'processed':
             parser.error('Output verification requires --output and cannot be combined with completion arguments')
+        if args.weekly_review:
+            verify_weekly_review(args.vault.resolve(), args.output)
         verify_outputs(args.vault.resolve(), args.output)
         print('Declared output properties and links verified; factual review remains separate.')
     elif args.resume_receipt:
