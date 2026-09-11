@@ -89,6 +89,70 @@ class CompletionTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(self.source.read_bytes(), self.raw)
 
+    def weekly_fixture(self):
+        output = self.root/'intel/briefings/weekly/2026-09-11-weekly-review.md'
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text("---\ntype: signal\nshape: briefing\ndate: 2026-09-11\n"
+                          "sources: ['[[S9]]']\nschedule: weekly\nweek-of: '2026-09-07'\n---\n"
+                          "## What you shipped\nNo completions established by [[S9]].\n"
+                          "## What's stalled\nSource coverage does not establish blocked work.\n"
+                          "## What's coming\nCalendar was unavailable; deadlines unknown.\n"
+                          "## Proposed closures + promotions\nNo candidates established by the supplied source.\n")
+        return output, [str(output.relative_to(self.root))]
+
+    def test_weekly_review_cli_is_readonly_and_checks_links(self):
+        output, names = self.weekly_fixture()
+        before = {str(p.relative_to(self.root)):p.read_bytes() for p in self.root.rglob('*') if p.is_file()}
+        command = [sys.executable, str(PRODUCT/'config/scripts/complete-transcript.py'),
+                   '--vault', str(self.root), '--verify-outputs', '--weekly-review', '--output', names[0]]
+        result = subprocess.run(command, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(before, {str(p.relative_to(self.root)):p.read_bytes() for p in self.root.rglob('*') if p.is_file()})
+        output.write_text(output.read_text().replace('[[S9]]', '[[missing-source]]'))
+        self.assertNotEqual(subprocess.run(command, capture_output=True).returncode, 0)
+        self.assertTrue(self.source.exists())
+
+    def test_full_weekly_review_rejects_project_inventory(self):
+        output, names = self.weekly_fixture()
+        output.write_text("---\ntype: weekly-review\ndate: 2026-09-11\nsources: ['[[S9]]']\n---\n"
+                          "## Projects\nA project has unknown freshness.\n")
+        with self.assertRaises(ValueError): completion.verify_weekly_review(self.root, names)
+
+    def test_weekly_review_rejects_missing_or_invalid_properties(self):
+        output, names = self.weekly_fixture()
+        original = output.read_text()
+        for old, new in [('shape: briefing\n', ''), ('schedule: weekly', 'schedule: daily'),
+                         ("week-of: '2026-09-07'", "week-of: unknown"),
+                         ('date: 2026-09-11', "date: '2026-02-30'"),
+                         ("sources: ['[[S9]]']", 'sources: []'),
+                         ('type: signal', 'type: signal\ntype: signal')]:
+            with self.subTest(change=new):
+                output.write_text(original.replace(old, new))
+                with self.assertRaises(ValueError):
+                    completion.verify_weekly_review(self.root, names)
+
+    def test_weekly_review_sections_cannot_be_empty_comments_or_examples(self):
+        output, names = self.weekly_fixture()
+        original = output.read_text()
+        prefix, section = original.split('## Proposed closures + promotions', 1)
+        for tail in ['', '## Proposed closures + promotions\n',
+                     '## Proposed closures + promotions\n<!-- pending -->\n',
+                     '```markdown\n## Proposed closures + promotions'+section+'```\n',
+                     '~~~markdown\n## Proposed closures + promotions'+section+'~~~\n']:
+            with self.subTest(tail=tail):
+                output.write_text(prefix+tail)
+                with self.assertRaisesRegex(ValueError, 'nonempty sections'):
+                    completion.verify_weekly_review(self.root, names)
+
+    def test_weekly_review_accepts_typography_and_retains_legacy_output_mode(self):
+        output, names = self.weekly_fixture()
+        output.write_text(output.read_text().replace("What's", 'What’s'))
+        completion.verify_weekly_review(self.root, names)
+        output.write_text('# Legacy weekly note\n[[S9]]\n')
+        completion.verify_outputs(self.root, names)
+        with self.assertRaisesRegex(ValueError, 'frontmatter'):
+            completion.verify_weekly_review(self.root, names)
+
     def test_archive_collision_preserves_both_files(self):
         target = self.root/'system/transcripts/S9.md'
         target.write_text('Other source\n')

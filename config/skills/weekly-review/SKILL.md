@@ -12,6 +12,10 @@ The most important signal in the first 30 days. Active from week 1. Stable every
 - `/weekly-review` — full cycle
 - `/weekly-review --preview` — show proposed closures/promotions without writing inbox items
 
+## Scope
+
+The full cycle below produces a weekly briefing. If the operator requests only a project review or another bounded portion, honor that scope, label the output as partial, and verify its links with `check-wikilinks.sh --require-links`. Do not add unrelated scans merely to fill the full briefing, apply the full-week format gate, or advance `weekly-review.last-fired` for that partial task. `--preview` retains the requested review scope while suppressing inbox writes.
+
 ## Phases
 
 ### 1. Anchor scan
@@ -27,6 +31,8 @@ Per `config/signals/weekly-review.md`:
 - Processed transcripts since `weekly-review.last-fired`
 
 ### 2. Synthesize
+
+For the full cycle, build all four sections as level-two headings. A project inventory belongs within this synthesis; it does not replace it. For a section with no supported items, state the searched scope and result; if an anchor was unavailable, state that coverage gap instead of claiming there was no activity.
 
 Build sections:
 
@@ -59,9 +65,22 @@ For each proposed closure/promotion, drop a `[REVIEW]` item in `gtd/inbox/`:
 
 Subject to flood guard (≤7 per session — additional candidates batched).
 
-### 5. Update state
+### 5. Verify and update state
 
-After writing, verify source/context wikilinks with `bash config/scripts/check-wikilinks.sh --require-links <briefing-path>`. Plain-text paths and zero outgoing links do not satisfy the connection rule. Verify any newly created knowledge/inbox notes too. If required context is genuinely absent, report the gap and leave the run incomplete rather than fabricate a link.
+Resolve the host-local Python with `bash config/scripts/migrate.sh source-runtime`. Use its returned path for the read-only briefing gate:
+
+```bash
+"<runtime-python>" config/scripts/complete-transcript.py --vault "$PWD" \
+  --verify-outputs --weekly-review --output "<briefing-path>"
+```
+
+The existing output verifier checks the required weekly properties, real date values, all four nonempty sections, and source/context wikilinks. It does not establish factual accuracy or complete anchor coverage: review those separately before marking the run complete. Derive `week-of` from the actual reviewed week and the operator's week-start convention; do not copy the example dates.
+
+After writing, verify source/context wikilinks with this gate. Plain-text paths and zero outgoing links do not satisfy the connection rule. Verify any newly created knowledge/inbox notes too. If required context is genuinely absent, report the gap and leave the run incomplete rather than fabricate a link.
+
+Check source coverage against both directory and file observations: an empty readable directory is available with zero matching records; it is not an unavailable source. Record the inspected scope and any read failure rather than inferring absence from a file-only listing.
+
+For an unattended full cycle, have an available, authorized reviewer inspect the briefing and proposed inbox items against their sources before advancing state. Supply the observed inventory (including empty directories) and the prior state used for the review window; keep the drafter's conclusions separate from the review request. Record the reviewer/runtime, reviewed hashes and dispositions in the existing run record. Reconcile findings against source evidence, correct supported errors and repeat the final structural/link check after edits. Unresolved factual defects or an unavailable review keep last-fired unchanged and the run incomplete. This step grants no additional provider access. Interactive use retains direct operator/agent review without requiring another approval solely to draft.
 
 Only after successful write and verification:
 - `config/state/signals.json` → `weekly-review.last-fired` = today

@@ -20,7 +20,7 @@ Never invent, assume, or infer information that is not explicitly present in the
 These are the specific failure modes to watch for:
 
 - **Guessing names:** Writing `[[sarah-chen]]` when the transcript only says "Sarah." You don't know her last name. Use "Sarah" in plain text.
-- **Inferring attendees:** A calendar event shows 5 people invited. The transcript mentions 3. Do not list all 5 as attendees — only the 3 confirmed by the transcript.
+- **Inferring attendees:** A calendar event shows 5 invitees and the transcript mentions 3 people. Neither count establishes attendance. Include only people whose presence is supported by speaker turns or an explicit source statement; keep mentions and unresolved presence separate. Claim absence only when the source explicitly establishes it.
 - **Assuming affiliations:** Someone mentions "the team at that startup." Do not link to a company note unless the company was explicitly named.
 - **Filling timeline gaps:** The transcript jumps from topic A to topic C. Do not reconstruct what was discussed in between.
 - **Inventing rationale:** A decision was made but the reasoning wasn't captured. Document the decision without rationale rather than constructing plausible reasoning.
