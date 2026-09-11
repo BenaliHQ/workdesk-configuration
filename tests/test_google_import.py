@@ -40,6 +40,9 @@ elif args[:3]==['drive','files','export']:
  output.write_bytes(b'Unexpected layout without transcript section' if mode=='no-body' else b'Attendees\r\nAlex\r\nTranscript\r\nAlex: Preserve this exact source statement.\r\n')
  if mode=='long-body':output.write_text('Attendees\nAlex\nTranscript\n'+'Alex: Preserve this exact source statement.\n'*3000)
  if mode=='headerless':output.write_bytes(b'Alex: Preserve the original turn.\nRobin: Understood.\n')
+ if mode=='headerless-attendees':output.write_bytes(b'Attendees\nAlex, Robin\n00:35:00\nAlex: Preserve dialogue.\n')
+ if mode=='contaminated-attendees':output.write_bytes(b'Attendees\nAlex\n00:35:00\nRobin: Not an attendee name.\nTranscript\nAlex: Preserve dialogue.\n')
+ if mode=='oversized-attendees':output.write_text('Attendees\n'+''.join('Person '+str(i)+'\n' for i in range(33))+'Transcript\nAlex: Preserve dialogue.\n')
 else:sys.exit(90)
 '''
 
@@ -191,6 +194,36 @@ class GoogleImportTests(unittest.TestCase):
         self.assertIn(digest,text)
         self.assertIn('attendees-from-source:\n  []',text)
         self.assertIsNone(json.loads(self.checkpoint().read_text())['last_success_at'])
+
+    def test_headerless_attendees_never_consume_dialogue(self):
+        raw=b'Attendees\nAlex, Robin\n00:35:00\nAlex: Preserve dialogue.\n'
+        args=['--file-id','id-first','--force','--reviewed-headerless-sha256',hashlib.sha256(raw).hexdigest()]
+        result=self.run_import(args=args,mode='headerless-attendees')
+        self.assertEqual(result.returncode,0,result.stderr)
+        text=self.notes()[0].read_text()
+        self.assertEqual(text.split('## Transcript\n\n',1)[1],raw.decode())
+        header=text.split('\n---\n',1)[0]
+        self.assertIn('attendee-extraction-status: not-extracted-headerless',header)
+        self.assertIn('attendees-from-source:\n  []',header)
+        self.assertNotIn('Preserve dialogue',header)
+
+    def test_malformed_or_oversized_attendee_header_is_unknown(self):
+        for mode in ['contaminated-attendees','oversized-attendees']:
+            with self.subTest(mode=mode):
+                result=self.run_import(mode=mode)
+                self.assertEqual(result.returncode,0,result.stderr)
+                text=self.notes()[0].read_text();header=text.split('\n---\n',1)[0]
+                self.assertIn('attendees-from-source:\n  []',header)
+                self.assertIn('attendee-extraction-status: unverified',header)
+                self.assertEqual(text.split('## Transcript\n\n',1)[1],'Alex: Preserve dialogue.\n')
+                # Separate provider fixtures must each exercise a fresh publication.
+                self.notes()[0].unlink()
+
+    def test_valid_attendee_header_retains_names_without_attendance_claim(self):
+        result=self.run_import(mode='one');self.assertEqual(result.returncode,0,result.stderr)
+        text=self.notes()[0].read_text();header=text.split('\n---\n',1)[0]
+        self.assertIn('attendees-from-source:\n  - "Alex"',header)
+        self.assertIn('attendee-extraction-status: header-list',header)
 
     def test_headerless_option_rejected_without_single_file_scope(self):
         self.assertEqual(self.run_import(args=['--reviewed-headerless-sha256','0'*64]).returncode,2)
