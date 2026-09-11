@@ -367,13 +367,31 @@ write_intake_for_doc() {
   tr -d '\r' < "$body_tmp" > "$body_tmp.lf"
   mv "$body_tmp.lf" "$body_tmp"
 
-  # Parse attendees: lines between "Attendees" and "Transcript" headers
-  local attendees_yaml=""
-  if grep -qE '^Attendees[[:space:]]*$' "$body_tmp"; then
-    attendees_yaml="$(awk '/^Attendees[[:space:]]*$/{f=1; next} /^Transcript[[:space:]]*$/{f=0; exit} f && NF{ print }' "$body_tmp" \
-      | tr ',' '\n' \
-      | awk 'NF{gsub(/^[[:space:]]+|[[:space:]]+$/,""); print}' \
-      | jq -Rr '"  - " + tojson')"
+  # Publish attendee metadata only from a complete, bounded header section.
+  # A reviewed headerless export is raw evidence, never an attendee list.
+  local attendees_yaml="" attendees_status="unverified"
+  if [[ -z "$HEADERLESS_SHA256" ]]; then
+    attendees_yaml="$(awk '
+      /^Transcript[[:space:]]*$/ { complete=1; exit }
+      /^Attendees[[:space:]]*$/ { if (seen) invalid=1; seen=1; next }
+      seen {
+        bytes += length($0); lines++
+        if (bytes > 4096 || lines > 32 || $0 ~ /:/) invalid=1
+        if (invalid) next
+        count=split($0, fields, ",")
+        for (i=1; i<=count; i++) {
+          name=fields[i]; gsub(/^[[:space:]]+|[[:space:]]+$/, "", name)
+          if (name != "") {
+            if (n >= 32 || length(name) > 120) { invalid=1; break }
+            names[++n]=name
+          }
+        }
+      }
+      END { if (seen && complete && !invalid) for (i=1; i<=n; i++) print names[i] }
+    ' "$body_tmp" | jq -Rr '"  - " + tojson')"
+    [[ -n "$attendees_yaml" ]] && attendees_status="header-list"
+  else
+    attendees_status="not-extracted-headerless"
   fi
   [[ -z "$attendees_yaml" ]] && attendees_yaml='  []'
 
@@ -418,6 +436,7 @@ write_intake_for_doc() {
     printf -- 'google-created-at: %s\n' "$created_at"
     printf -- 'attendees-from-source:\n'
     printf -- '%s\n' "$attendees_yaml"
+    printf -- 'attendee-extraction-status: %s\n' "$attendees_status"
     printf -- 'source-format: %s\n' "$SOURCE_FORMAT"
     printf -- 'pulled-at: %s\n' "$pulled_at"
     printf -- '---\n\n'
@@ -425,7 +444,7 @@ write_intake_for_doc() {
     if [[ -n "$HEADERLESS_SHA256" ]]; then
       printf -- 'Source layout: headerless export reviewed for this document. Raw export SHA-256: `%s`. The full export is preserved below after line-ending normalization; no attendance was inferred from speaker names.\n\n' "$HEADERLESS_SHA256"
     fi
-    printf -- 'Verbatim Google Meet transcript. Speakers are name-resolved by Google (e.g., "Martin Holland: …") so the processing pass can map directly to `atlas/people/` per [[../../config/objects/meeting]] step 3 without diarization-label resolution. The `attendees-from-source` field above is the list embedded by Google in the doc header; cross-reference against speaker turns during processing.\n\n'
+    printf -- 'Verbatim Google Meet transcript. Speakers are name-resolved by Google (e.g., "Martin Holland: …") so the processing pass can map directly to `atlas/people/` per [[../../config/objects/meeting]] step 3 without diarization-label resolution. When `attendee-extraction-status` is `header-list`, `attendees-from-source` records the bounded list embedded by Google, not verified attendance. Otherwise extraction is unverified or unavailable; an empty list does not establish that nobody attended. Cross-reference against speaker turns during processing.\n\n'
     printf -- '## Transcript\n\n'
     printf -- '%s\n' "$transcript_body"
   } > "$tmp" || { log "ERROR  $file_id staging write failed; candidate retained: $tmp"; return 4; }
