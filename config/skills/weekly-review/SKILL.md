@@ -78,6 +78,10 @@ The existing output verifier checks the required weekly properties, real date va
 
 After writing, verify source/context wikilinks with this gate. Plain-text paths and zero outgoing links do not satisfy the connection rule. Verify any newly created knowledge/inbox notes too. If required context is genuinely absent, report the gap and leave the run incomplete rather than fabricate a link.
 
+Check source coverage against both directory and file observations: an empty readable directory is available with zero matching records; it is not an unavailable source. Record the inspected scope and any read failure rather than inferring absence from a file-only listing.
+
+For an unattended full cycle, have an available, authorized reviewer inspect the briefing and proposed inbox items against their sources before advancing state. Supply the observed inventory (including empty directories) and the prior state used for the review window; keep the drafter's conclusions separate from the review request. Record the reviewer/runtime, reviewed hashes and dispositions in the existing run record. Reconcile findings against source evidence, correct supported errors and repeat the final structural/link check after edits. Unresolved factual defects or an unavailable review keep last-fired unchanged and the run incomplete. This step grants no additional provider access. Interactive use retains direct operator/agent review without requiring another approval solely to draft.
+
 Only after successful write and verification:
 - `config/state/signals.json` → `weekly-review.last-fired` = today
 

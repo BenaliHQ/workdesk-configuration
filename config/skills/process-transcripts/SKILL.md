@@ -184,6 +184,10 @@ The `[REVIEW]` flood-guard cap (≤7 per session) applies to `[REVIEW]` proposal
 
 Verify every required meeting, decision, substantive entity update and routed commitment exists, cites the source, and agrees with the source. Check the planned output list against the actual files; a missing required update keeps the run incomplete. Include processing receipts and other structured sidecars in the factual review: a label such as `mentioned_not_attending` asserts absence even if the meeting prose says presence is unknown. Keep unresolved attendance explicitly unknown in every representation; do not group mentions with confirmed absences. No-content sources use an explicit disposition instead of an invented meeting.
 
+For batch or unattended completion, obtain a fresh source review from an available, authorized reviewer before step 9. Supply the verbatim source, final proposed notes and processing record, relevant rules, and any before-state used to justify a change. Keep cases separate; do not supply the drafter's conclusions as the review's intended answer. Ask for unsupported claims with their source evidence, including prose, tables and receipt fields. A second review is a check, not a vote: adjudicate each finding against the source, correct supported defects, and record unresolved ones. Missing review evidence or unresolved factual defects leaves the source uncompleted. Do not invoke an unavailable reviewer or send data to a new destination without authorization.
+
+Record the reviewer/runtime, source and reviewed-output hashes, findings and dispositions in the existing processing record. Material edits after review require review of those edits; the structural verifier must run again on the final bytes. A helper receipt or a reviewer saying “pass” without evidence of which sources and outputs were checked is not a substitute for this evidence.
+
 Obtain the host-local Python path using `bash config/scripts/migrate.sh source-runtime` (runtime preparation is described in step 9). Run the read-only verification below on every created/updated knowledge note, repeating `--output` for each actual path:
 
 ```bash
