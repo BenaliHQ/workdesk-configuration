@@ -29,6 +29,8 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=config/scripts/lib/resolve-secret.sh
 source "$SCRIPT_DIR/lib/resolve-secret.sh"
+# shellcheck source=config/scripts/lib/operator-config.sh
+OPERATOR_CONFIG_LENIENT=1 source "$SCRIPT_DIR/lib/operator-config.sh" 2>/dev/null || true
 VAULT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 INTAKE_DIR="$VAULT_ROOT/system/intake"
 TRANSCRIPTS_DIR="$VAULT_ROOT/system/transcripts"
@@ -267,8 +269,45 @@ write_intake_for_note() {
   fi
 
   # ── Write the file ────────────────────────────────────────────────────────
-  local pulled_at attendees_yaml body
+  local pulled_at attendees_yaml body speaker_mode speaker_preamble op_email op_name
   pulled_at="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+  op_email="${OPERATOR_EMAIL:-}"
+  op_name="${OPERATOR_NAME:-}"
+
+  # Granola returns speaker info in one of two shapes:
+  #   .speaker.diarization_label -> "Speaker A"  (single channel; Granola inferred the turns)
+  #   .speaker.attribution       -> "me"/"them"  (separate mic + system-audio streams)
+  # Reading only the first silently discards the second and renders those
+  # transcripts 100% "Speaker ?" even though the API stated who spoke.
+  #
+  # Note: attribution "me" means "this audio came from the microphone", NOT "the
+  # operator said this" - an in-room mic captures everyone present. Only when BOTH
+  # "me" and "them" appear is the split real; a single value means one channel
+  # caught every speaker and the transcript is genuinely unattributed.
+  speaker_mode="$(jq -r '
+    if (.transcript | length) == 0 then "none"
+    elif ([.transcript[].speaker | has("diarization_label")] | any) then "diarization"
+    else
+      ([.transcript[].speaker.attribution // empty] | unique) as $a
+      | if   ($a | length) == 0           then "none"
+        elif ($a | sort) == ["me","them"] then "channel"
+        elif $a == ["me"]                 then "mic-only"
+        elif $a == ["them"]               then "remote-only"
+        else "channel" end
+    end' "$note_json")"
+
+  case "$speaker_mode" in
+    channel)
+      speaker_preamble='Verbatim transcript from Granola public API. Speaker names are **channel-attributed** - the operator'"'"'s microphone and the remote party'"'"'s system audio were captured as separate streams, then resolved against the calendar attendee list. This is ground truth, not a diarization guess. Treat attribution as reliable.' ;;
+    diarization)
+      speaker_preamble='Verbatim transcript from Granola public API. Speakers are diarization labels (A, B, C…), not resolved identities - the processing pass maps them to attendees. The `attendees-from-source` field above is calendar invitees; actual presence is determined during processing per [[../../config/objects/meeting]] step 2.' ;;
+    mic-only)
+      speaker_preamble='Verbatim transcript from Granola public API. **Every line came through the operator'"'"'s microphone on a single channel and Granola ran no diarization.** An in-room mic captures everyone present, so these lines are NOT all the operator - they are unattributed. Do not infer turn-by-turn attribution from this source; assign speakers only where the content itself makes it unambiguous.' ;;
+    remote-only)
+      speaker_preamble='Verbatim transcript from Granola public API. **Every line came from system audio (remote parties); the operator'"'"'s microphone captured nothing** - consistent with a listen-only session such as a webinar. The operator is not a speaker here. Multiple remote speakers may be merged under one label.' ;;
+    *)
+      speaker_preamble='Verbatim transcript from Granola public API. **No speaker data was returned by Granola for this recording** - every line is unattributed. Do not infer turn-by-turn attribution from this source.' ;;
+  esac
   attendees_yaml="$(jq -r '.attendees // [] | .[] | "  - \"\(.name // "Unknown") <\(.email // "no-email")>\""' "$note_json")"
 
   local tmp="$target_path.tmp.$$"
@@ -287,12 +326,27 @@ write_intake_for_note() {
     printf -- 'attendees-from-source:\n'
     printf -- '%s\n' "$attendees_yaml"
     printf -- 'source-format: %s\n' "$SOURCE_FORMAT"
+    printf -- 'speaker-attribution: %s\n' "$speaker_mode"
     printf -- 'pulled-at: %s\n' "$pulled_at"
     printf -- '---\n\n'
     printf -- '# %s — %s (raw transcript)\n\n' "$title" "$local_date"
-    printf -- 'Verbatim transcript from Granola public API. Speakers are diarization labels (A, B, C…), not resolved identities — operator/processing pass maps them to attendees. The `attendees-from-source` field above is calendar invitees from Granola; actual presence is determined during processing per [[../../config/objects/meeting]] step 2.\n\n'
+    printf -- '%s\n\n' "$speaker_preamble"
     printf -- '## Transcript\n\n'
-    jq -r '.transcript[] | "[\(.start_time[11:19])] \(.speaker.diarization_label // "Speaker ?"): \(.text)"' "$note_json"
+    jq -r --arg opmail "$op_email" --arg opname "$op_name" --arg mode "$speaker_mode" '
+      ( [ .attendees // [] | .[] | select((.email // "" | ascii_downcase) != ($opmail | ascii_downcase)) ] ) as $others
+      | ( if ($others | length) == 1 then ($others[0].name // $others[0].email // "Them") else "Them" end ) as $themname
+      | ( [ .attendees // [] | .[] | select((.email // "" | ascii_downcase) == ($opmail | ascii_downcase)) | .name ] | first ) as $opname_att
+      | ( $opname_att // (if $opname == "" then "Me" else $opname end) ) as $mename
+      | .transcript[]
+      | ( if $mode == "diarization" then (.speaker.diarization_label // "Speaker ?")
+          elif $mode == "channel" then
+            ( if   (.speaker.attribution? == "me")   then $mename
+              elif (.speaker.attribution? == "them") then $themname
+              else "Speaker ?" end )
+          elif $mode == "remote-only" then $themname
+          else "Speaker ?" end ) as $who
+      | "[\(.start_time[11:19])] \($who): \(.text)"
+    ' "$note_json"
   } > "$tmp"
 
   mv "$tmp" "$target_path"
