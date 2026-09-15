@@ -34,8 +34,8 @@ last_updated: YYYY-MM-DD        # last meaningful update to any file in this fol
 
 ```
 atlas/businesses/{slug}/
-├── _brief.md          # overview, mission, current focus, primary people
-├── _status.md         # current state, recent activity, open items, active engagements
+├── brief.md          # overview, mission, current focus, primary people
+├── status.md         # current state, recent activity, open items, active engagements
 ├── offerings.md       # services / products / what we sell
 ├── pricing.md         # pricing structure, packages, rates
 ├── icp.md             # ideal customer profile
@@ -56,17 +56,17 @@ Lazy-create as needed: `processes.md` (operating procedures, SOPs). Add when con
 
 ### Body conventions
 
-- `_brief.md` — 12-section structure (in order): Mission · Vision · Direction · Values · Brand overview · Origin & history · Operating model · Team · Active work · Legacy work · Strategic context · Sources. The brief is the senior-team-member onboarding doc — populated enough that any new Claude session or human teammate can pick up cold. Identity sections (Mission/Vision/Direction/Values) cluster at the top; the brief carries TLDRs and points to deeper strategy files (`offerings.md`, `goals.md`, `brand-voice.md`, etc.) for full detail.
-- `_status.md` — narrative status + recent activity + open items + **active engagements** (clients owned by this business, with wikilinks to `atlas/clients/{slug}`)
+- `brief.md` — 12-section structure (in order): Mission · Vision · Direction · Values · Brand overview · Origin & history · Operating model · Team · Active work · Legacy work · Strategic context · Sources. The brief is the senior-team-member onboarding doc — populated enough that any new Claude session or human teammate can pick up cold. Identity sections (Mission/Vision/Direction/Values) cluster at the top; the brief carries TLDRs and points to deeper strategy files (`offerings.md`, `goals.md`, `brand-voice.md`, etc.) for full detail.
+- `status.md` — narrative status + recent activity + open items + **active engagements** (clients owned by this business, with wikilinks to `atlas/clients/{slug}`)
 - Strategy files (`offerings.md`, `icp.md`, `goals.md`, `brand-*.md`) — narrative; no enforced structure. The brief surfaces a TLDR + pointer; full detail lives in the file.
-- Active project work links from `projects/` to the business `_status.md`
-- Decisions affecting the business get logged to `atlas/decisions/` and linked from `_status.md`
+- Active project work links from `projects/` to the business `status.md`
+- Decisions affecting the business get logged to `atlas/decisions/` and linked from `status.md`
 
 ## Source rule
 
 Primary source: operator-direct knowledge — businesses are owned and operated by the operator. Secondary updates flow from:
 
-- Active projects under `projects/` (status rolls up to business `_status.md`)
+- Active projects under `projects/` (status rolls up to business `status.md`)
 - Client engagements where `business-owner: {slug}` (each client folder updates this business's active-engagements list per [[matching]])
 - Decisions in `atlas/decisions/` that name this business
 - Meeting notes that touch business strategy
@@ -89,12 +89,12 @@ For idea-phase businesses (no incorporation, no customers yet), `status: inactiv
 When a new business is added, the following notes update in the same processing pass per [[matching]]:
 
 - **`atlas/people/{slug}`** for each primary person — created or updated with role + business wikilink
-- **`atlas/clients/{slug}/_brief.md`** for each existing client where `business-owner: {this business}` — confirm the link is bidirectional
-- **`atlas/decisions/`** entries that name this business — backlinked from `_status.md`
+- **`atlas/clients/{slug}/brief.md`** for each existing client where `business-owner: {this business}` — confirm the link is bidirectional
+- **`atlas/decisions/`** entries that name this business — backlinked from `status.md`
 - **`atlas/projects/{slug}`** under the business's `projects/` subfolder — only if active projects already exist
 
 When a business transitions status (active → inactive, or inactive → active):
-- `_status.md` reflects the transition with date + reason
+- `status.md` reflects the transition with date + reason
 - All active projects under `projects/` get reviewed for status implications
 - All clients with `business-owner: {this slug}` get reviewed (an inactive business may need its clients reassigned or paused)
 
@@ -105,7 +105,7 @@ When a business transitions status (active → inactive, or inactive → active)
 | `active` | Currently operating business — generating revenue, doing work, or building toward launch with momentum | → `inactive` (paused, sunset, or idea-deferred) |
 | `inactive` | Not currently operating. Covers both: (a) ideas not yet started, (b) wound-down businesses, (c) suspended/folded businesses | → `active` (started, restarted, or revived) |
 
-The frontmatter `status` doesn't distinguish idea-phase from wound-down — that nuance lives in `_status.md` body narrative. Acceptable trade-off because:
+The frontmatter `status` doesn't distinguish idea-phase from wound-down — that nuance lives in `status.md` body narrative. Acceptable trade-off because:
 - It's a personal vault; scan time is fine
 - Single-state inactive avoids decision-paralysis on "is this paused or archived?" mid-debate (e.g., Acme Studio 2026-05)
 
@@ -121,7 +121,7 @@ Per [[instance-scaffolding]] — if the operator's primary vault has `atlas/busi
 
 ### 1. Confirm the trigger
 
-Identify why this business is being added now: starting fresh, migrating from legacy, capturing an idea, etc. Capture briefly in `_brief.md` narrative.
+Identify why this business is being added now: starting fresh, migrating from legacy, capturing an idea, etc. Capture briefly in `brief.md` narrative.
 
 ### 2. Gather required info
 
@@ -152,8 +152,8 @@ Ask operator for enough to populate the full brief at minimum. The principle: a 
 
 ```
 atlas/businesses/{slug}/
-├── _brief.md          # populated in step 4
-├── _status.md         # populated in step 4
+├── brief.md          # populated in step 4
+├── status.md         # populated in step 4
 ├── offerings.md       # populated in step 4 (or TBD placeholder)
 ├── pricing.md         # populated in step 4 (or TBD placeholder)
 ├── icp.md             # populated in step 4 (or TBD placeholder)
@@ -172,12 +172,12 @@ atlas/businesses/{slug}/
 
 ### 4. Populate frontmatter and content
 
-For `_brief.md` and `_status.md` (per [[per-project-accounting]] — these MUST have meaningful content, not hollow placeholders):
+For `brief.md` and `status.md` (per [[per-project-accounting]] — these MUST have meaningful content, not hollow placeholders):
 - Set `created` and `last_updated` to today
 - Set `status`, `incorporated`, `slug` from step 2
 - Per [[no-fabrication]], write content ONLY from what the operator supplied. Mark unknown fields explicitly.
 
-**`_brief.md` body sections (in this order):**
+**`brief.md` body sections (in this order):**
 
 1. **Mission** — 1-2 sentences in operator's words, what the business does
 2. **Vision** — future-state north star *(optional at scaffolding; preserve the section header with a `TBD — populate when articulated` note if not yet articulated)*
@@ -192,7 +192,7 @@ For `_brief.md` and `_status.md` (per [[per-project-accounting]] — these MUST 
 11. **Strategic context** — macro forces (market, competitive position, portfolio fit) framing the business right now *(optional at scaffolding; preserve the section header with `TBD — populate when relevant` if empty)*
 12. **Sources** — multi-entry list. Each entry: **{date or "Legacy"}** — kind of source (operator-direct dictation, decision, legacy archive, etc.) — what it contributed (parenthetical summary). Provenance compounds; new sources are appended, not blended into existing entries.
 
-**`_status.md` body sections:**
+**`status.md` body sections:**
 - Current state (operating phase, what's in flight)
 - Recent activity (last 14 days; meeting/decision links if relevant)
 - Open items (decisions pending, action items, things being tracked)
@@ -200,16 +200,16 @@ For `_brief.md` and `_status.md` (per [[per-project-accounting]] — these MUST 
 
 **Strategy files** (`offerings.md`, `icp.md`, `goals.md`, `brand-voice.md`, `brand-design.md`, `org-chart.md`):
 - Populate from legacy if validated, OR from operator-direct dictation, OR with TBD placeholder if not yet captured
-- A TBD placeholder is acceptable for these (unlike _brief.md/_status.md) because they're strategy documents that evolve; operator iterates on them as content emerges
+- A TBD placeholder is acceptable for these (unlike brief.md/status.md) because they're strategy documents that evolve; operator iterates on them as content emerges
 - Mark TBD content with explicit "TBD — to be authored by operator" so future Claude sessions don't mistake placeholder for content
 
 ### 5. Apply matching rule
 
-In the SAME pass per [[matching]] and [[instance-scaffolding]] § Conditional matching. For each target below, check whether the target's schema is defined and the folder has instances. If not, document open item in `_status.md` + use plain text in `_brief.md`. If yes, apply:
+In the SAME pass per [[matching]] and [[instance-scaffolding]] § Conditional matching. For each target below, check whether the target's schema is defined and the folder has instances. If not, document open item in `status.md` + use plain text in `brief.md`. If yes, apply:
 
 - For each primary person named in step 2: create or update `atlas/people/{slug}` with role + wikilink to this business
-- For each existing client where `business-owner: {this slug}`: confirm the bidirectional link in their `_brief.md`
-- For each existing decision in `atlas/decisions/` naming this business: backlink from `_status.md`
+- For each existing client where `business-owner: {this slug}`: confirm the bidirectional link in their `brief.md`
+- For each existing decision in `atlas/decisions/` naming this business: backlink from `status.md`
 - For active projects: ensure each lives under `projects/` with the per-project-accounting structure
 
 ### 6. Verify
@@ -217,7 +217,7 @@ In the SAME pass per [[matching]] and [[instance-scaffolding]] § Conditional ma
 - All wikilinks resolve per [[double-entry-knowledge]] — entities not yet created should appear as plain text, or get stubs in step 5. **Run `bash config/scripts/check-wikilinks.sh atlas/businesses/{slug}` and confirm zero broken before declaring done.**
 - Every claim traces to a source per [[source-documentation]] — operator-direct or legacy-validated
 - No fabrication per [[no-fabrication]] — gaps are marked explicitly with TBD, not filled with inference
-- `_brief.md` and `_status.md` have meaningful content (not hollow) per [[per-project-accounting]]
+- `brief.md` and `status.md` have meaningful content (not hollow) per [[per-project-accounting]]
 
 ### 7. Confirm with operator
 

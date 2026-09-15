@@ -21,7 +21,7 @@ shape: schedule
 status: active                                          # active | paused | retired
 cadence: weekly                                         # daily | weekly | monthly | quarterly | yearly | custom
 next_due: 2026-05-01
-parent: "[[gtd/projects/website-rebuild/_brief]]"       # project, operator-added container, or empty
+parent: "[[gtd/projects/website-rebuild/brief]]"       # project, operator-added container, or empty
 source: ""
 created: 2026-04-26
 ---
@@ -35,7 +35,7 @@ Weekly school logistics review — confirm pickups, lunches, after-school.
 type: recurring
 shape: checklist
 status: active
-parent: "[[atlas/areas/publishing/_brief]]"
+parent: "[[atlas/areas/publishing/brief]]"
 source: ""
 created: 2026-04-26
 ---
@@ -50,8 +50,8 @@ created: 2026-04-26
 
 ## Lifecycle
 
-- **Schedule promotion** — operator-confirmed (or auto when `cadence: daily` and operator opts in). Creates a transient action in `gtd/actions/next/` with `parent: "[[gtd/recurring/schedules/{slug}]]"`. Action completion rolls `next_due` forward by the cadence.
-- **Checklist materialization** — operator runs `/checklist {slug}`. Materializes each item as a sequence of actions in `gtd/actions/next/` with `parent: "[[gtd/recurring/checklists/{slug}]]"`.
+- **Schedule promotion** — operator-confirmed (or auto when `cadence: daily` and operator opts in). Creates a transient action in `gtd/actions/` with `parent: "[[gtd/recurring/schedules/{slug}]]"`. Action completion rolls `next_due` forward by the cadence.
+- **Checklist materialization** — operator runs `/checklist {slug}`. Materializes each item as a sequence of actions in `gtd/actions/` with `parent: "[[gtd/recurring/checklists/{slug}]]"`.
 - **Pause** (`status: paused`) — drops out of all scans; `next_due` does not roll. Resume by setting `status: active`.
 - **Retire** (`status: retired`) — terminal; drops out of all scans permanently. File stays in place for history; not moved to archive in V1.
 

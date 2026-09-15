@@ -13,6 +13,15 @@ IFS=$'\n\t'
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 JSON_GET="$DIR/json-get.sh"
 VAULT="${CLAUDE_PROJECT_DIR:-$(cd "$DIR/../.." && pwd)}"
+# Nested projects inherit the containing vault. Preserve explicit standalone
+# scratch roots used by the hook benchmark and isolated runtime probes.
+VAULT_CANDIDATE="$VAULT"
+while [[ "$VAULT_CANDIDATE" != / && ! -f "$VAULT_CANDIDATE/config/scripts/json-get.sh" ]]; do
+  VAULT_CANDIDATE="$(dirname "$VAULT_CANDIDATE")"
+done
+if [[ -f "$VAULT_CANDIDATE/config/scripts/json-get.sh" ]]; then
+  VAULT="$VAULT_CANDIDATE"
+fi
 LOG_DIR="$VAULT/system/session-log"
 
 input="$(cat)"

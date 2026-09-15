@@ -38,7 +38,7 @@ Decisions are atomic notes (one file per decision). Universal — ships pre-buil
 
 | Field | Type | When to include |
 |---|---|---|
-| `affects` | list of wikilinks | Entities that need updates per [[matching]] — `[[../businesses/{slug}/_brief]]`, `[[../projects/{slug}/_status]]`, etc. Drives the matching application. |
+| `affects` | list of wikilinks | Entities that need updates per [[matching]] — `[[../businesses/{slug}/brief]]`, `[[../projects/{slug}/status]]`, etc. Drives the matching application. |
 | `business` | wikilink | `[[../businesses/{slug}]]` when decision is business-scoped |
 | `client` | wikilink | `[[../clients/{slug}]]` when decision is client-scoped |
 | `superseded-by` | wikilink | When `status: superseded` — link to the later decision that replaced this one |
@@ -135,7 +135,7 @@ When operator dictates a decision from reflection outside any specific interacti
 
 When a decision note is created or updated, [[matching]] applies invisibly to:
 
-- **Each entity in `affects:`** — update the entity's `_status.md` (or equivalent) with the decision wikilink + a one-line summary of the decision's relevance to that entity. Don't duplicate the full decision content; the decision note is the single source of truth, the `affects` entries link to it.
+- **Each entity in `affects:`** — update the entity's `status.md` (or equivalent) with the decision wikilink + a one-line summary of the decision's relevance to that entity. Don't duplicate the full decision content; the decision note is the single source of truth, the `affects` entries link to it.
 - **Source meeting note's `## Decisions` section** — if Path A, the meeting note's plain-text bullet for this decision gets replaced with a wikilink to the new decision note (already handled in step 4 of Path A above).
 - **Prior decision being reversed or superseded** — if `reverses:` or `supersedes:` is set, update the prior decision's `status:` to `reversed` or `superseded`, and set its `superseded-by:` to the current decision's wikilink.
 - **Cross-referenced sibling decisions** — when decisions in the same session reference each other (the 2026-05-15 cluster is the canonical example), use the `## Related decisions` section to make the links explicit. No status changes between siblings — they coexist.

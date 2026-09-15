@@ -45,7 +45,7 @@ Every organized plan uses this. Nothing heavier.
 > [!tip]- 🚀 Kickoff prompt
 > ```
 > Resume <project> Phase N. <read-first files>. <goal + the done-when bar.>
-> Save to <path> and check Phase N off in _status.md.
+> Save to <path> and check Phase N off in status.md.
 > ```
 ```
 
@@ -53,7 +53,11 @@ And the status file is just: a **next-action line**, a **phase checklist**, and 
 
 ## What stays constant across modes
 
-- **Project home:** `gtd/projects/{slug}/` with the 8-item (or 9-item for code) structure per `per-project-accounting`. Confirm the slug before creating; never clobber an existing folder.
+- **Project home:** `{project-home}/{slug}/` with the 8-item (or 9-item for code) structure per `per-project-accounting`. Confirm the slug before creating; never clobber an existing folder.
 - **Conversational, one question at a time.** No multiple-choice widgets; invite the operator to think in their own words (full detail in `modes/plan.md`).
 - **Provenance + links:** follow `source-documentation` and `double-entry-knowledge`; verify wikilink targets exist (`config/scripts/check-wikilinks.sh`) before sign-off.
 - **Durability:** this skill is upstream-tracked. Edits iterate in the vault, then ship via `/release` per `upstream-release-discipline` — vault-only edits die on `/update`.
+
+## Project home and navigation
+
+Use config/rules/workdesk-ontology.md. Choose the owning initiative or client when established; otherwise use gtd/projects for personal/standalone work. Preserve unassigned existing business project homes. Add index.md, AGENTS.md and CLAUDE.md with pointers to the shared policy and the real brief/status. An initiative adds projects/; a project does not. Do not infer business ownership.

@@ -163,7 +163,7 @@ When a meeting note is created, [[matching]] applies invisibly to:
 - **Each attendee with a vault note** — update their `atlas/people/{slug}.md` with relevant substantive context (the meeting's wikilink, key observations, role on this meeting's outcomes). Pure mentions ("Sarah was also on the call") don't trigger updates per the matching rule.
 - **Standalone-worthy decisions** — create `atlas/decisions/{date}-{slug}.md` for each decision that meets the standalone criteria (high-stakes, cross-project, framework-shaping, or operator-flagged). Routine decisions stay inline on the meeting note.
 - **Action items** — route each as a `[ACTION]` proposal in `gtd/inbox/` (subject to the 7-per-session flood guard). Each inbox item links back to the meeting note.
-- **Business / client / companies** — when substantive new context emerges, update `_status.md` of the linked business/client. Don't update for passing mentions.
+- **Business / client / companies** — when substantive new context emerges, update `status.md` of the linked business/client. Don't update for passing mentions.
 - **Transcript backlink** — set `processed: true` and `processed-into: [...]` on the source transcript.
 
 Matching gaps (e.g., an attendee without a person note, a referenced entity without a folder) get [REVIEW] inbox notifications — not silent skips and not speculative stubs. See [[instance-scaffolding]] for the conditional-matching pattern.

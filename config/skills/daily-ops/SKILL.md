@@ -32,14 +32,14 @@ Follow `config/signals/daily-plan.md`:
    - Calendar — scoped per `calendar-scope` (default `own` = `{email}` only, shared calendars excluded), **today + next `{lookahead}` days**: `gws calendar +agenda --today --calendar {email}` and `gws calendar +agenda --days {lookahead} --calendar {email}`
    - Daily notes — **last `{lookback}` days** of `personal/daily/`, today weighted most (read-only)
    - Email — the **`{action-email-label}`** Gmail label *if set* (default empty → skip): `gws gmail users messages list --params '{"userId":"me","q":"label:{label}","maxResults":25}'` then fetch each id's metadata headers
-   - Active project `_status.md` across **all three locations**: `gtd/projects/`, `atlas/clients/*/projects/`, `atlas/businesses/*/projects/`
-   - Actions: `gtd/actions/next/` and `gtd/actions/waiting/`
+   - Active project `status.md` across **all three locations**: `gtd/projects/`, `atlas/clients/*/projects/`, `atlas/businesses/*/projects/` and `atlas/businesses/*/initiatives/*/projects/`
+   - Actions: `gtd/actions/` and `gtd/waiting/`
    - Due recurring items, inbox
 2. Traverse:
    - For each person on today's calendar, fetch their atlas/people note + last meeting
-   - For each project referenced today, fetch `_status` + recent meetings
+   - For each project referenced today, fetch `status` + recent meetings
    - Surface stale work where `today - last-touched > 1.5 × expected-cadence`
-   - For each `gtd/actions/waiting/` item, check whether it's unblocked or needs a nudge
+   - For each `gtd/waiting/` item, check whether it's unblocked or needs a nudge
 3. **Reason — GTD triage.** Assign every candidate a disposition (do-now / prioritize / delegate / defer / delete) and lead the plan with the 1–3 items that truly require the operator. See the signal's `## Reasoning — focus & GTD triage`.
 4. Apply the sparse-data fallback chain. Keep coverage evidence separately for each source: what was read (including its time window), its result, and any observed failure or missing context. Distinguish available, verified-empty, not-configured, unavailable, not-checked, and stale. Report only a failure cause supported by that source's result; leave the cause unknown otherwise. A calendar/CRM/search outage does not establish that local action, waiting, project or inbox notes are unreadable. Continue authorized local reads, and distinguish an absent supplied input or an out-of-scope read from a failed read. Never present unknown commitments as zero. Preserve useful vault-only output with an explicit coverage limit. Mark incomplete required coverage as partial. Preserve tentative intentions and proposed work as such; do not turn them into confirmed commitments.
 5. Apply tonality from `operator-profile.role` and `operator-profile.work-mode`. If `first-30-days-mode: active`, lean toward setup-oriented framing; otherwise neutral. If either field is empty (early state), default to neutral.
@@ -91,3 +91,7 @@ Daily-plan also cleans up expired inbox items as a side effect:
 - Don't write past the cap (7 new `[REVIEW]` per session). Batch beyond that.
 - Don't update state before the file is written.
 - Don't write to `personal/`. Read today's daily note; never modify it.
+
+## Canonical discovery
+
+Use `python3 config/scripts/project-discovery.py --root <vault>` to enumerate all project homes, including initiative projects. Read canonical brief.md and status.md. Ignore compatibility symlinks and index.md when enumerating actions or waiting items.

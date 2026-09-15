@@ -166,9 +166,9 @@ Set `created` and `last_updated` to today. Set required frontmatter fields from 
 Per [[matching]] and [[instance-scaffolding]] § Conditional matching, in the same pass:
 
 - For each affiliation: confirm `atlas/companies/{slug}` exists; if not, plain text in Affiliations + log open item until `company` schema is defined
-- If `client-contact`: update `atlas/clients/{slug}/_brief.md` Primary-contacts list to wikilink this person (replacing plain text where it appeared)
-- If `internal-team`: update `atlas/businesses/{slug}/_brief.md` Team list to wikilink this person (replacing plain text)
-- For each named active engagement: update the project/client/business `_status.md` if substantive new info surfaces
+- If `client-contact`: update `atlas/clients/{slug}/brief.md` Primary-contacts list to wikilink this person (replacing plain text where it appeared)
+- If `internal-team`: update `atlas/businesses/{slug}/brief.md` Team list to wikilink this person (replacing plain text)
+- For each named active engagement: update the project/client/business `status.md` if substantive new info surfaces
 - Backfill Interactions: scan existing `atlas/meetings/`, `atlas/decisions/`, `system/transcripts/` for references to this person; populate the Interactions section with each match
 
 ### 6. Verify

@@ -6,7 +6,7 @@ Read the planning philosophy in `SKILL.md` — the review scores the plan agains
 
 ## What to do
 
-1. **Read the whole plan** — `_brief`, `plan.md`, `_status.md` (and the source brainstorm if present).
+1. **Read the whole plan** — `brief`, `plan.md`, `status.md` (and the source brainstorm if present).
 2. **Score it against the quality bar** (below). For each dimension, state pass / weak / fail and *why*, with the specific evidence from the plan.
 3. **Surface the findings ordered by severity** — the ones that change *outcomes* first, taste/polish last.
 4. **Separate correctness bugs from taste.** A correctness bug is a logical flaw (a phase depends on output that doesn't exist yet; a metric that can't be measured when it's scheduled). Taste is "I'd phrase this differently." Label which is which — the operator should fix bugs and is free to ignore taste.
@@ -25,7 +25,7 @@ Read the planning philosophy in `SKILL.md` — the review scores the plan agains
 9. **Sequencing soundness.** Does each phase's inputs exist by the time it runs? Trace the dependency chain for a phase that consumes a not-yet-produced artifact.
 10. **Ship-value-early.** If the trigger was an urgent live need, does anything deliver usable value before the whole plan finishes — without committing to something a later phase reverses?
 11. **Execution bridge.** Is the constraint named? Does the next action have a real home? Is there a review cadence and (for human-gated work) is that bandwidth actually booked, not just named?
-12. **Cold-pickup test.** Could a competent stranger open `_status.md`, know exactly what to do next, do it, prove it's done, and hand off — without you in the room? If not, what's missing?
+12. **Cold-pickup test.** Could a competent stranger open `status.md`, know exactly what to do next, do it, prove it's done, and hand off — without you in the room? If not, what's missing?
 
 ## How to deliver the review
 

@@ -138,3 +138,10 @@ The bundled BRAT plugin retains its own license. See `vendor/plugins/obsidian42-
 ## Source
 
 Plan: [BenaliHQ/workdesk-os-internal/plans/workdesk-os-v1.md](https://github.com/BenaliHQ/workdesk-os-internal). Codex variant: [BenaliHQ/workdesk-os-codex](https://github.com/BenaliHQ/workdesk-os-codex).
+
+
+## Opt-in ontology migration
+
+Existing operating vaults are migrated explicitly, never as a side effect of a product update. Review `config/rules/workdesk-ontology.md` first. Run `migrations/manual/ontology_migrate.py plan` with the vault root and an output manifest, review destinations, then apply that exact manifest with a new external backup directory. `migrations/manual/ontology_links.py` plans link changes before moves and applies them afterward with source hash checks. `ontology-index.py` adds missing indexes while preserving handwritten navigation. Keep immutable sources, audited receipts and private writing intact.
+
+The migration preserves legacy filesystem aliases. Consumers should enumerate canonical project homes using `project-discovery.py` and ignore aliases and index files as records. Directory imports in applications that do not follow symlinks need their own compatibility verification. Source ingestion/completion and provider session export are separate workflow changes; an ontology migration does not certify them. Existing native runtime settings remain in their required locations, with navigation under Config Adapters and Automations.

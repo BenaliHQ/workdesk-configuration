@@ -245,7 +245,7 @@ def inbox_item(kind, entity, inv, tracked):
         body += [
             f"Possibly already tracked as `{tracked}` in the vault. If that's the "
             "same work, say so and I'll link the ClickUp IDs into that project's "
-            "`_status.md` instead of creating a new folder.",
+            "`status.md` instead of creating a new folder.",
             "",
         ]
     else:

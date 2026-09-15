@@ -41,11 +41,11 @@ Zones (read from vault):
 - `gtd/inbox/` items (with backlog warning if >20 unresolved)
 - `system/intake/` items broken down by `source-kind` (transcript / bookmark / other) — see [Intake + pull-health surfacing](#intake--pull-health-surfacing) below
 - **Active projects across all three locations:**
-  - `gtd/projects/*/_status.md` — infrastructure & personal projects
-  - `atlas/clients/*/projects/*/_status.md` — client-owned projects
-  - `atlas/businesses/*/projects/*/_status.md` — business-owned projects
-  Include where status is `active` (or `_status.md` shows a current/active phase).
-- **Actions:** `gtd/actions/next/` (all open next-actions) and `gtd/actions/waiting/` (delegated / waiting-on items — check whether any are now unblocked or need a nudge).
+  - `gtd/projects/*/status.md` — infrastructure & personal projects
+  - `atlas/clients/*/projects/*/status.md` — client-owned projects
+  - `atlas/businesses/*/projects/*/status.md` — business-owned projects
+  Include where status is `active` (or `status.md` shows a current/active phase).
+- **Actions:** `gtd/actions/` (all open next-actions) and `gtd/waiting/` (delegated / waiting-on items — check whether any are now unblocked or need a nudge).
 - due `gtd/recurring/schedules/` items (`status: active` AND `next_due <= today`)
 
 Tools (try if connected per `config/tools/<slug>.md` `connected: true`; record unavailable, not-configured, stale and verified-empty sources separately):
@@ -66,9 +66,9 @@ Tools (try if connected per `config/tools/<slug>.md` `connected: true`; record u
 ## Traversal
 
 1. For each person on today's calendar: fetch their note + last meeting (no time cap)
-2. For each project referenced today (across `gtd/projects/`, `atlas/clients/*/projects/`, `atlas/businesses/*/projects/`): fetch `_status` + recent meetings tied to it
+2. For each project referenced today (across `gtd/projects/`, `atlas/clients/*/projects/`, `atlas/businesses/*/projects/` and `atlas/businesses/*/initiatives/*/projects/`): fetch `status` + recent meetings tied to it
 3. Surface stale work: projects whose `last-touched` exceeds `1.5 × expected-cadence` (where `expected-cadence: none` is excluded)
-4. For each `gtd/actions/waiting/` item: check whether the blocker has cleared or a follow-up is now due — these become "delegate / nudge" candidates in triage
+4. For each `gtd/waiting/` item: check whether the blocker has cleared or a follow-up is now due — these become "delegate / nudge" candidates in triage
 
 ## Reasoning — focus & GTD triage
 
@@ -96,9 +96,9 @@ Rules of thumb:
 Try in order. Skip verified-empty layers when selecting work, but retain material coverage gaps in the output. An unread, unavailable, not-configured or stale source is not a verified-empty layer.
 
 1. Calendar commitments (today + next `{lookahead}` days, scoped per `{scope}`)
-2. `gtd/actions/next/` (sorted by `parent:` recency)
+2. `gtd/actions/` (sorted by `parent:` recency)
 3. Due recurring items from `gtd/recurring/schedules/`
-4. Active project `_status.md` summaries
+4. Active project `status.md` summaries
 5. Today's daily note
 6. Unread inbox items (with backlog warning if >20)
 7. Stale contexts needing attention
@@ -125,7 +125,7 @@ Body sections:
 1. **Focus — the 1–3 things that truly require *you* today.** Lead with this. Synthesized via GTD triage (see [Reasoning](#reasoning--focus--gtd-triage)) from everything below. High-impact work only the operator can do.
 2. Today's commitments + relevant context for each (scoped-calendar events; today first, then any lookahead items that need action today)
 3. Projects to advance + where you left off (across `gtd/` / `atlas/clients/` / `atlas/businesses/`)
-4. Open actions & email — `gtd/actions/next/`, `{label}`-labeled email (if set), and `gtd/actions/waiting/` items, each tagged with a GTD disposition (do-now / prioritize / delegate / defer / delete)
+4. Open actions & email — `gtd/actions/`, `{label}`-labeled email (if set), and `gtd/waiting/` items, each tagged with a GTD disposition (do-now / prioritize / delegate / defer / delete)
 5. Stalled items needing attention
 6. Inbox items awaiting triage
 
@@ -190,7 +190,7 @@ Surface ad-hoc generation when:
 
 ## ## Learnings
 
-- **2026-06-09/10 — v1.1→1.2 parameterization.** Operator expanded Phase 2 (own-calendar-only scoping, today+7d lookahead, 7d daily-note lookback, an action-email-label pull, multi-location project scan across `gtd/`+`atlas/clients/`+`atlas/businesses/`, `gtd/actions/waiting/` check, and GTD do/prioritize/delegate/defer/delete triage with a leading Focus section). Initially hardcoded the operator's values into the signal; refactored so the generalized logic ships upstream and the operator-specific values (`email`, scope, windows, label) live in `operator-profile.daily-plan` with defaults. This is the same pattern as `week-start`/`role`/`work-mode` — signals read operator-owned prefs from the profile, which `/update` preserves.
+- **2026-06-09/10 — v1.1→1.2 parameterization.** Operator expanded Phase 2 (own-calendar-only scoping, today+7d lookahead, 7d daily-note lookback, an action-email-label pull, multi-location project scan across `gtd/`+`atlas/clients/`+`atlas/businesses/`, `gtd/waiting/` check, and GTD do/prioritize/delegate/defer/delete triage with a leading Focus section). Initially hardcoded the operator's values into the signal; refactored so the generalized logic ships upstream and the operator-specific values (`email`, scope, windows, label) live in `operator-profile.daily-plan` with defaults. This is the same pattern as `week-start`/`role`/`work-mode` — signals read operator-owned prefs from the profile, which `/update` preserves.
 - **gws gmail metadata quirk.** When fetching message metadata, pass `userId:"me"` and `format:"metadata"` only — do NOT pass a `metadataHeaders` array; it breaks the gws request and returns empty headers. Parse all `payload.headers` and filter Subject/From/Date in code.
 - **Label-name reality.** The operator's "action items" label is literally named `Actions` (a parallel `Waiting` label also exists). Don't assume a label's display name from how the operator refers to it — list labels (`gws gmail users labels list`) to confirm the exact name. Now read from `operator-profile.daily-plan.action-email-label`.
 

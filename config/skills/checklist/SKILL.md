@@ -1,6 +1,6 @@
 ---
 name: checklist
-description: Materialize a recurring checklist (gtd/recurring/checklists/) as a sequence of actions in gtd/actions/next/. Each step becomes its own action with parent pointing back at the checklist. Use when running a procedure like a publish workflow or expense close.
+description: Materialize a recurring checklist (gtd/recurring/checklists/) as a sequence of actions in gtd/actions/. Each step becomes its own action with parent pointing back at the checklist. Use when running a procedure like a publish workflow or expense close.
 ---
 
 # /checklist
@@ -26,7 +26,7 @@ Default: `parent: "[[gtd/recurring/checklists/{slug}]]"`. If the operator passes
 
 For each unchecked item, create:
 
-`gtd/actions/next/{slug}-{step-slug}-{YYYY-MM-DD}.md`
+`gtd/actions/{slug}-{step-slug}-{YYYY-MM-DD}.md`
 
 ```yaml
 ---
