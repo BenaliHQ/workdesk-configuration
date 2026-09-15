@@ -25,13 +25,13 @@ Examples by persona:
 
 ```
 atlas/areas/{slug}/
-  _brief.md       # what this area covers, why it's a standing concern
-  _status.md      # current state, recent activity, open threads
+  brief.md       # what this area covers, why it's a standing concern
+  status.md      # current state, recent activity, open threads
   notes/          # ongoing observations
   _archive/       # retired material
 ```
 
-## Frontmatter on `_brief.md`
+## Frontmatter on `brief.md`
 
 ```yaml
 ---
@@ -61,5 +61,5 @@ Areas are operator-named during onboarding. After onboarding, propose new areas 
 
 ## Matching
 
-- New `_brief.md` → emit `object-created`
-- Recurring items SHOULD set `parent:` to the area's `_brief.md`
+- New `brief.md` → emit `object-created`
+- Recurring items SHOULD set `parent:` to the area's `brief.md`

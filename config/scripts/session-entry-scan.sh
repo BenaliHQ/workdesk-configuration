@@ -13,6 +13,15 @@ IFS=$'\n\t'
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VAULT="${CLAUDE_PROJECT_DIR:-$(cd "$DIR/../.." && pwd)}"
+# Nested projects inherit the containing vault. Preserve explicit standalone
+# scratch roots used by the hook benchmark and isolated runtime probes.
+VAULT_CANDIDATE="$VAULT"
+while [[ "$VAULT_CANDIDATE" != / && ! -f "$VAULT_CANDIDATE/config/scripts/json-get.sh" ]]; do
+  VAULT_CANDIDATE="$(dirname "$VAULT_CANDIDATE")"
+done
+if [[ -f "$VAULT_CANDIDATE/config/scripts/json-get.sh" ]]; then
+  VAULT="$VAULT_CANDIDATE"
+fi
 # Generated scans belong to the host, never to Obsidian Sync.
 STATE_FILE="$(python3 - "$VAULT" <<'STATEPY'
 import hashlib, os, sys
@@ -41,7 +50,7 @@ for dir in "$VAULT/system/intake" "$VAULT/system/transcripts"; do
        && ! /usr/bin/grep -q '^processed: true' "$f" 2>/dev/null; then
       unprocessed_transcripts+=("$f")
     fi
-  done < <(/usr/bin/find "$dir" -maxdepth 2 -type f -name '*.md' 2>/dev/null)
+  done < <(/usr/bin/find "$dir" -maxdepth 2 -type f -name '*.md' ! -name 'index.md' 2>/dev/null)
 done
 
 # --- scan intake ----------------------------------------------------------
@@ -49,7 +58,7 @@ intake_items=()
 if [[ -d "$VAULT/system/intake" ]]; then
   while IFS= read -r f; do
     intake_items+=("$f")
-  done < <(/usr/bin/find "$VAULT/system/intake" -maxdepth 2 -type f -name '*.md' 2>/dev/null)
+  done < <(/usr/bin/find "$VAULT/system/intake" -maxdepth 2 -type f -name '*.md' ! -name 'index.md' 2>/dev/null)
 fi
 
 # --- scan unsummarized session-log raw files ------------------------------

@@ -23,5 +23,5 @@ Every note in the knowledge layer must trace to a source. The reader must always
 
 - Do not create an Atlas note that cannot answer "where did this come from?" with a specific source. If the source is "the agent inferred this," it belongs in Intel, not Atlas.
 - Do not strip source references when editing or condensing a note. Provenance survives every edit.
-- Do not cite notes in `system/_processing/_done/` as sources — link to the processed meeting note in `atlas/meetings/`, which in turn links to its transcript.
+- Do not cite notes in `system/processing/_done/` as sources — link to the processed meeting note in `atlas/meetings/`, which in turn links to its transcript.
 - Do not fabricate attribution. If you don't know the source, say so explicitly rather than guessing.

@@ -51,7 +51,7 @@ Single file at `atlas/companies/{slug}.md`. No subfolder. When a company becomes
 Primary sources: operator-direct dictation, meeting notes, website (via `defuddle`), client/person-note matching. Secondary updates flow from:
 
 - Person notes via [[matching]] — when a person is affiliated with this company, their note's `primary-affiliation` links here
-- Client folders — when a company becomes a client, `atlas/clients/{slug}/_brief.md` references this company note
+- Client folders — when a company becomes a client, `atlas/clients/{slug}/brief.md` references this company note
 - Meeting notes — mentions of this company link bidirectionally
 - Decision notes — decisions involving this company link from the company's Active engagements section
 - Bookmarks / `keep-markdown` references — repeated mentions surface a company-note candidate
@@ -150,7 +150,7 @@ Set `created` and `last_updated` to today. Set required frontmatter fields from 
 Per [[matching]] and [[instance-scaffolding]] § Conditional matching, in the same pass:
 
 - For each affiliated person already in `atlas/people/`: update their `primary-affiliation` and Affiliations section to wikilink this company
-- If this company has an active client folder: confirm bidirectional link from `atlas/clients/{slug}/_brief.md`
+- If this company has an active client folder: confirm bidirectional link from `atlas/clients/{slug}/brief.md`
 - For each named meeting/decision: confirm bidirectional wikilinks
 
 ### 6. Verify

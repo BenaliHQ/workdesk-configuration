@@ -36,8 +36,8 @@ last_updated: YYYY-MM-DD        # last meaningful update to any file in this fol
 
 ```
 atlas/clients/{slug}/
-├── _brief.md          # who they are, why we're engaged, primary contacts (wikilinks to atlas/people/)
-├── _status.md         # current phase, open items, recent activity (meeting links here)
+├── brief.md          # who they are, why we're engaged, primary contacts (wikilinks to atlas/people/)
+├── status.md         # current phase, open items, recent activity (meeting links here)
 ├── deliverables.md    # what we're producing, current state
 ├── terms.md           # agreement, payment terms, scope, contract notes
 ├── notes/             # ad-hoc client-level captures (misc thoughts, drafts, brainstorms not tied to a project)
@@ -50,8 +50,8 @@ atlas/clients/{slug}/
 
 ### Body conventions
 
-- `_brief.md` — 10-section structure (in order): Who they are · Origin · Engagement model · Why we're engaged · Primary contacts (their team) · Assigned team · Active work · Working style · Strategic context · Sources. The brief is the senior-team-member onboarding doc — populated enough that any new Claude session or human teammate can pick up cold.
-- `_status.md` — narrative status + recent meetings list (each `[[atlas/meetings/{slug}]]`) + open items
+- `brief.md` — 10-section structure (in order): Who they are · Origin · Engagement model · Why we're engaged · Primary contacts (their team) · Assigned team · Active work · Working style · Strategic context · Sources. The brief is the senior-team-member onboarding doc — populated enough that any new Claude session or human teammate can pick up cold.
+- `status.md` — narrative status + recent meetings list (each `[[atlas/meetings/{slug}]]`) + open items
 - `terms.md` — 6-section structure (in order): **Agreement · Scope & pricing · Payment terms · Current commercial status · Notes & watch-outs · Sources**, opened by a one-line `> [!info] Commercial status` callout. The note answers "what did we agree, what's it worth, what's been paid, what's next" at a glance. Full section spec in [§ Creating an instance → step 4](#4-populate-frontmatter-and-content).
 - People are captured via wikilinks to `atlas/people/`, NOT a separate `team.md` file. Both their team (their employees) and the assigned team (our side) reference `atlas/people/` entries when they exist.
 - Meetings stay in `atlas/meetings/`; client folder only holds links
@@ -60,9 +60,9 @@ atlas/clients/{slug}/
 
 Primary source: operator-direct knowledge of the engagement. Secondary updates flow from:
 
-- Meeting notes via the [[matching]] rule (any meeting touching this client updates `_status.md` recent activity)
-- Decision notes (decisions affecting this client get logged to `atlas/decisions/` and linked from `_status.md`)
-- Project status files inside `projects/` roll up to client `_status.md` open items
+- Meeting notes via the [[matching]] rule (any meeting touching this client updates `status.md` recent activity)
+- Decision notes (decisions affecting this client get logged to `atlas/decisions/` and linked from `status.md`)
+- Project status files inside `projects/` roll up to client `status.md` open items
 
 Per [[source-documentation]], every claim in the client folder should trace to a specific source — meeting note, decision, or operator-direct entry.
 
@@ -82,11 +82,11 @@ When a new client lands, the following notes update in the same processing pass 
 
 - **`atlas/people/{slug}`** for each primary contact — created if missing, updated with role + client link if existing
 - **`atlas/companies/{company-slug}`** — the company entity gets linked; created as a stub if missing (the client IS a company; the company note may have already existed as a prospect/lead)
-- **`atlas/businesses/{business-owner}`** — the business owning this engagement gets its `_status.md` updated to reflect the new client
+- **`atlas/businesses/{business-owner}`** — the business owning this engagement gets its `status.md` updated to reflect the new client
 
 When a client transitions status (active → paused, paused → archived):
 
-- `_status.md` reflects the transition with date + reason
+- `status.md` reflects the transition with date + reason
 - `atlas/businesses/{business-owner}` updates engagement count if relevant
 - Active projects in `projects/` get reviewed for status implications (paused client → paused projects?)
 
@@ -102,7 +102,7 @@ Prospect/lead/qualifying states do NOT live here — those belong in `atlas/comp
 
 When a client moves to `archived`:
 
-- Status updated with end-date + reason in `_status.md`
+- Status updated with end-date + reason in `status.md`
 - All active projects under `projects/` get reviewed (most move to `_archive/`)
 - The folder is NOT deleted or moved — historical reference preserved
 
@@ -116,7 +116,7 @@ Per [[instance-scaffolding]] — if the operator's primary vault has `atlas/clie
 
 ### 1. Confirm the trigger
 
-Identify which detection trigger applies and capture in `_brief.md` narrative (e.g., "engagement began with verbal confirmation 2024-09-12; agreement signed 2024-10-01"). If none of the three triggers can be confirmed, pause and ask the operator before proceeding — do not scaffold a client speculatively.
+Identify which detection trigger applies and capture in `brief.md` narrative (e.g., "engagement began with verbal confirmation 2024-09-12; agreement signed 2024-10-01"). If none of the three triggers can be confirmed, pause and ask the operator before proceeding — do not scaffold a client speculatively.
 
 ### 2. Gather required info
 
@@ -146,8 +146,8 @@ Ask operator for enough to populate the full brief at minimum. The principle: a 
 
 ```
 atlas/clients/{slug}/
-├── _brief.md          # populated in step 4
-├── _status.md         # populated in step 4
+├── brief.md          # populated in step 4
+├── status.md         # populated in step 4
 ├── deliverables.md    # populated in step 4
 ├── terms.md           # populated in step 4
 ├── notes/             # empty directory
@@ -158,12 +158,12 @@ atlas/clients/{slug}/
 
 ### 4. Populate frontmatter and content
 
-For `_brief.md` and `_status.md`:
+For `brief.md` and `status.md`:
 - Set `created` and `last_updated` to today
 - Set `status`, `business-owner`, `company`, `start-date`, `slug` from step 2
 - Per [[no-fabrication]], write content ONLY from what the operator supplied. Mark unknown fields explicitly (e.g., "Primary contact role: not captured at scaffolding").
 
-**`_brief.md` body sections (in this order):**
+**`brief.md` body sections (in this order):**
 
 1. **Who they are** — industry, size, business model (1-3 sentences)
 2. **Origin** — how we got connected, who referred (or "inbound — no referrer" if applicable), what they hired us for specifically
@@ -176,7 +176,7 @@ For `_brief.md` and `_status.md`:
 9. **Strategic context** — *optional at scaffolding.* What's going on in their business that frames the engagement. If TBD, leave the section header in place with a `TBD — populate when known` note so the structure is preserved.
 10. **Sources** — multi-entry list. Each entry: **{date or "Legacy"}** — kind of source (operator-direct dictation, meeting note, transcript, decision, legacy archive, etc.) — what it contributed (parenthetical summary). Provenance compounds as the brief grows; new sources are appended, not blended into existing entries.
 
-**`_status.md` body sections:**
+**`status.md` body sections:**
 - Current state (active phase, what's in flight)
 - Recent activity (last 14 days; meeting links via `[[atlas/meetings/{slug}]]`)
 - Open items (decisions pending, action items, things being tracked)
@@ -198,11 +198,11 @@ If no commercial detail is available at scaffolding, still create `terms.md` wit
 
 ### 5. Apply matching rule
 
-In the SAME pass per [[matching]] and [[instance-scaffolding]] § Conditional matching. For each target below, check whether the target's schema is defined and the folder has instances. If not, document open item in `_status.md` + use plain text in `_brief.md`. If yes, apply:
+In the SAME pass per [[matching]] and [[instance-scaffolding]] § Conditional matching. For each target below, check whether the target's schema is defined and the folder has instances. If not, document open item in `status.md` + use plain text in `brief.md`. If yes, apply:
 
 - For each primary contact named in step 2: create or update `atlas/people/{contact-slug}` with role + wikilink to this client folder
 - Create or update `atlas/companies/{company-slug}` — stub with bare frontmatter (`type: company`, `slug`, `created`) if missing; full update if existing
-- Update `atlas/businesses/{business-owner}/_status.md` — add this client under the active-engagements list
+- Update `atlas/businesses/{business-owner}/status.md` — add this client under the active-engagements list
 
 ### 6. Verify
 

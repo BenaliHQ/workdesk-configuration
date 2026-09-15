@@ -10,7 +10,7 @@ version: 1.0
 
 # Source: intake
 
-Generic raw drops awaiting triage. Replaces both `system/inbox/` and `system/_processing/` from the four-zone model.
+Generic raw drops awaiting triage. Replaces both `system/inbox/` and `system/processing/` from the four-zone model.
 
 ## Format
 
@@ -29,7 +29,7 @@ Body: anything. Pasted text, mobile-captured note, screenshot annotation, link w
 ## Processing rule
 
 Triage to atlas/intel/gtd:
-- Action-shaped → `gtd/actions/next/` (subject to flood guard if Claude proposes)
+- Action-shaped → `gtd/actions/` (subject to flood guard if Claude proposes)
 - Object-shaped (person mention, decision, meeting) → propose appropriate atlas type
 - Synthesis-shaped → `intel/observations/` or `intel/research/`
 - Personal note → propose moving to `personal/{practice}/` (operator confirms; agent can't write to personal/)

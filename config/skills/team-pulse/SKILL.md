@@ -49,10 +49,10 @@ If it flags anything, mention it in one line at the end of the report. Don't exp
 
 A raw activity dump is not a pulse. Before synthesizing, read:
 
-- `atlas/clients/*/projects/*/_status.md` and `atlas/businesses/*/projects/*/_status.md` for the projects the activity touches
+- `atlas/clients/*/projects/*/status.md` and `atlas/businesses/*/projects/*/status.md` for the projects the activity touches
 - `config/operator-profile.md` for current priorities
 
-The point is to connect ClickUp movement to the operator's own work: does this close an open item on a project? Does it contradict a `_status.md`? Is it the thing they've been waiting on?
+The point is to connect ClickUp movement to the operator's own work: does this close an open item on a project? Does it contradict a `status.md`? Is it the thing they've been waiting on?
 
 ### 4. Synthesize
 
@@ -62,7 +62,7 @@ Report in this order, and cut any section that's empty rather than printing "not
 2. **Checked off** — what closed, who closed it, and whether it clears an open item on a vault project.
 3. **Moving** — tasks that changed state, grouped by client or project rather than by list.
 4. **What they're talking about** — the chat and comment substance, in a couple of sentences per thread. Summarize; don't transcribe. Teams that paste full meeting recaps into task comments produce comments thousands of words long — pull the two or three things that matter to the operator and link the rest.
-5. **Worth a look** — drift you noticed: a `_status.md` contradicted by ClickUp, a task sitting in "ready for review" for days, an unanswered question aimed at the team.
+5. **Worth a look** — drift you noticed: a `status.md` contradicted by ClickUp, a task sitting in "ready for review" for days, an unanswered question aimed at the team.
 
 Keep it short per the writing-style rule — a few sentences per section, not a transcript. Long is a failure mode here, not thoroughness. Link tasks by their ClickUp `url` so the operator can click through.
 
@@ -72,7 +72,7 @@ This is where a digest skill most easily breaks the GTD rules. Per [[gtd-inbox-p
 
 - **The operator's own actions** (they're assigned, they're asked a direct question, they're the blocker) → `gtd/inbox/` with `[ACTION]`, per [[inbox-item-format]].
 - **Delegated work that doesn't block them** → mention it in the report and stop. No inbox item, no `actions/waiting/` entry. The operator does not track their team's task lists.
-- **Delegated work that hard-blocks their own next action** → `gtd/actions/waiting/`, not the inbox.
+- **Delegated work that hard-blocks their own next action** → `gtd/waiting/`, not the inbox.
 
 When in doubt, it's not a blocker. An over-eager inbox doesn't self-clean.
 
@@ -117,4 +117,4 @@ Check `--help` on each before running — flags differ per subcommand.
 - `config/scripts/clickup-digest.py` — the read-only activity fetcher
 - `config/scripts/clickup-new-work.py` — the new-work detector
 - [[gtd-inbox-processing]] — ownership routing; the rule this skill most needs to respect
-- ClickUp is production for task state; vault `_status.md` lags it — verify against ClickUp before reporting project state
+- ClickUp is production for task state; vault `status.md` lags it — verify against ClickUp before reporting project state

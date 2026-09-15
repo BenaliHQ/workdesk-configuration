@@ -62,8 +62,8 @@ Separate confirmed attendees, people merely mentioned, and explicit absences. A 
 
 Pre-load vault context that downstream phases need (do this BEFORE the Gemini call so the wikilink resolution work in Phase 3 is fast):
 - Glob `atlas/people/*.md` — list of person notes for wikilink resolution
-- If meeting title or attendees match a known client, read `atlas/clients/{slug}/_brief.md` and `_status.md`
-- If the meeting title matches a project, read its `_brief.md` and `_status.md`
+- If meeting title or attendees match a known client, read `atlas/clients/{slug}/brief.md` and `status.md`
+- If the meeting title matches a project, read its `brief.md` and `status.md`
 - Recent `atlas/decisions/` (last 30 days) — for contradiction detection
 
 ### 2. Gemini extraction
@@ -156,7 +156,7 @@ Update each touched entity in the same pass per [[../../rules/matching]]:
   - Person is in the operator's direct network and meets ≥3-mention threshold → propose `[REVIEW]` for person note creation
   - Person is a clients'-client / homeowner / tertiary mention → mention by name in the meeting body; do NOT propose a person note
 - **Decisions** — durable decisions (`durability: "durable"` from Gemini) get standalone `atlas/decisions/{date}-{slug}.md` notes. Routine ones stay inline.
-- **Client / business `_status.md`** — substantive new context warrants an update.
+- **Client / business `status.md`** — substantive new context warrants an update.
 
 ### 7. Route action items by ownership
 
@@ -167,9 +167,9 @@ Use Gemini's `owner_category` enum:
 | `owner_category` | Where it goes |
 |---|---|
 | `operator` | `gtd/inbox/[ACTION] {slug}.md` — one file per commitment, no cap. This is the operator's own work; the inbox is where they clarify it out to `actions/next/` or a project. |
-| `team` + `blocks_operator: true` | `gtd/actions/waiting/[WAITING] {slug}.md` — the operator is genuinely blocked on this delegated item. Keep waiting/ sparse: only hard blockers on the operator's forward progress qualify. Also stays inline on the meeting note. |
+| `team` + `blocks_operator: true` | `gtd/waiting/[WAITING] {slug}.md` — the operator is genuinely blocked on this delegated item. Keep waiting/ sparse: only hard blockers on the operator's forward progress qualify. Also stays inline on the meeting note. |
 | `team` + `blocks_operator: false` (default) | **Inline on the meeting note only. Do NOT create an inbox entry.** Delegated team work is the team's to track, not the operator's GTD surface. The meeting note is the record. |
-| `client_team` | Stays inline in the meeting note's `## Action Items` section. If material, also add to the client's `_status.md` under a "client-side open items" / equivalent section. **Do NOT create inbox entries.** |
+| `client_team` | Stays inline in the meeting note's `## Action Items` section. If material, also add to the client's `status.md` under a "client-side open items" / equivalent section. **Do NOT create inbox entries.** |
 | `client_client` | Inline only; no inbox, no client status. |
 | `unknown` | Inline + create a `[QUESTION]` inbox item asking the operator to clarify ownership |
 
@@ -278,7 +278,7 @@ The delegation above runs **one** subagent at a time (or sequentially). When the
 Workers leave transcript bytes, processing flags and locations unchanged. The sequential coordinator owns completion through the helper after shared updates and factual review; workers never archive a source independently.
 
 Everything else is **shared and off-limits while fanning out** — by path, regardless of whether the agent thinks it "owns" the entity (agents can be wrong about identity):
-- any `atlas/clients/*/_status.md`, `atlas/businesses/*/_status.md`, `gtd/projects/*/_status.md`, any `_brief.md`
+- any `atlas/clients/*/status.md`, `atlas/businesses/*/status.md`, `gtd/projects/*/status.md`, any `brief.md`
 - any person note that more than one cluster could touch
 - any shared index/state/log file
 

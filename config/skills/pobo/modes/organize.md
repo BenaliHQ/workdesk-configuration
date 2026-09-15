@@ -12,7 +12,7 @@ This is the **Organize** half of the planning flow, runnable on its own. Read th
 
 ## What to do
 
-1. **Read the source material.** The `_brief` (purpose/outcome/principles) and the brainstorm — or the existing `plan.md`/`_status.md` if restructuring. Don't re-interview; the framing is assumed. If purpose or outcome is actually missing, stop and send them to `/pobo` (plan) — you can't organize what isn't framed.
+1. **Read the source material.** The `brief` (purpose/outcome/principles) and the brainstorm — or the existing `plan.md`/`status.md` if restructuring. Don't re-interview; the framing is assumed. If purpose or outcome is actually missing, stop and send them to `/pobo` (plan) — you can't organize what isn't framed.
 
 2. **Run the two-projects test.** Do the items split into *decide-what-it-is* vs *execute-it-across-channels*? If yes, it's two projects — propose the split, plan the first, let its last phase spawn the second. This is the single highest-leverage move; do it before anything else. **Smell:** skeleton phases, "detail-on-unlock," or a plan too big to hold in one model.
 
@@ -24,7 +24,7 @@ This is the **Organize** half of the planning flow, runnable on its own. Read th
 
 6. **Write each phase in the simple card format** (Goal · Steps · Done-when · Owner · Kickoff · Next). Resist heavier structure — see the over-structuring warning in `SKILL.md`.
 
-7. **Propose, then write.** Show the operator the phase list to react to before committing it to `plan.md` + `_status.md`.
+7. **Propose, then write.** Show the operator the phase list to react to before committing it to `plan.md` + `status.md`.
 
 ## Strip, don't add
 
@@ -32,4 +32,4 @@ If you're restructuring an overgrown plan, the job is mostly **removal**: kill p
 
 ## Output
 
-Updated `plan.md` (simple phase cards) + `_status.md` (next-action line + phase checklist), per the templates in `modes/plan.md`. Verify wikilinks before declaring done. If you split into two projects, scaffold only the first now; note the second as spawned by the first's final phase.
+Updated `plan.md` (simple phase cards) + `status.md` (next-action line + phase checklist), per the templates in `modes/plan.md`. Verify wikilinks before declaring done. If you split into two projects, scaffold only the first now; note the second as spawned by the first's final phase.

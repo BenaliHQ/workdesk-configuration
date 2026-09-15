@@ -19,7 +19,7 @@ Single-session unit of work. The atom of GTD. Anything multi-session is a projec
 type: action
 status: next                                           # next | waiting | someday | done
 context: [work, calls, errands]                        # GTD context tags
-parent: "[[gtd/projects/acme-corp-msa-review/_brief]]" # polymorphic, see below
+parent: "[[gtd/projects/acme-corp-msa-review/brief]]" # polymorphic, see below
 waiting-on: "[[atlas/people/...]]"                     # only if status: waiting
 source: "[[atlas/meetings/2026-04-22-acme-corp-weekly]]"  # logged session OR processed material
 created: 2026-04-26
@@ -32,11 +32,11 @@ Body: one paragraph — what needs to happen and why. Outcomes-shaped, not vague
 
 One field, points to whatever owns the action. Allowed:
 
-- `[[gtd/projects/{slug}/_brief]]` — multi-session project
+- `[[gtd/projects/{slug}/brief]]` — multi-session project
 - `[[gtd/recurring/schedules/{slug}]]` — promoted from recurring
 - empty string — standalone
 
-If the operator has added other container types via `/define-object` (e.g. `atlas/areas/`, `atlas/clients/`), wikilinks to those `_brief` notes are also valid `parent:` values. Claude dereferences the link to figure out the parent's type — no schema updates needed when new container types ship.
+If the operator has added other container types via `/define-object` (e.g. `atlas/areas/`, `atlas/clients/`), wikilinks to those `brief` notes are also valid `parent:` values. Claude dereferences the link to figure out the parent's type — no schema updates needed when new container types ship.
 
 ## Lifecycle (status changes = file moves)
 
@@ -55,4 +55,4 @@ Surface `[REVIEW]` proposals to create an action when:
 
 When an action is created from a transcript:
 - Update the transcript's `processed-into:` backlink list
-- If `parent:` resolves to an active project, surface in that project's next `_status.md` update
+- If `parent:` resolves to an active project, surface in that project's next `status.md` update

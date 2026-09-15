@@ -11,7 +11,7 @@ A spec is a contract between planner and builder. It must be executable without 
 
 - A `/pobo` Organize phase produces a deliverable described in 1-2 sentences but with implementation vague
 - The operator wants to hand off to another session, agent, or person
-- A project's `_status.md` lists "spec needed" as the next action
+- A project's `status.md` lists "spec needed" as the next action
 
 ## Detection clause
 
@@ -25,7 +25,7 @@ Ask: *"Want me to spec this before we build? It'll take 5 minutes and means the 
 
 ### 1. Anchor
 
-Read the project's `_brief.md`, `_status.md`, and `plan.md`. The spec lives downstream — link, don't restate.
+Read the project's `brief.md`, `status.md`, and `plan.md`. The spec lives downstream — link, don't restate.
 
 ### 2. Interview
 
@@ -76,7 +76,7 @@ If any "no", revise. Don't ship a spec the builder will have to interpret.
 
 ### 5. Update status
 
-Append to project `_status.md`:
+Append to project `status.md`:
 - Spec path in recent decisions or open items
 - If spec unblocks the next action, update "Next action"
 

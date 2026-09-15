@@ -69,7 +69,7 @@ One Infisical project per client (`client-<slug>`) plus one project per teammate
 **Project ID lookup:**
 
 - **Personal project:** stored in `operator-profile.md` frontmatter as `infisical-project-id:`. Read at runtime by `config/scripts/lib/operator-config.sh` as `$INFISICAL_PERSONAL_PROJECT_ID`.
-- **Client projects:** project ID lives in each client's `atlas/clients/<slug>/_status.md` frontmatter (`infisical-project-id:`). Skills working on a known client read it from there.
+- **Client projects:** project ID lives in each client's `atlas/clients/<slug>/status.md` frontmatter (`infisical-project-id:`). Skills working on a known client read it from there.
 
 If you maintain a cross-project index, put it at `config/state/infisical-projects.md` — this template doesn't ship one, since the source of truth lives in operator-profile + per-client status files.
 

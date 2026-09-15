@@ -27,7 +27,7 @@ The synthesis is the coherent unit the operator or future agent sessions will re
 
 Read enough vault context to judge applicability and detect contradictions:
 
-- `gtd/projects/*/_status.md` and `_brief.md` — what the operator is actively working on
+- `gtd/projects/*/status.md` and `brief.md` — what the operator is actively working on
 - `personal/` — operator-owned practices, journals, current thinking (read-only; Claude never writes here)
 - `config/operator-profile.md` — identity, businesses, areas of work, tools in use
 - Recent `intel/syntheses/` and `intel/observations/` — last 14 days, so Claude doesn't repeat itself

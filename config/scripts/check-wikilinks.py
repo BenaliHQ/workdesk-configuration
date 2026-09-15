@@ -22,6 +22,8 @@ def markdown_files(root, sources=False, attachments=False):
         if sources and (rel[:2] in [('config', 'source'), ('system', 'session-log'), ('system', 'transcripts')]):
             dirs[:] = []; continue
         for name in names:
+            if (Path(base) / name).is_symlink():
+                continue  # Compatibility aliases are not duplicate basename targets.
             if attachments or name.endswith('.md'):
                 yield Path(base) / name
 

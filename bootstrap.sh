@@ -177,8 +177,8 @@ mkdir -p \
   "$TARGET/atlas/decisions" \
   "$TARGET/atlas/people" \
   "$TARGET/gtd/inbox" \
-  "$TARGET/gtd/actions/next" \
-  "$TARGET/gtd/actions/waiting" \
+  "$TARGET/gtd/actions" \
+  "$TARGET/gtd/waiting" \
   "$TARGET/gtd/projects" \
   "$TARGET/gtd/recurring/schedules" \
   "$TARGET/gtd/recurring/checklists" \

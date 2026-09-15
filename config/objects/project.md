@@ -2,7 +2,7 @@
 type: object-type-definition
 name: project
 zone: gtd
-location: gtd/projects/
+location: "initiative, client, or GTD projects/; see workdesk-ontology rule"
 shape: container
 folder-structure: 8-item
 naming: kebab-slug
@@ -11,14 +11,14 @@ version: 1.0
 
 # Object Type: project
 
-Multi-session operator attention. Bounded outcome with multiple steps; or a personal-focus standing project. Lives at `gtd/projects/{slug}/`.
+Multi-session operator attention. Bounded outcome with multiple steps and an explicit completion condition. Choose its owner: initiative, client, or personal/standalone GTD. Sustained improvement belongs to an initiative.
 
 ## Folder structure (8-item, per per-project-accounting rule)
 
 ```
 gtd/projects/{slug}/
-  _brief.md       # Purpose, Principles, Outcome, Vision (POBO output)
-  _status.md      # Current phase, next action, open items, last_updated
+  brief.md       # Purpose, Principles, Outcome, Vision (POBO output)
+  status.md      # Current phase, next action, open items, last_updated
   plan.md         # POBO plan snapshot — phases + intended steps
   notes/          # running captures
   reference/      # source material
@@ -29,7 +29,7 @@ gtd/projects/{slug}/
 
 Code projects add a 9th item: `repo/`.
 
-## Frontmatter on `_brief.md`
+## Frontmatter on `brief.md`
 
 ```yaml
 ---
@@ -49,7 +49,7 @@ author: claude | operator
 ## Lifecycle
 
 - Created via `/pobo` (full) or `/pobo --lite` (3-field stub)
-- `_brief.md` immutable once written; updates flow through `_status.md`
+- `brief.md` immutable once written; updates flow through `status.md`
 - Archive: `mv gtd/projects/{slug} gtd/archive/projects/{year}/{slug}` — agent rewrites inbound `parent:` links in same operation
 
 ## Detection
@@ -60,6 +60,10 @@ author: claude | operator
 
 ## Matching
 
-- New `_brief.md` written → emit `project-created` event
-- Status changes update only `_status.md`, never `_brief.md`
+- New `brief.md` written → emit `project-created` event
+- Status changes update only `status.md`, never `brief.md`
 - POBO `plan.md` updates increment `last_updated`
+
+## Navigation and entry points
+
+Every project adds index.md, AGENTS.md, and CLAUDE.md to its existing accounting structure. Read [[../rules/workdesk-ontology]] for all supported homes and compatibility rules.

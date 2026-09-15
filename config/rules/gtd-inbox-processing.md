@@ -9,7 +9,7 @@ These two principles travel together. Without the first, the inbox never empties
 - Processing `gtd/inbox/` (operator-invoked or during review)
 - Any workflow or skill that creates inbox items from a source — transcript processing, bookmark processing, signals, future kinds
 - Routing captured actions from any interaction
-- Reviewing whether something belongs in `actions/next/`, `actions/waiting/`, a project's `_status.md`, or nowhere in the operator's system
+- Reviewing whether something belongs in `actions/next/`, `actions/waiting/`, a project's `status.md`, or nowhere in the operator's system
 
 ## What to do
 
@@ -21,14 +21,14 @@ Clarify decision tree, per item:
 
 - **Not actionable** → `gtd/archive/` (done/dead), `gtd/someday/` (maybe later), or `gtd/reference/` (just good to know).
 - **Operator's own action, < 2 min** → do it now, then archive.
-- **Operator's own action, deferred** → `gtd/actions/next/`, or fold into the relevant project's `_status.md` open items if it's multi-step.
+- **Operator's own action, deferred** → `gtd/actions/`, or fold into the relevant project's `status.md` open items if it's multi-step.
 - **Delegated to someone else** → apply ownership routing below.
 - **Needs the operator's decision before it can even be clarified** (`[REVIEW]` / `[QUESTION]`) → stays in the inbox as the **review queue**. This is the only category that legitimately waits in the inbox. Keep the queue short — the operator blasts through it, it doesn't sit ten deep.
 
 ### Ownership routing — the core rule
 
 - **The operator does not track their team's task lists.** Delegating something does not put it on the operator's plate.
-- A delegated action enters the operator's GTD **only if it is a hard blocker** on the operator's own forward progress (the operator cannot proceed until it's done). When it qualifies, it goes to `gtd/actions/waiting/` — **not** the inbox.
+- A delegated action enters the operator's GTD **only if it is a hard blocker** on the operator's own forward progress (the operator cannot proceed until it's done). When it qualifies, it goes to `gtd/waiting/` — **not** the inbox.
 - **Non-blocking delegated work stays only as an inline record on its source note** (the meeting note, the call note). It never gets an inbox item and never enters `actions/`. The source note is the record; that's enough.
 - `actions/waiting/` is **sparse by design** — hard blockers only. If `waiting/` is filling with routine delegated items, this rule is being violated.
 

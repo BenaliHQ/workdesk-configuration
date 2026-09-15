@@ -149,8 +149,8 @@ Check `--help` per subcommand before running; flags differ.
 Surface proactively when:
 
 - The operator asks what the team is working on, what got finished, what they missed, or what's stuck — run the digest instead of asking them to summarize.
-- The operator is about to plan or scope work that already has a ClickUp list — pull the live list before planning from vault memory alone. ClickUp is production for task state; vault `_status.md` lags it.
-- A vault project's `_status.md` is stale (>14 days per [[per-project-accounting]]) and a matching ClickUp list exists — offer to reconcile from ClickUp.
+- The operator is about to plan or scope work that already has a ClickUp list — pull the live list before planning from vault memory alone. ClickUp is production for task state; vault `status.md` lags it.
+- A vault project's `status.md` is stale (>14 days per [[per-project-accounting]]) and a matching ClickUp list exists — offer to reconcile from ClickUp.
 - The operator references a task, review, or comment by name — resolve it against ClickUp rather than guessing at its state.
 - A `401` comes back — the personal token was regenerated; don't debug further, just say so.
 

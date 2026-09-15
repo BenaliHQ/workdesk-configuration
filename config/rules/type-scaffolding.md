@@ -32,7 +32,7 @@ For every file (or component) within an instance, define its shape:
 
 - List sections in order, with a one-line purpose per section. A section without a purpose accumulates lint.
 - Specify the format per section: bullet list, narrative paragraph, table, frontmatter field
-- Note where TLDR-vs-detail splits live. A brief carries TLDRs and points to deeper files (e.g., `_brief.md` carries operating-model TLDR; `offerings.md` carries detail). Be explicit about which file owns what depth.
+- Note where TLDR-vs-detail splits live. A brief carries TLDRs and points to deeper files (e.g., `brief.md` carries operating-model TLDR; `offerings.md` carries detail). Be explicit about which file owns what depth.
 - Mark required-vs-optional per section. Optional sections still get their header preserved in instances; only the body is deferred.
 
 Don't leave files as "narrative free-form" by default. Free-form is the worst-case baseline; durable types do better.

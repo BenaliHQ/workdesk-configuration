@@ -15,7 +15,7 @@ When processing any input, every related note must be updated in the same pass. 
 - After processing any interaction, identify all entities touched: people, companies, projects, decisions. Update each entity's note **only when there is substantive new information** — decisions made, action items assigned, relationship changes, new context that changes understanding. Passing mentions ("Sarah was also on the call") do not trigger updates unless they add meaningful context.
 - Action items live inline on the notes they belong to. A client action item goes on the company note with a source link to the meeting that produced it. No standalone action-item files. (This bars a parallel *tracking list* of actions duplicated off their source note — it does NOT bar the operator's own `gtd/inbox/[ACTION]` captures, which are the GTD in-tray for the operator's own commitments per [[gtd-inbox-processing]], not a duplicate record of someone else's delegated work. Delegated/client actions stay inline only; only the operator's own actions become inbox items.)
 - When a decision is logged to `atlas/decisions/`, it links back to the meeting or conversation that produced it AND forward to the project it affects. Three-way matching: source, decision record, project status.
-- When processing a meeting that mentions a project, update the project's `_status.md` with relevant outcomes. Don't leave it for a separate status update pass.
+- When processing a meeting that mentions a project, update the project's `status.md` with relevant outcomes. Don't leave it for a separate status update pass.
 - Before finishing a processing run, verify: did every entity with substantive new information get its note touched? The test is not "was this entity mentioned?" but "did this interaction produce new knowledge about this entity?"
 
 ## Scoped execution (Night Shift, build production)
@@ -27,7 +27,7 @@ During scoped execution, matching applies to notes within the spec's scope. If a
 When a single processing run fans out across **multiple workers in parallel** (e.g. a large transcript backlog split into entity-clusters), "same pass" means "same orchestrated run," NOT "each worker writes every related note." There is no file locking — two workers editing the same note is last-writer-wins clobbering.
 
 - A worker may directly write only files **uniquely owned by its scope** (its own primary notes, uniquely-named inbox items, its own source archival).
-- Any **shared** note — client/business/project `_status.md` or `_brief.md`, or a note any other worker could also touch — is off-limits during fan-out. The worker defers the update as a structured **finding** (durable file, not chat), exactly as scoped execution does.
+- Any **shared** note — client/business/project `status.md` or `brief.md`, or a note any other worker could also touch — is off-limits during fan-out. The worker defers the update as a structured **finding** (durable file, not chat), exactly as scoped execution does.
 - A **single writer** consolidates all findings sequentially before the run is complete — applying them chronologically per target file (see § Conflicting information), idempotently, with source attribution.
 - Direct concurrent writes to shared entity notes are forbidden. When in doubt about whether a note is shared, treat it as shared and defer.
 

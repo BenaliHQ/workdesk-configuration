@@ -18,8 +18,8 @@ The most important signal in the first 30 days. Active from week 1. Stable every
 
 Per `config/signals/weekly-review.md`:
 
-- `gtd/actions/next/` and `gtd/actions/waiting/` (status, last-touched)
-- Projects across `gtd/projects/*`, `atlas/clients/*/projects/*`, and `atlas/businesses/*/projects/*`: read each `_brief.md` and `_status.md`. Respect explicit status; use declared cadence and dates, including `last_updated` / `last-updated` when `last-touched` is absent. A missing or invalid date means freshness is unknown: report the date gap without classifying the project as stale or current, or proposing closure on that basis.
+- `gtd/actions/` and `gtd/waiting/` (status, last-touched)
+- Projects across `gtd/projects/*`, `atlas/clients/*/projects/*`, and `atlas/businesses/*/projects/*` and `atlas/businesses/*/initiatives/*/projects/*`: read each `brief.md` and `status.md`. Respect explicit status; use declared cadence and dates, including `last_updated` / `last-updated` when `last-touched` is absent. A missing or invalid date means freshness is unknown: report the date gap without classifying the project as stale or current, or proposing closure on that basis.
 - `gtd/recurring/schedules/` filter `status: active` AND `next_due <= today + 7d`
 - `gtd/inbox/` (full backlog + age + prefix mix)
 - Stale projects (all three locations above) and stale recurring items (`gtd/recurring/*`): `today - last-touched > 1.5 × expected-cadence` (skip `expected-cadence: none`)
@@ -81,3 +81,7 @@ Then update `config/operator-profile.md` `first-30-days-mode: graduated` and tel
 - Don't write more than 7 `[REVIEW]` items in one session. Batch the rest.
 - Don't update state if the write failed.
 - Don't graduate without all three conditions met.
+
+## Canonical discovery
+
+Use `python3 config/scripts/project-discovery.py --root <vault>` to enumerate all project homes, including initiative projects. Read canonical brief.md and status.md. Ignore compatibility symlinks and index.md when enumerating actions or waiting items.

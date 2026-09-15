@@ -1,6 +1,6 @@
 # POBO — Plan mode
 
-The full guided interview. Walk the operator from a fuzzy "I've got this thing" to a simple, runnable plan: a project folder with `_brief.md`, `_status.md`, and `plan.md` (phases in the simple-card format). Read the philosophy + phase-card format in `SKILL.md` first — they govern this mode.
+The full guided interview. Walk the operator from a fuzzy "I've got this thing" to a simple, runnable plan: a project folder with `brief.md`, `status.md`, and `plan.md` (phases in the simple-card format). Read the philosophy + phase-card format in `SKILL.md` first — they govern this mode.
 
 `/pobo --lite` → jump to **Lite mode** at the bottom.
 
@@ -9,7 +9,7 @@ The full guided interview. Walk the operator from a fuzzy "I've got this thing" 
 - **One open-ended question at a time.** Wait for the answer before the next. Never present multiple-choice widgets — invite the operator to think in their own words.
 - **Coach, don't transcribe.** Challenge vague answers ("what specifically would that look like?"), offer concrete suggestions when they're stuck, reflect back in sharper language, push for specificity.
 - **Do the heavy lifting at Organize.** Don't make the operator structure from scratch — propose the phase breakdown and let them react.
-- **Pull real context first.** Before planning anything with vault history (a business, client, person), read the relevant `_brief`/`_status`/recent meetings so you're not asking what's already known. Use legacy/Drive/transcripts when relevant.
+- **Pull real context first.** Before planning anything with vault history (a business, client, person), read the relevant `brief`/`status`/recent meetings so you're not asking what's already known. Use legacy/Drive/transcripts when relevant.
 
 ## Phase 0 — Meet them where they are
 
@@ -57,7 +57,7 @@ Resist: parallel tracks, status cursors, completion rituals, per-phase "watch-ou
 
 ## Execution bridge (lightweight)
 
-Before scaffolding, nail three things in conversation — they go into `_status.md`, not a heavy section:
+Before scaffolding, nail three things in conversation — they go into `status.md`, not a heavy section:
 - **The constraint** — the single bottleneck most likely to stall everything. Name it.
 - **Where the next action lives** — it has a real home (the plan + status), not the operator's head.
 - **Review cadence** — when they'll look at this again (a date or a recurring review).
@@ -66,14 +66,14 @@ Before scaffolding, nail three things in conversation — they go into `_status.
 
 1. Ask once: **"Does this involve code or a repo?"** → 9-item structure (adds `repo/`) vs 8-item.
 2. Derive `{slug}` (kebab-case) and **confirm it** before creating.
-3. Create under `gtd/projects/{slug}/`: `_brief.md`, `_status.md`, `plan.md`, `notes/` (drop the brainstorm in `notes/brainstorm.md`), `reference/`, `specs/`, `deliverables/`, `_archive/` (+ `repo/` if code). Empty dirs get `.gitkeep`.
+3. Create under `{project-home}/{slug}/`: `brief.md`, `status.md`, `plan.md`, `notes/` (drop the brainstorm in `notes/brainstorm.md`), `reference/`, `specs/`, `deliverables/`, `_archive/` (+ `repo/` if code). Empty dirs get `.gitkeep`.
 4. **Never clobber** — if the folder exists, stop and ask.
-5. Populate `_brief.md`, `_status.md`, `plan.md`, `notes/brainstorm.md`. Verify wikilinks (`config/scripts/check-wikilinks.sh`) before declaring done.
-6. Confirm before creating: *"Ready to scaffold at `gtd/projects/{slug}/`? I'll create the structure and populate the brief, status, plan, and brainstorm."*
+5. Populate `brief.md`, `status.md`, `plan.md`, `notes/brainstorm.md`. Verify wikilinks (`config/scripts/check-wikilinks.sh`) before declaring done.
+6. Confirm before creating: *"Ready to scaffold at `{project-home}/{slug}/`? I'll create the structure and populate the brief, status, plan, and brainstorm."*
 
 ## Templates
 
-### `_brief.md`
+### `brief.md`
 ```markdown
 ---
 type: project
@@ -99,7 +99,7 @@ last_updated: {date}
 {2–4 sentences — what success feels like.}
 ```
 
-### `_status.md`
+### `status.md`
 ```markdown
 ---
 type: project-status
@@ -117,7 +117,7 @@ current_phase: 0
 
 ### Resume prompt
 ```
-Resume {slug}. Read gtd/projects/{slug}/_status.md, find the first unchecked phase, open its
+Resume {slug}. Read {project-home}/{slug}/status.md, find the first unchecked phase, open its
 card in plan.md, do it. When done, check it off and update the Next action line.
 ```
 
@@ -133,11 +133,11 @@ card in plan.md, do it. When done, check it off and update the Next action line.
 ```
 
 ### `plan.md`
-Header (purpose/principles/outcome pointers to `_brief`) + a short "how this runs" note + the phase cards in the **simple phase-card format** from `SKILL.md`. One card per phase. End with a **Next action** line. Nothing heavier than the card format.
+Header (purpose/principles/outcome pointers to `brief`) + a short "how this runs" note + the phase cards in the **simple phase-card format** from `SKILL.md`. One card per phase. End with a **Next action** line. Nothing heavier than the card format.
 
 ## Edge cases
 
-- **Tiny (1–2 actions):** not a project — suggest capturing it as an action in `gtd/actions/next/` instead.
+- **Tiny (1–2 actions):** not a project — suggest capturing it as an action in `gtd/actions/` instead.
 - **Already has a clear plan:** don't force every phase; fill the gaps, then organize + scaffold.
 - **Multiple projects surface:** flag it (two-projects test) — plan one, sequence the other.
 - **Standing responsibility (no bounded outcome):** not a POBO target — say so and stop.
@@ -147,4 +147,8 @@ Header (purpose/principles/outcome pointers to `_brief`) + a short "how this run
 
 ## Lite mode (`/pobo --lite`)
 
-Three questions only: (1) **Outcome** — one sentence; (2) **First next action** — one physical line; (3) **End-state signal** — how you'll know it's done. Scaffold the 8-item structure; populate `_brief.md` (those three) and `_status.md` (`current_phase: lite`, next action). Leave `plan.md` minimal. Note that it can graduate to full POBO if it grows past ~3 actions or 2 weeks.
+Three questions only: (1) **Outcome** — one sentence; (2) **First next action** — one physical line; (3) **End-state signal** — how you'll know it's done. Scaffold the 8-item structure; populate `brief.md` (those three) and `status.md` (`current_phase: lite`, next action). Leave `plan.md` minimal. Note that it can graduate to full POBO if it grows past ~3 actions or 2 weeks.
+
+## Project home and navigation
+
+Use config/rules/workdesk-ontology.md. Choose the owning initiative or client when established; otherwise use gtd/projects for personal/standalone work. Preserve unassigned existing business project homes. Add index.md, AGENTS.md and CLAUDE.md with pointers to the shared policy and the real brief/status. An initiative adds projects/; a project does not. Do not infer business ownership.

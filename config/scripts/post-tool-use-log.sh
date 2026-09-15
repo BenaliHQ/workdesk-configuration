@@ -17,6 +17,15 @@ IFS=$'\n\t'
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VAULT="${CLAUDE_PROJECT_DIR:-$(cd "$DIR/../.." && pwd)}"
+# Nested projects inherit the containing vault. Preserve explicit standalone
+# scratch roots used by the hook benchmark and isolated runtime probes.
+VAULT_CANDIDATE="$VAULT"
+while [[ "$VAULT_CANDIDATE" != / && ! -f "$VAULT_CANDIDATE/config/scripts/json-get.sh" ]]; do
+  VAULT_CANDIDATE="$(dirname "$VAULT_CANDIDATE")"
+done
+if [[ -f "$VAULT_CANDIDATE/config/scripts/json-get.sh" ]]; then
+  VAULT="$VAULT_CANDIDATE"
+fi
 EVENTS_DIR="$VAULT/system/events"
 MONTH=$(date '+%Y-%m')
 EVENTS_FILE="$EVENTS_DIR/$MONTH.md"
@@ -51,15 +60,15 @@ target=""
 case "$tool" in
   Write)
     case "$path" in
-      */gtd/projects/*/_brief.md)        event_class="project-created";    target="$path" ;;
-      */atlas/areas/*/_brief.md)         event_class="object-created";     target="$path" ;;
-      */atlas/clients/*/_brief.md|\
-      */atlas/businesses/*/_brief.md|\
-      */atlas/teams/*/_brief.md|\
-      */atlas/labs/*/_brief.md|\
-      */atlas/disciplines/*/_brief.md|\
-      */atlas/collaborations/*/_brief.md|\
-      */atlas/departments/*/_brief.md)
+      */gtd/projects/*/brief.md|*/atlas/clients/*/projects/*/brief.md|*/atlas/businesses/*/projects/*/brief.md)        event_class="project-created";    target="$path" ;;
+      */atlas/areas/*/brief.md)         event_class="object-created";     target="$path" ;;
+      */atlas/clients/*/brief.md|\
+      */atlas/businesses/*/brief.md|\
+      */atlas/teams/*/brief.md|\
+      */atlas/labs/*/brief.md|\
+      */atlas/disciplines/*/brief.md|\
+      */atlas/collaborations/*/brief.md|\
+      */atlas/departments/*/brief.md)
                                           event_class="object-created";     target="$path" ;;
       */atlas/meetings/*.md|\
       */atlas/decisions/*.md|\
@@ -67,7 +76,7 @@ case "$tool" in
       */atlas/companies/*.md|\
       */atlas/content/*.md)
                                           event_class="object-created";     target="$path" ;;
-      */gtd/actions/next/*.md)            event_class="action-promoted";    target="$path" ;;
+      */gtd/actions/*.md)            event_class="action-promoted";    target="$path" ;;
       */intel/briefings/*.md|\
       */intel/vault-improvements/*.md|\
       */intel/observations/*.md|\
