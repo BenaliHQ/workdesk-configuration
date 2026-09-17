@@ -106,6 +106,68 @@ Putting the body in `--params` sends an empty body and Google returns **`411 Len
 - **`--json` bodies are argv-limited** (~1 MB total on macOS). A Gmail `messages.import`/`insert` whose base64url `raw` exceeds that silently fails (empty output — the exec hits `E2BIG`). For big messages, hit the upload endpoint directly with `curl`: `POST https://gmail.googleapis.com/upload/gmail/v1/users/me/messages/import?uploadType=media&internalDateSource=dateHeader` with `Content-Type: message/rfc822` and the decoded `.eml` as the body, then apply labels with a `messages.modify` call. Don't use gws `--upload` for this — it sends `application/octet-stream`, which Gmail rejects.
 - **Array-valued `--params` fields don't filter reliably** (`labelIds`, `metadataHeaders` were both no-ops). Use the string equivalents instead: `q: "label:actions"` for label filtering, `format: "metadata"` without `metadataHeaders` (returns all headers).
 
+### Writing files to Drive — `uploadType` is not optional
+
+Updating or creating a Drive file with `--upload` has one non-obvious requirement
+and one path restriction. Both are silent failures, which is what makes them
+worth writing down.
+
+**Always pass `uploadType` in `--params`:**
+
+```bash
+# update an existing file in place (keeps the file ID, so shared links survive)
+gws drive files update \
+  --params '{"fileId":"<id>","uploadType":"multipart","supportsAllDrives":true}' \
+  --upload relative/path/to/file.md --upload-content-type text/markdown
+
+# create a new file in a folder
+gws drive files create \
+  --params '{"uploadType":"multipart","supportsAllDrives":true}' \
+  --json '{"name":"file.md","parents":["<folderId>"]}' \
+  --upload relative/path/to/file.md --upload-content-type text/markdown
+```
+
+> [!warning] Omitting `uploadType` silently corrupts the file
+> `--upload` builds a **multipart** request body. With no `uploadType`, the API
+> treats that whole body as the media, so Drive stores the **raw HTTP envelope**
+> as the file's contents — boundary markers, a `Content-Type` header, and a `{}`
+> JSON stub, followed by your actual content.
+>
+> **The call returns HTTP 200 with a normal file resource.** Nothing errors,
+> nothing warns, and `files list` shows a plausible size. The damage is only
+> visible on read-back, so an unattended writer can corrupt many files in one
+> pass and report success.
+>
+> Bit us 2026-08-24: ten markdown files in a client context bundle were written
+> this way and every agent that read them for four days saw
+> `--gws_boundary_<hex>` ahead of the frontmatter. No content was lost — the
+> envelope wrapped each file rather than truncating it — but the files were not
+> what anything expected. Recovery is a strip-and-rewrite, and it is only
+> possible because the original content survived inside the envelope.
+
+**`--upload` paths must resolve inside the current working directory.** An
+absolute path elsewhere is rejected:
+
+```
+error[validation]: --upload '/abs/path/file.md' resolves to
+'/abs/path/file.md' which is outside the current directory
+```
+
+That one at least fails loudly. Run the command with `cwd` set to the file's
+directory (or an ancestor) and pass a **relative** path. It bites hardest from a
+script, where the natural instinct is to build absolute paths.
+
+**Verify writes by reading back.** Because the `uploadType` failure returns 200,
+a write is not confirmed until the bytes come back identical:
+
+```bash
+gws drive files get --params '{"fileId":"<id>","alt":"media","supportsAllDrives":true}'
+# gws writes to ./download.<ext> in the cwd — compare it to the source
+```
+
+For any batch write, compare every file rather than sampling. A byte-for-byte
+check is the only thing that distinguishes a good write from an enveloped one.
+
 ### Recovering the CLI's access token
 
 When a raw HTTP call needs gws's bearer token (e.g. the upload endpoint above): `gws auth export` does NOT work — it has the same non-account-specific-path bug as `gws auth status` and returns "No encrypted credentials found" even when calls authenticate fine. The reliable path (verified 2026-07-24): make any cheap gws call to freshen the cache, then decrypt `token_cache.<b64-email>.json` yourself — **AES-256-GCM**, key = base64-decoded `.encryption_key`, 12-byte nonce prefixed to the blob, no AAD. The decrypted JSON maps scope-strings to token entries with a `token` field. (Python: `cryptography.hazmat.primitives.ciphers.aead.AESGCM(key).decrypt(blob[:12], blob[12:], None)`.)
@@ -178,6 +240,9 @@ watermark, and an existing note is preserved for explicit reconciliation.
 - **Setting `GOOGLE_WORKSPACE_CLI_CLIENT_ID` permanently in `~/.zshrc` instead of via the wrapper.** Puts the value in plaintext in your shell history and dotfiles. Use the wrapper at `config/shell/gws-env.sh`.
 - **Treating `~/Library/Application Support/gws/` as disposable.** It's the only live copy of your auth state; Infisical holds a synced backup only as current as the last successful push. Check `system/log/gws-push.log` before wiping it.
 - **Passing a request body in `--params`.** `--params` is query-only; the body goes in `--json` (and media in `--upload`). Body-in-`--params` returns `411 Length Required`. Bit us building a Gmail draft-with-attachment on 2026-07-21.
+- **Uploading to Drive without `uploadType` in `--params`.** `--upload` sends a multipart body; with no `uploadType` the API stores the entire HTTP envelope as the file contents and **still returns 200**. Silent corruption, visible only on read-back. Pass `"uploadType":"multipart"` on every `drive files update` / `files create`, and verify the bytes afterwards. (Bit us 2026-08-24 — ten files in a client bundle.)
+- **Passing an absolute `--upload` path from outside the cwd.** gws rejects it with a validation error; set the subprocess `cwd` and pass a relative path instead.
+- **Treating a 200 from a Drive write as confirmation.** Read the file back and compare bytes. The two failure modes above are indistinguishable from success at the API-response level.
 - **Trusting `gws auth status`/`gws auth export` as proof of auth.** They can report `storage: none` / "no encrypted credentials found" while ordinary calls authenticate fine, because the credential is stored per-account (`credentials.<b64email>.enc`) and those subcommands look at the non-account-specific path. Confirm with a real read (`gws calendar +agenda --today`) before concluding auth is broken.
 - **Running `gws auth login --help`.** The binary ignores `--help` after `login` and starts a REAL login flow — it opens a browser consent URL and blocks on a localhost callback. In a script or agent context it hangs until killed. Use `gws auth --help` for the flag reference. (Bit us 2026-07-24.)
 
@@ -185,6 +250,7 @@ watermark, and an existing note is preserved for explicit reconciliation.
 
 Surface proactively when:
 
+- A skill or script is about to **write files to Drive in a batch** — check it passes `uploadType` and verifies read-back before it runs unattended.
 - The operator references something only Google can answer (calendar event, email, Drive doc) and `gws auth status` would resolve it — propose using gws instead of guessing.
 - The operator says they re-authenticated gws but didn't push tokens — remind them to run `gws-push-tokens-to-infisical.sh`.
 - A new Google account needs adding — store its org's OAuth app as `PERSONAL_GOOGLE_WORKSPACE_<ORG>_CLIENT_ID/_CLIENT_SECRET/_PROJECT_ID`, log in with `gws auth login --account <email>` via the wrapper, then run the push script (it sweeps all accounts automatically).
