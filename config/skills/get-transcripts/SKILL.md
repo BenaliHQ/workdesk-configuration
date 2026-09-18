@@ -161,7 +161,7 @@ and look for same-day files with overlapping titles.
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | `ERROR  could not read PERSONAL_GRANOLA_API_KEY from Infisical` | Infisical session expired | `infisical login`, then re-run |
-| `ERROR  gws auth failed` | gws token expired | `gws auth login --account you@example.com`, then `bash config/scripts/gws-push-tokens-to-infisical.sh` per [[../../config/rules/tools/gws]] |
+| `ERROR  gws auth failed` | gws token expired | `gws auth login --account you@example.com`, then `bash config/scripts/gws-push-tokens-to-infisical.sh` per [[config/rules/tools/gws|../../config/rules/tools/gws]] |
 | All scripts hard-fail (exit 2) | gws auth state missing (`~/Library/Application Support/gws` pre-0.22, `~/.config/gws` on gws 0.22+) | Run `bash config/scripts/setup-gws.sh` |
 | `consecutive_fails > 3` | Auth has been broken for multiple cron runs | Always check `--status` first; run remediation above |
 | Gemini script reports `no_access > 0` | A requested document was unavailable (403/404); cause unverified | Report incomplete coverage and retain its source ID. Verify the selected account and document access before proposing recovery. |
@@ -180,10 +180,10 @@ Missing Transcript tabs remain gaps; do not substitute Notes or Full notes.
 
 ## What NOT to do
 
-- **Don't synthesize transcripts during this skill.** Synthesis is `/process-transcripts`'s job — see [[../../config/rules/source-processing-pattern]] ("Don't synthesize from an upstream summary when the verbatim source is available"). `/get-transcripts` ends when the raw transcript is on disk in `system/intake/`.
-- **Don't pull from Granola's summary endpoint, Gemini's Notes tab (tab 1), or any AI-generated summary.** The scripts pull verbatim only — Granola via `?include=transcript`, Google standalone via the Doc named "<Title> - … - Transcript", Gemini via the Transcript tab (tab 2) of the Notes-by-Gemini Doc. The Notes tab is explicitly skipped per [[../../config/rules/source-processing-pattern]].
+- **Don't synthesize transcripts during this skill.** Synthesis is `/process-transcripts`'s job — see [[config/rules/source-processing-pattern|../../config/rules/source-processing-pattern]] ("Don't synthesize from an upstream summary when the verbatim source is available"). `/get-transcripts` ends when the raw transcript is on disk in `system/intake/`.
+- **Don't pull from Granola's summary endpoint, Gemini's Notes tab (tab 1), or any AI-generated summary.** The scripts pull verbatim only — Granola via `?include=transcript`, Google standalone via the Doc named "<Title> - … - Transcript", Gemini via the Transcript tab (tab 2) of the Notes-by-Gemini Doc. The Notes tab is explicitly skipped per [[config/rules/source-processing-pattern|../../config/rules/source-processing-pattern]].
 - **Don't change the scripts' default behavior without a corresponding rule update.** The scripts also run via cron (daily); divergence between the manual and cron paths breaks the audit log in `config/state/pull-*.json`.
-- **Don't move pulled files out of `system/intake/`** in this skill. The intake → process → archive flow is enforced by [[../../config/rules/source-processing-pattern]]; only `/process-transcripts` moves files to `system/transcripts/`.
+- **Don't move pulled files out of `system/intake/`** in this skill. The intake → process → archive flow is enforced by [[config/rules/source-processing-pattern|../../config/rules/source-processing-pattern]]; only `/process-transcripts` moves files to `system/transcripts/`.
 - **Don't run with `--days > 14` casually.** The cron runs daily; if state shows last success <2 days ago, `--days 7` (default) is plenty. Wider lookback is for catching up after auth outages.
 - **Don't claim complete coverage if a pull failed or Gemini reported `stub > 0`, `missing_transcript > 0`, or `no_access > 0`.** Report the unresolved source IDs and scope. Zero technical failures is not proof that every discovered transcript was captured.
 - **Don't dedupe across sources at pull time.** Same human meeting captured by multiple sources is by design — `/process-transcripts` is where the operator picks the strongest verbatim per meeting.
@@ -200,4 +200,4 @@ Note: as of 2026-05-28, the Granola cron entry has been removed (cron environmen
 - Operator correction 2026-05-28 (same session) — "Notes by Gemini docs have two tabs; tab 2 is the full raw transcript." Added the third script (`pull-gemini-transcripts.sh`) to capture this previously-missed source.
 - Underlying scripts: `config/scripts/pull-granola.sh`, `config/scripts/pull-google-transcripts.sh`, `config/scripts/pull-gemini-transcripts.sh`.
 - Source seed: `config/sources/transcript.md`.
-- Related: [[process-transcripts]] (the next step after pulling).
+- Related: `process-transcripts` (the next step after pulling).

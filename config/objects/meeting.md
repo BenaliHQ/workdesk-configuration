@@ -11,7 +11,7 @@ version: 1.1
 # Object Type: meeting
 
 > [!info] Schema discipline
-> Per [[type-scaffolding]], this object's schema must be designed intentionally and revised via [[iterate-instance-then-propagate-schema]]. V1.1 was derived from an external-coaching meeting dogfood (2026-05). Future revisions should follow the same instance-grounded pattern.
+> Per [[type-scaffolding]], this object's schema must be designed intentionally and revised via `iterate-instance-then-propagate-schema`. V1.1 was derived from an external-coaching meeting dogfood (2026-05). Future revisions should follow the same instance-grounded pattern.
 
 A meeting is a single record of a real interaction with one or more other people. Always traceable to a transcript, a live session, or an operator-direct dictation. The atlas/meetings/ folder is the canonical record of "what was said and decided" — every other zone (atlas/people, atlas/decisions, gtd/inbox, atlas/businesses) draws context from here.
 
@@ -63,7 +63,7 @@ The `meeting-type` field captures the **relational context** of the meeting (who
 | `client-1on1` | One-on-one with a single client contact (e.g., operator + Jordan Lee) |
 | `client-group` | Meeting with multiple client team members; collaborative, often recurring (e.g., operator + Acme Corp design team) |
 | `client-session` | Facilitated session WITH a client — workshop, training, presentation (e.g., Acme Corp AI Workshop Executive Group) |
-| `internal-1on1` | One-on-one within the operator's own team / [[acme-consulting]] (e.g., operator + Sam) |
+| `internal-1on1` | One-on-one within the operator's own team / `acme-consulting` (e.g., operator + Sam) |
 | `internal-team` | The operator's team-wide meeting (e.g., Acme Consulting Check-In) |
 | `external` | Meeting with an external party that's not a client — networking, vendor, prospect, peer |
 | `external-coaching` | Recurring coaching session with an external coach or mentor (e.g., operator ↔ Pat Morgan) |
@@ -229,7 +229,7 @@ If matching surfaces gaps requiring operator attention (e.g., missing person not
 This V1.1 schema deepening derived from:
 
 - Operator instruction, 2026-05-17 Claude Code session (desk-setup project, meeting-schema dogfood)
-- [[../../atlas/meetings/2026-05-15-acme-consulting-coaching]] — the dogfood meeting note that surfaced all the discipline above (attendee handling for non-vault people, `external-coaching` enum value, optional-section pattern, transient matching-impacts section, confidentiality rule application)
+- `../../atlas/meetings/2026-05-15-acme-consulting-coaching` — the dogfood meeting note that surfaced all the discipline above (attendee handling for non-vault people, `external-coaching` enum value, optional-section pattern, transient matching-impacts section, confidentiality rule application)
 - Legacy meeting notes sampled from the operator's prior vault (2026-01 through 2026-04)
 - [[type-scaffolding]] — schema design discipline (iterate-instance-then-propagate-schema)
 - [[instance-scaffolding]] — conditional-matching pattern for entities without notes yet
