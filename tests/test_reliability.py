@@ -259,4 +259,67 @@ class PrivateOverlayEdgeTests(unittest.TestCase):
    with self.assertRaises(ValueError):self.overlay.run(vault,pkg,True)
    self.assertEqual(target.read_text(),'before\n');self.assertEqual(list(external.iterdir()),[])
 
+# --- declared operator signals + transcript tab fallback ---
+import sys
+def load(name, rel):
+    spec = importlib.util.spec_from_file_location(name, W / rel)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+due_local = load("signal_due", "config/scripts/signal-due.py")
+
+
+class DeclaredSignalTests(unittest.TestCase):
+    def write(self, d, name, body):
+        (d / name).write_text(body, encoding="utf-8")
+
+    def test_operator_declared_weekly_signal_is_due(self):
+        with tempfile.TemporaryDirectory() as t:
+            d = Path(t)
+            self.write(d, "weekly-prep.md", "---\ntype: signal-declaration\nname: weekly-prep\nschedule: weekly\n---\n")
+            self.write(d, "weekly-review.md", "---\nname: weekly-review\nschedule: daily\n---\n")
+            self.write(d, "adhoc.md", "---\nname: adhoc\nschedule: on-demand\n---\n")
+            self.write(d, "broken.md", "no frontmatter\n")
+            declared = due_local.declared_signals(d)
+            self.assertEqual(declared, [("weekly-prep", 7)])
+            today = datetime.date(2026, 9, 23)
+            state = {"weekly-prep": {"last-fired": "2026-09-21"}}
+            self.assertNotIn("weekly-prep", due_local.due_signals(state, today, declared))
+            state = {"weekly-prep": {"last-fired": "2026-09-14"}}
+            self.assertIn("weekly-prep", due_local.due_signals(state, today, declared))
+
+    def test_missing_signals_dir_is_harmless(self):
+        self.assertEqual(due_local.declared_signals("/nonexistent/signals"), [])
+
+
+sys.path.insert(0, str(W / "config/scripts/lib"))
+gdt = load("gemini_document_text", "config/scripts/lib/gemini_document_text.py")
+
+
+def doc(*titles):
+    def tab(title):
+        body = {"content": [{"paragraph": {"elements": [{"textRun": {"content": title + " body\n"}}]}}]}
+        return {"tabProperties": {"title": title}, "documentTab": {"body": body}}
+    return {"documentId": "d1", "tabs": [tab(t) for t in titles]}
+
+
+class TranscriptTabTests(unittest.TestCase):
+    def selected_text(self, data):
+        out = gdt.extract(data, "d1")
+        return out if isinstance(out, str) else json.dumps(out)
+
+    def test_exact_transcript_tab_wins(self):
+        self.assertIn("Transcript body", self.selected_text(doc("Notes", "Transcript", "Granola Transcript")))
+        self.assertNotIn("Granola Transcript body", self.selected_text(doc("Notes", "Transcript", "Granola Transcript")))
+
+    def test_granola_transcript_tab_is_used_when_no_exact_tab(self):
+        self.assertIn("Granola Transcript body", self.selected_text(doc("Notes", "Granola Transcript")))
+
+    def test_notes_only_is_still_missing(self):
+        with self.assertRaises(gdt.MissingTranscript):
+            gdt.extract(doc("Notes"), "d1")
+
+
 if __name__=='__main__':unittest.main(verbosity=2)

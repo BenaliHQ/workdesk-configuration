@@ -5,6 +5,8 @@
 # Reads operator-profile.md frontmatter and exports:
 #
 #   OPERATOR_NAME                   from `name:`
+#   OPERATOR_TRANSCRIPT_TEAM        from optional `transcript-team:` (one line,
+#                                   comma-separated names; empty if unset)
 #   OPERATOR_EMAIL                  from `email:`
 #   OPERATOR_KEY_SUFFIX             from `infisical-key-suffix:`, or uppercase
 #                                     local part of OPERATOR_EMAIL if unset
@@ -57,6 +59,7 @@ _read_frontmatter_field() {
 }
 
 OPERATOR_NAME="$(_read_frontmatter_field name)"
+OPERATOR_TRANSCRIPT_TEAM="$(_read_frontmatter_field transcript-team)"
 OPERATOR_EMAIL="$(_read_frontmatter_field email)"
 OPERATOR_KEY_SUFFIX="$(_read_frontmatter_field infisical-key-suffix)"
 INFISICAL_PERSONAL_PROJECT_ID="$(_read_frontmatter_field infisical-project-id)"
@@ -73,7 +76,7 @@ else
   OPERATOR_EMAIL_B64=""
 fi
 
-export OPERATOR_NAME OPERATOR_EMAIL OPERATOR_KEY_SUFFIX OPERATOR_EMAIL_B64 INFISICAL_PERSONAL_PROJECT_ID
+export OPERATOR_NAME OPERATOR_TRANSCRIPT_TEAM OPERATOR_EMAIL OPERATOR_KEY_SUFFIX OPERATOR_EMAIL_B64 INFISICAL_PERSONAL_PROJECT_ID
 
 # Required-field check. Bootstrap sets OPERATOR_CONFIG_LENIENT=1 to suppress
 # this so it can fill in missing values.

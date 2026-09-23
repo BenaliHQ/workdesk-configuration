@@ -120,6 +120,44 @@ The script at `config/scripts/gws-push-tokens-to-infisical.sh` mirrors the local
 
 If you skip the push, local gws keeps working — but Infisical's synced copy goes stale, and the next machine (or state wipe) that restores from it gets a dead token and has to do browser OAuth anyway.
 
+## Scopes — never grant Cloud scopes
+
+> [!warning]
+> **Requesting `cloud-platform` or `pubsub` will make you re-authenticate every day** on any Google Workspace org that enforces a Google Cloud reauthentication policy (Admin console → Security → Google Cloud session control). That policy invalidates refresh tokens carrying Cloud scopes on a fixed interval — as short as 1 hour. Because gws bundles every granted scope into one credential, the policy takes Gmail, Drive, and Calendar down with it.
+
+`gws auth login` presents an **interactive scope picker** that lists `Cloud Platform` and `Cloud Pub/Sub` alongside the Workspace services. Two traps:
+
+- `--full` explicitly requests both. Never use it.
+- `--services <list>` narrows what the picker *offers* but does **not** reliably strip the Cloud entries — a login with `--services gmail,drive,docs,sheets,calendar` still granted `cloud-platform`.
+
+**Request scopes explicitly instead**, which bypasses the picker entirely:
+
+```bash
+gws auth login --scopes \
+https://www.googleapis.com/auth/drive,\
+https://www.googleapis.com/auth/spreadsheets,\
+https://www.googleapis.com/auth/gmail.modify,\
+https://www.googleapis.com/auth/calendar,\
+https://www.googleapis.com/auth/documents,\
+https://www.googleapis.com/auth/presentations,\
+openid,\
+https://www.googleapis.com/auth/userinfo.email,\
+https://www.googleapis.com/auth/userinfo.profile
+```
+
+Dropping `cloud-platform` is safe: in the gws binary it appears only in the service-account / application-default-credentials and Model Armor code paths, none of which the Workspace surfaces use.
+
+**Do not request `https://www.googleapis.com/auth/keep`.** It's a restricted scope requiring the Keep API enabled and app verification; without those the consent screen fails outright with *"Access blocked: authorization error."*
+
+### Fixing an account that already has Cloud scopes
+
+1. **Revoke the app first** at https://myaccount.google.com/permissions. This is mandatory, not hygiene — Google returns the **union** of previously-granted scopes on re-consent, so a narrower request still hands `cloud-platform` back.
+2. Re-run `gws auth login --scopes ...` as above.
+3. **Delete the access-token cache** (`~/.config/gws/token_cache.json` on 0.22+, `token_cache.<b64-email>.json` on the pre-0.22 layout). Stale pre-revocation access tokens survive there and produce a confusing split failure: Drive keeps working while Calendar and Gmail return `Request had invalid authentication credentials`. The refresh token is fine; the cache is the problem.
+4. Verify with `gws auth status` that the scope list contains no `cloud-platform` or `pubsub`, then run `gws-push-tokens-to-infisical.sh`.
+
+An independent confirmation that the org enforces this policy: `gcloud auth print-access-token` fails with `Reauthentication failed. cannot prompt during non-interactive execution.`
+
 ## Trust boundary
 
 `PERSONAL_GWS_ENCRYPTION_KEY` + any `PERSONAL_GWS_CREDENTIALS_<ORG>_ENC_B64` together are equivalent to plaintext access to that account's Gmail/Drive/Calendar. Anyone with read access to these two Infisical keys can impersonate your Workspace identity. Scope your personal Infisical project accordingly — it should be readable by you alone, never shared with contractors or client projects.
@@ -173,6 +211,8 @@ watermark, and an existing note is preserved for explicit reconciliation.
 - **Suffix derivation is domain-based.** `alex@example.com` → `EXAMPLE`, `alex@client-co.example` → `CLIENTCO`. Two accounts on the *same* domain would collide — add a disambiguating scheme before that ever happens.
 
 ## Common Mistakes
+- **Accepting the scope picker's defaults, or reaching for `--full`.** Granting `cloud-platform`/`pubsub` subjects the whole credential to the org's Google Cloud reauth policy — the cause of "I have to log into gws every morning." See § Scopes above. Diagnosed 2026-07-31.
+- **Chasing a dead refresh token when only the access-token cache is stale.** After a revoke + re-login, the access-token cache can still hold tokens for the old scope set, so *some* services authenticate and others don't. Delete the cache before concluding the credential is broken.
 
 - **Re-authenticating without re-running `gws-push-tokens-to-infisical.sh`.** Local state gets the new token, but Infisical still has the old one — a future restore hands back a dead token. Always pair `gws auth login` with the push script.
 - **Setting `GOOGLE_WORKSPACE_CLI_CLIENT_ID` permanently in `~/.zshrc` instead of via the wrapper.** Puts the value in plaintext in your shell history and dotfiles. Use the wrapper at `config/shell/gws-env.sh`.
@@ -182,6 +222,8 @@ watermark, and an existing note is preserved for explicit reconciliation.
 - **Running `gws auth login --help`.** The binary ignores `--help` after `login` and starts a REAL login flow — it opens a browser consent URL and blocks on a localhost callback. In a script or agent context it hangs until killed. Use `gws auth --help` for the flag reference. (Bit us 2026-07-24.)
 
 ## Detection clause
+- **The operator mentions re-authenticating gws daily, or more than once a week.** Don't debug the token — check `gws auth status` for `cloud-platform`/`pubsub` in the scope list. If present, that's the cause; walk § Scopes → *Fixing an account that already has Cloud scopes*.
+- Some gws services authenticate while others return `invalid authentication credentials` right after a re-login — delete the access-token cache before investigating further.
 
 Surface proactively when:
 
@@ -192,6 +234,7 @@ Surface proactively when:
 - `~/Library/Application Support/gws` turns out to be a symlink to `/Volumes/wd-ramdisk/` — that's the retired pre-2026-07 layout; run `setup-gws.sh` to repair it.
 
 ## Sources
+- § Scopes: diagnosed in an operator session 2026-07-31, tracing a daily-re-auth loop to `cloud-platform` in the granted scope set on a Workspace org enforcing Google Cloud session control. Fix verified end-to-end (11 scopes, no Cloud scopes; live Calendar/Gmail/Drive/Docs reads passing).
 
 - gws CLI: https://github.com/googleworkspace/cli (`brew install googleworkspace-cli` or `npm install -g @googleworkspace/cli`)
 - Foundation rule: [[infisical]]
