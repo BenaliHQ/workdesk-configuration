@@ -87,6 +87,15 @@ operator_name="$(
 if [[ -n "$operator_name" ]]; then
   PROMPT_BODY+=$'\n'"The operator's name is: ${operator_name}."
 fi
+operator_team="$(
+  OPERATOR_CONFIG_LENIENT=1
+  if source "$SCRIPT_DIR/lib/operator-config.sh" 2>/dev/null; then
+    printf '%s' "${OPERATOR_TRANSCRIPT_TEAM:-}"
+  fi
+)"
+if [[ -n "$operator_team" ]]; then
+  PROMPT_BODY+=$'\n'"The operator's own team (the only people who qualify as owner_category \"team\"): ${operator_team}."
+fi
 if ! TRANSCRIPT_BODY="$(awk '
   NR == 1 { if ($0 !~ /^---\r?$/) exit 2; next }
   !body { if ($0 ~ /^---\r?$/) body=1; next }

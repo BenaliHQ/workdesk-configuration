@@ -27,6 +27,7 @@ def extract(data, expected):
     if not isinstance(data, dict) or data.get('documentId') != expected or 'error' in data:
         raise ValueError('Document identity mismatch')
     selected = []
+    fallback = []
 
     def visit(tabs, depth=0):
         if not isinstance(tabs, list) or depth > 32:
@@ -34,11 +35,22 @@ def extract(data, expected):
         for tab in tabs:
             if not isinstance(tab, dict) or not isinstance(tab.get('tabProperties'), dict):
                 raise ValueError('Invalid tab')
-            if tab['tabProperties'].get('title') == 'Transcript':
+            title = tab['tabProperties'].get('title')
+            if title == 'Transcript':
                 selected.append(tab)
+            elif isinstance(title, str) and 'transcript' in title.casefold():
+                # Notes-by-Gemini Docs do not use one stable tab name: when
+                # Granola is also recording, the verbatim lands in a tab titled
+                # "Granola Transcript". An exact match missed those entirely
+                # and reported an empty transcript for a Doc that held one.
+                # An exact "Transcript" tab still wins; this applies only when
+                # there is none. The "Notes" tab never matches either test.
+                fallback.append(tab)
             visit(tab.get('childTabs', []), depth + 1)
 
     visit(data.get('tabs'))
+    if not selected:
+        selected = fallback
     if not selected:
         raise MissingTranscript('No Transcript tab returned')
     if len(selected) != 1:

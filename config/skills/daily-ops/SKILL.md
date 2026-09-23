@@ -80,7 +80,7 @@ If writing or required coverage is incomplete, do NOT advance `last-fired` as a 
 ## Auto-expiry side effect
 
 Daily-plan also cleans up expired inbox items as a side effect:
-- `[AWARENESS]` older than 7 days → archive to `gtd/inbox/_archive/{YYYY-MM}/`
+- `[AWARENESS]` older than 7 days → archive to `gtd/archive/` (the single GTD archive folder — never create `gtd/inbox/_archive/`)
 - `[QUESTION]` remains active while unanswered, regardless of age. Archive only after a sourced resolution or explicit operator dismissal; preserve the resolution and its link. Age alone never resolves a question or truth conflict.
 
 `[REVIEW]` and `[ACTION]` never expire — operator clears.

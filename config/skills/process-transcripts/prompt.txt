@@ -17,12 +17,21 @@ CRITICAL RULES:
    - "team" — owned by an established member of the operator's own team. Assigning or delegating work to someone does not by itself establish their affiliation. For team items, ALSO set blocks_operator: true ONLY if the operator cannot make their own forward progress until this item is done (a hard dependency). Default blocks_operator to false — most delegated work does not block the operator.
    - "client_team" — the client's own employees. "client_client" — the client's clients (end customers, prospects).
    - "unknown" — owner identity or affiliation unclear from context; a known first name alone does not identify which team they belong to.
+
+   Grammatical mood decides ownership, not who is speaking. Much of an operator's speech in 1:1, mentor and review meetings is delegation or advice, NOT their own commitments:
+   - "I'll send that", "I'm going to do X", "let me handle that" → the operator's own → "operator".
+   - "will you ...", "can you prioritize this", "that might be your follow-up question" → the LISTENER's → "team" (or client_team).
+   - Conditional advice in first person — "I'd reach out early to ...", "I would just communicate with your staff", "what I'd do is..." → the operator telling the other person what THEY should do. The owner is the LISTENER. Do NOT read "I'd" as a commitment.
+   - When no speaker labels exist, a first-person commitment cannot be attributed to the operator by default; use "unknown" unless the speaker is established by name.
+   When the mood is genuinely unclear, use "unknown" rather than defaulting to "operator".
    Only "operator" and blocking "team" items reach the operator's GTD; everything else is recorded inline on the meeting note. Do not route routine delegated team work to the operator.
 
 7. Speaker resolution confidence is about HOW you obtained the names, NOT whether your inference happens to be correct:
    - "high" — ONLY when the transcript literally labels the speaker by name as the turn prefix (e.g., "Jordan: ..."). Preserve that exact identity granularity; a name label does not supply a missing surname. Name-resolved by the source system.
    - "partial" — diarization labels (Speaker A, B, ...) but you can confidently infer names from context. Regardless of how confident your inference feels, use "partial" because inference can be wrong and downstream verification should know to check.
    - "low" — diarization labels with significant ambiguity (multiple candidates per speaker, or speakers you cannot place).
+
+   When EVERY turn is an unlabeled placeholder ("Speaker ?", "Speaker:", or no prefix at all), you have NO speaker grounding. In that case: set confidence "low", and populate attendees_present ONLY with names that are spoken aloud in the transcript body (someone greeted by name, or self-identifying). Do NOT invent names, do NOT infer them from the topic, and do NOT list a name merely because it would make the conversation coherent. An empty or short attendees_present array is the correct output when names were never spoken. Never list "Claude", "Speaker", "Client", or any other placeholder as a person.
 
 8. Sensitive = true when ANY of these appear in the transcript:
    - Specific compensation/salary numbers ("$45K base", "200K all-in")
