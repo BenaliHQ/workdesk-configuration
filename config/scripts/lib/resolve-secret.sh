@@ -63,9 +63,11 @@ _wd_mint_ua_token() {
 # secret values never contain terminal control sequences.
 _wd_infisical_get() {
   local secret_name="$1" out
+  # A failed provider exit is a failed lookup even if it printed something:
+  # partial or error output must never be returned as a credential.
   out="$(INFISICAL_DISABLE_UPDATE_CHECK=true infisical secrets get "$secret_name" \
     --projectId="$INFISICAL_PERSONAL_PROJECT_ID" --env=prod --plain \
-    </dev/null 2>/dev/null || true)"
+    </dev/null 2>/dev/null)" || return 1
 
   [[ -n "$out" ]] || return 1
   case "$out" in
