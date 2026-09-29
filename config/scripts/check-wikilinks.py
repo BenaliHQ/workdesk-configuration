@@ -19,7 +19,13 @@ def markdown_files(root, sources=False, attachments=False):
     for base, dirs, names in os.walk(root):
         dirs[:] = [d for d in dirs if d not in EXCLUDE and d not in {'defaults'} and (not sources or d not in SOURCE_EXCLUDE)]
         rel = Path(base).relative_to(root).parts
-        if sources and (rel[:2] in [('config', 'source'), ('system', 'session-log'), ('system', 'transcripts')]):
+        # The vendored upstream copy under config/source/ is a build input, never a
+        # link target. Left in the basename index it shadows every shipped rule —
+        # [[no-fabrication]] and friends resolve to two candidates and fail as
+        # ambiguous. Pruned unconditionally, the same way defaults/ already is.
+        if rel[:2] == ('config', 'source'):
+            dirs[:] = []; continue
+        if sources and (rel[:2] in [('system', 'session-log'), ('system', 'transcripts')]):
             dirs[:] = []; continue
         for name in names:
             if attachments or name.endswith('.md'):

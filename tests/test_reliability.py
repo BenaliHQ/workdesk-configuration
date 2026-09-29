@@ -180,6 +180,8 @@ class LinkTests(unittest.TestCase):
  def test_tilde_fence_and_nested_inline(self):self.run_case('~~~md\n[[missing]]\n~~~\n`` `[ACTION] fake` ``',['valid.md'],0)
  def test_real_inbox_reference(self):self.run_case('`[ACTION] real`',['gtd/inbox/[ACTION] real.md'],0)
  def test_ambiguous_basename(self):self.run_case('[[same]]',['atlas/a/same.md','atlas/b/same.md'],1)
+ def test_vendored_config_source_does_not_shadow_rules(self):self.run_case('[[no-fabrication]]',['config/rules/no-fabrication.md','config/source/config/rules/no-fabrication.md'],0)
+ def test_vendored_config_source_is_not_a_link_target(self):self.run_case('[[vendored-only]]',['config/source/config/rules/vendored-only.md'],1)
  def test_attachment_basename(self):self.run_case('![[diagram.png]]',['system/media/diagram.png'],0)
  def test_missing_signal_state(self):
   r=subprocess.run(['python3',str(W/'config/scripts/signal-due.py'),str(W/'absent-signal-state.json')],capture_output=True,text=True);self.assertEqual(r.returncode,2)
