@@ -6,9 +6,13 @@
 # already done.
 #
 # Auth model: your own Infisical account via `infisical login` (browser flow).
-# No machine identities, no agents, no daemons. The CLI stores a user session
-# locally; when it expires (every few weeks), re-run `infisical login` — any
-# failing fetch or push will tell you.
+# No agents, no daemons. The CLI stores a user session locally; when it expires
+# (~60 days), re-run `infisical login` — any failing fetch or push will tell you.
+#
+# Since 2026-08-10, lib/resolve-secret.sh additionally falls back to the leftover
+# Universal Auth identity in the login keychain when the user session is dead, so
+# scripted reads survive an expiry that this browser flow can't fix unattended.
+# See config/rules/tools/infisical.md § Authentication for the rationale.
 #
 # Walks through:
 #   1. Preflight — verify required binaries exist
