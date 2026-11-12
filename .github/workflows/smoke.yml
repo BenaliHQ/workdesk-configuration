@@ -6,6 +6,15 @@ on:
   pull_request:
 
 jobs:
+  core:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Workdesk Core tests on the Python that ships with macOS
+        run: |
+          /usr/bin/python3 --version
+          /usr/bin/python3 core/tests/run.py
+
   smoke:
     runs-on: macos-latest
     steps:
