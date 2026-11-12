@@ -1,0 +1,13 @@
+#!/usr/bin/python3
+"""Entry point for the `wd` command. Uses the Python that ships with macOS."""
+
+import os
+import sys
+
+# The program folder is the parent of bin/. Resolve links first, so this
+# also works when it is reached through the `current` link of an install.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+
+from wd.cli import main  # noqa: E402
+
+sys.exit(main())
