@@ -31,6 +31,14 @@ A command that is not built yet says so and returns a failure code.
 
 Tests run with outside packages switched off.
 
+The budget test checks the word and rule limits the contract sets on itself. The contract page is not in this repository, so point the runner at it:
+
+```
+/usr/bin/python3 core/tests/run.py --contract <file>
+```
+
+Without it, the checks on the page are reported as NOT RUN.
+
 A stage's finish test fails until the stage is built:
 
 ```
