@@ -20,11 +20,14 @@ def words(text):
     return [word for word in text.split() if HAS_LETTER_OR_DIGIT.search(word)]
 
 
-def unquote(value):
+def plain(value):
+    """A value without its quotes and without a trailing `# comment`."""
     value = value.strip()
-    if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
-        return value[1:-1].strip()
-    return value
+    if value[:1] in ("\"", "'"):
+        end = value.find(value[0], 1)
+        if end > 0:
+            return value[1:end].strip()
+    return re.sub(r"(^|\s+)#.*$", "", value).strip()
 
 
 def front(text):
@@ -44,13 +47,15 @@ def front(text):
         return {}, text
     keys, current = {}, None
     for line in lines[1:end]:
+        if line.strip().startswith("#"):
+            continue
         found = KEY.match(line)
         if found:
             current = found.group(1)
-            keys[current] = re.sub(r"^[>|][+-]?\s*$", "", found.group(2).strip())
+            keys[current] = re.sub(r"^[>|][+-]?\s*$", "", plain(found.group(2)))
         elif current is not None and line.strip():
             keys[current] = (keys[current] + " " + line.strip()).strip()
-    return {key: unquote(value) for key, value in keys.items()}, "\n".join(lines[end + 1:])
+    return keys, "\n".join(lines[end + 1:])
 
 
 def without_code(text):
@@ -107,7 +112,8 @@ class Vault:
                 if name.endswith(".md"):
                     self.notes.append(relative)
         # Every way a link can name a file. Obsidian ignores case and
-        # accepts any tail of the path. The shortest path wins.
+        # accepts any tail of the path. When several files fit, one in
+        # the linking note's own folder wins, then the shortest path.
         self._targets = {}
         for relative in sorted(self.files, key=lambda name: (name.count("/"), name)):
             names = [relative.lower()]
@@ -116,7 +122,7 @@ class Vault:
             for name in names:
                 parts = name.split("/")
                 for start in range(len(parts)):
-                    self._targets.setdefault("/".join(parts[start:]), relative)
+                    self._targets.setdefault("/".join(parts[start:]), []).append(relative)
 
     def _could_not_open(self, problem):
         self.unreadable.append(str(problem.filename))
@@ -132,6 +138,14 @@ class Vault:
                 self._texts[relative] = ""
         return self._texts[relative]
 
-    def resolve(self, target):
-        """The file a link target names, or None."""
-        return self._targets.get(target.strip().strip("/").lower())
+    def resolve(self, target, source=None):
+        """The file a link target names, or None. `source` is the linking note."""
+        found = self._targets.get(target.strip().strip("/").lower())
+        if not found:
+            return None
+        if source is not None:
+            folder = source.rsplit("/", 1)[0] if "/" in source else ""
+            for relative in found:
+                if (relative.rsplit("/", 1)[0] if "/" in relative else "") == folder:
+                    return relative
+        return found[0]

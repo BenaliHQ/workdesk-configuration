@@ -27,13 +27,14 @@ VAULT = {
         "# Sam Rivera\n\nWorks with [[atlas/companies/acme|Acme]]. "
         "Met in [[2026-11-10-acme-kickoff]]. See [[missing-note]].\n",
     "atlas/people/nick.md": "# Nick\n\nNo last name known.\n",
-    "atlas/people/index.md": "# People\n\n[[nowhere]]\n",
+    "atlas/people/index.md": "# People\n\n[[nowhere]] and [[nick]]\n",
     "atlas/companies/acme.md":
         "# Acme\n\nA made-up company. ![[logo.png]] and `[[not-a-link]]`\n\n"
         "```\n[[also-not-a-link]]\n```\n",
     "attachments/logo.png": "not really a picture",
     "atlas/meetings/2026-11-10-acme-kickoff.md":
-        "---\ntranscript: \"[[system/transcripts/2026-11-10-acme-kickoff]]\"\n---\n"
+        "---\ntranscript: \"[[system/transcripts/2026-11-10-acme-kickoff]]\"\n"
+        "source: granola\n---\n"
         "# Acme kickoff\n\nWith [[atlas/people/sam-rivera|Sam Rivera]].\n\n"
         "| who | where |\n|---|---|\n| Sam | [[atlas/companies/acme\\|Acme]] |\n",
     "atlas/meetings/2026-11-11-lost.md":
@@ -118,6 +119,7 @@ class Counts(unittest.TestCase):
         self.assertEqual(self.report["broken_links"], 3)
 
     def test_objects_nothing_links_to(self):
+        # The index page links to Nick. That is navigation, so he still counts.
         self.assertEqual(self.report["unlinked_objects"], 7)
         self.assertEqual(self.report["examples"]["unlinked_objects"], [
             "atlas/people/nick.md",
@@ -134,7 +136,8 @@ class Counts(unittest.TestCase):
         )
 
     def test_meetings_with_a_missing_source(self):
-        # A web address is not a vault target. An empty value names nothing.
+        # A web address is not a vault target, and neither is a label such
+        # as the name of the recorder. An empty value names nothing.
         self.assertEqual(self.report["examples"]["meetings_with_missing_source"], [
             "atlas/meetings/2026-11-11-lost.md",
             "atlas/meetings/2026-11-13-plain.md",
@@ -159,7 +162,9 @@ class SessionLoad(unittest.TestCase):
             parts = measure.session_load(folder, HOME)
         # Counted by hand from the files in fixtures/home.
         self.assertEqual(parts, {
-            "claude-code": {"instructions": 13, "rules": 7, "skills": 15},
+            # 15 words of skill descriptions, and 7 from the one plugin
+            # that is switched on.
+            "claude-code": {"instructions": 13, "rules": 7, "skills": 22},
             "codex": {"instructions": 9, "rules": 0, "skills": 6},
         })
 
@@ -171,10 +176,18 @@ class SessionLoad(unittest.TestCase):
             report = measure.measure(vault, HOME)
         self.assertEqual(report["session_load_parts"], {
             # CLAUDE.md imports AGENTS.md: 1 + 7 more words.
-            "claude-code": {"instructions": 21, "rules": 11, "skills": 20},
+            "claude-code": {"instructions": 21, "rules": 11, "skills": 27},
             "codex": {"instructions": 16, "rules": 0, "skills": 6},
         })
-        self.assertEqual(report["session_load"], {"claude-code": 52, "codex": 22})
+        self.assertEqual(report["session_load"], {"claude-code": 59, "codex": 22})
+
+    def test_codex_does_not_follow_imports(self):
+        with tempfile.TemporaryDirectory() as folder:
+            vault = build(folder, {"AGENTS.md": "one @extra.md\n", "extra.md": "two three four\n",
+                                   "CLAUDE.md": "@AGENTS.md\n"})
+            parts = measure.session_load(vault, Path(folder) / "no-home")
+        self.assertEqual(parts["codex"]["instructions"], 2)
+        self.assertEqual(parts["claude-code"]["instructions"], 6)
 
     def test_a_rule_with_a_path_limit_is_not_loaded(self):
         seen = set()
@@ -202,6 +215,13 @@ class Reading(unittest.TestCase):
         self.assertEqual(notes.front("No block\n"), ({}, "No block\n"))
         self.assertEqual(notes.front("---\nnever: closed\n"), ({}, "---\nnever: closed\n"))
 
+    def test_comments_in_the_opening_block(self):
+        keys, _ = notes.front(
+            "---\nprocessed: false # waiting\n# a line of its own\n"
+            "title: \"A # B\" # after\nsource: system/x.md   # where\n---\n"
+        )
+        self.assertEqual(keys, {"processed": "false", "title": "A # B", "source": "system/x.md"})
+
     def test_links(self):
         self.assertEqual(
             notes.link_targets("[[a]] [[b/c|C]] [[d#E]] ![[f.png]] [[#here]] [[g\\|G]]"),
@@ -214,6 +234,15 @@ class Reading(unittest.TestCase):
         for target in ("sam rivera", "people/Sam Rivera", "atlas/people/sam rivera.md"):
             self.assertEqual(vault.resolve(target), "atlas/people/Sam Rivera.md", target)
         self.assertIsNone(vault.resolve("rivera"))
+
+    def test_a_file_in_the_linking_notes_own_folder_wins(self):
+        with tempfile.TemporaryDirectory() as folder:
+            vault = notes.Vault(build(folder, {
+                "a/brief.md": "x", "projects/one/brief.md": "x", "projects/one/status.md": "x",
+            }))
+        self.assertEqual(vault.resolve("brief"), "a/brief.md")
+        self.assertEqual(vault.resolve("brief", "projects/one/status.md"), "projects/one/brief.md")
+        self.assertEqual(vault.resolve("one/brief", "a/brief.md"), "projects/one/brief.md")
 
     def test_project_briefs(self):
         self.assertTrue(places.is_project_brief("gtd/projects/alpha/brief.md"))
@@ -248,7 +277,7 @@ class Command(unittest.TestCase):
         self.assertEqual(finish.measure_problems(report), [])
         self.assertEqual(report["broken_links"], 3)
         self.assertRegex(result.stdout, r"Objects nothing links to\s+7\n")
-        self.assertRegex(result.stdout, r"Session load, Claude Code \(words\)\s+35\n")
+        self.assertRegex(result.stdout, r"Session load, Claude Code \(words\)\s+42\n")
         self.assertIn("Saved to", result.stdout)
 
     def test_it_refuses_to_keep_its_state_inside_the_vault(self):

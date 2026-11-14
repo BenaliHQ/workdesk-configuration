@@ -54,17 +54,23 @@ def broken_links(vault, by_home):
     found = []
     for name in objects(by_home) + by_home[places.SYNTHESES]:
         for target in notes.link_targets(vault.text(name)):
-            if vault.resolve(target) is None:
+            if vault.resolve(target, name) is None:
                 found.append("%s -> %s" % (name, target))
     return found
 
 
 def unlinked_objects(vault, by_home):
-    """Objects that no other note in the vault links to."""
+    """Objects that no other note in the vault links to.
+
+    A link from an index page or an agent file is navigation, not a
+    connection, so it does not count.
+    """
     linked = set()
     for name in vault.notes:
+        if name.rsplit("/", 1)[-1] in places.NOT_NOTES:
+            continue
         for target in notes.link_targets(vault.text(name)):
-            resolved = vault.resolve(target)
+            resolved = vault.resolve(target, name)
             if resolved and resolved != name:
                 linked.add(resolved)
     return [name for name in objects(by_home) if name not in linked]
@@ -79,23 +85,30 @@ def people_without_full_name(vault, by_home):
     return found
 
 
-def missing_source(vault, value):
-    """Does a meeting's `transcript` or `source` value name something missing?"""
+def missing_source(vault, value, name):
+    """Does a meeting's `transcript` or `source` value name a file that is missing?
+
+    A link or a path names a file. A web address does not, and neither
+    does a plain label such as the name of the recorder.
+    """
     if value.lower() in NO_VALUE:
         return False
     targets = notes.link_targets(value)
     if not targets:
-        if WEB_ADDRESS.match(value):
+        if WEB_ADDRESS.match(value) or not ("/" in value or value.endswith(".md")):
             return False
         targets = [value]
-    return any(vault.resolve(target) is None for target in targets)
+    return any(vault.resolve(target, name) is None for target in targets)
 
 
 def meetings_with_missing_source(vault, by_home):
     found = []
     for name in by_home["atlas/meetings"]:
         keys, _ = notes.front(vault.text(name))
-        if any(missing_source(vault, keys.get(key, "")) for key in ("transcript", "source")):
+        if any(
+            missing_source(vault, keys.get(key, ""), name)
+            for key in ("transcript", "source")
+        ):
             found.append(name)
     return found
 
@@ -120,7 +133,7 @@ def read(path):
 def with_imports(path, seen, depth=0):
     """A file's words, plus the words of every file it imports with `@path`."""
     path = Path(path)
-    if not path.is_file() or depth > MAX_IMPORT_DEPTH:
+    if not path.is_file():
         return 0
     real = os.path.realpath(str(path))
     if real in seen:
@@ -128,7 +141,7 @@ def with_imports(path, seen, depth=0):
     seen.add(real)
     _, body = notes.front(read(path))
     total = len(notes.words(body))
-    for named in IMPORT.findall(notes.without_code(body)):
+    for named in IMPORT.findall(notes.without_code(body)) if depth < MAX_IMPORT_DEPTH else []:
         named = named.rstrip(".")
         target = Path(named).expanduser() if named.startswith("~") else path.parent / named
         total += with_imports(target, seen, depth + 1)
@@ -172,6 +185,37 @@ def skill_files(folder):
     return found
 
 
+def plugin_skill_folders(home, root):
+    """The skills folder of every Claude Code plugin that is installed and switched on."""
+    claude = Path(home) / ".claude"
+    switched_on = set()
+    for settings in (
+        claude / "settings.json",
+        Path(root) / ".claude" / "settings.json",
+        Path(root) / ".claude" / "settings.local.json",
+    ):
+        try:
+            chosen = json.loads(read(settings) or "{}").get("enabledPlugins", {})
+        except (ValueError, AttributeError):
+            continue
+        if isinstance(chosen, dict):
+            switched_on |= {name for name, on in chosen.items() if on is True}
+    try:
+        installed = json.loads(read(claude / "plugins" / "installed_plugins.json") or "{}")
+    except ValueError:
+        return []
+    plugins = installed.get("plugins", {}) if isinstance(installed, dict) else {}
+    folders = []
+    for name in sorted(plugins if isinstance(plugins, dict) else {}):
+        entries = plugins[name] if isinstance(plugins[name], list) else [plugins[name]]
+        for entry in entries:
+            where = entry.get("installPath") if isinstance(entry, dict) else None
+            if name in switched_on and isinstance(where, str) and where:
+                # A path that does not start at the top is under the .claude folder.
+                folders.append((claude / where) / "skills")
+    return folders
+
+
 def skill_words(folders, seen):
     """Every skill description."""
     total = 0
@@ -191,7 +235,8 @@ def session_load(root, home):
 
     Build spec, "Measure fields". Claude Code: the user and vault
     CLAUDE.md files and what they import, every rule file with no path
-    limit, and every skill description. Codex: the user and vault
+    limit, and every skill description, including the skills of plugins
+    that are switched on. Codex: the user and vault
     AGENTS.md files and every skill description.
     """
     root, home = Path(root), Path(home)
@@ -210,13 +255,16 @@ def session_load(root, home):
             for folder in (home / ".claude" / "rules", root / ".claude" / "rules")
         ),
         "skills": skill_words(
-            (home / ".claude" / "skills", root / ".claude" / "skills"), seen
+            [home / ".claude" / "skills", root / ".claude" / "skills"]
+            + plugin_skill_folders(home, root),
+            seen,
         ),
     }
     seen = set()
     codex = {
+        # Codex does not follow `@path` imports.
         "instructions": sum(
-            with_imports(path, seen)
+            with_imports(path, seen, depth=MAX_IMPORT_DEPTH)
             for path in (home / ".codex" / "AGENTS.md", root / "AGENTS.md")
         ),
         "rules": 0,
