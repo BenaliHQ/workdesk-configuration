@@ -4,6 +4,7 @@ Nothing here writes.
 """
 
 import os
+import posixpath
 import re
 from pathlib import Path
 
@@ -150,8 +151,24 @@ class Vault:
         return self._texts[relative]
 
     def resolve(self, target, source=None):
-        """The file a link target names, or None. `source` is the linking note."""
-        found = self._targets.get(target.strip().strip("/").lower())
+        """The file a link target names, or None. `source` is the linking note.
+
+        A target that starts with `./` or `../` is a path from the
+        linking note's own folder, and must name a file exactly.
+        """
+        target = target.strip()
+        if target.startswith(("./", "../")) or "/../" in target:
+            if source is None:
+                return None
+            wanted = posixpath.normpath(posixpath.join(posixpath.dirname(source), target))
+            if wanted.startswith(".."):
+                return None
+            wanted = wanted.lower()
+            for relative in self._targets.get(wanted, []):
+                if relative.lower() in (wanted, wanted + ".md"):
+                    return relative
+            return None
+        found = self._targets.get(target.strip("/").lower())
         if not found:
             return None
         if source is not None:
