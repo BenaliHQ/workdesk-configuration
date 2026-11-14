@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "plugins": {
+    "extras@made-up": [
+      {
+        "scope": "user",
+        "installPath": "plugins/cache/made-up/extras/1.0.0",
+        "version": "1.0.0"
+      }
+    ],
+    "off@made-up": [
+      {
+        "scope": "user",
+        "installPath": "plugins/cache/made-up/off/1.0.0",
+        "version": "1.0.0"
+      }
+    ]
+  }
+}

@@ -22,6 +22,14 @@ core/bin/wd --help
 
 A command that is not built yet says so and returns a failure code.
 
+Built so far:
+
+```
+core/bin/wd check --measure <vault>
+```
+
+It counts what is in a vault today: notes in each home, links with a missing target, objects nothing links to, people without a full name, meetings with a missing source, sources not processed, and the words each agent loads at the start of a session. It prints a table and saves `measure.json` in machine state. It never writes inside the vault.
+
 `wd` keeps its machine state in `~/.local/state/workdesk/core/`. Set `WD_STATE_DIR` to point it somewhere else, so a test can run on a scratch folder.
 
 ## Tests

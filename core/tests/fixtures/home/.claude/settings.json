@@ -1,0 +1,6 @@
+{
+  "enabledPlugins": {
+    "extras@made-up": true,
+    "off@made-up": false
+  }
+}
