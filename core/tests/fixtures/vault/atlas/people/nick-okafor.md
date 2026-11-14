@@ -11,8 +11,8 @@ Engineer at [[atlas/companies/bluepeak-labs|Bluepeak Labs]]. Builds the sensor b
 
 ## Currently
 
-- Engineer at Bluepeak Labs. 2026-11-09, [[atlas/meetings/2026-11-09-bluepeak-sync]] "Nick builds the boards"
+- Engineer at Bluepeak Labs. 2026-11-09, [[atlas/meetings/2026-11-09-bluepeak-sync]] "is building the sensor boards"
 
 ## History
 
-- 2026-11-09 | Engineer at Bluepeak Labs | reported | [[atlas/meetings/2026-11-09-bluepeak-sync]] "Nick builds the boards" | run-20261109-1815
+- 2026-11-09 | Engineer at Bluepeak Labs | reported | [[atlas/meetings/2026-11-09-bluepeak-sync]] "is building the sensor boards" | run-20261109-1815

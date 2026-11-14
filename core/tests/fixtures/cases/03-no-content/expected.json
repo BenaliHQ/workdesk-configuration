@@ -1,5 +1,5 @@
 {
-  "why": "Rule 1 and the no-content path. A recording with nothing said is kept whole and produces no meeting, no object and no history.",
+  "why": "Rules 1 and 3. A recording with nothing said is kept whole. Nobody is recorded as having attended on the strength of an invitation, and nothing is made up from it.",
   "exists": {
     "objects": [],
     "links": [],
@@ -8,16 +8,17 @@
   "absent": {
     "objects": [
       {
-        "path": "atlas/meetings/2026-11-12-bluepeak-sync.md",
-        "type": "meeting"
+        "path": "atlas/decisions/2026-11-12-bluepeak-sync.md",
+        "type": "decision"
       }
     ],
-    "links": [],
-    "history": [
+    "links": [
       {
-        "on": "atlas/people/lee-castillo.md",
-        "text": "Attended"
+        "from": "atlas/meetings/2026-11-12-bluepeak-sync.md",
+        "to": "atlas/people/lee-castillo.md",
+        "in": "attendees"
       }
-    ]
+    ],
+    "history": []
   }
 }

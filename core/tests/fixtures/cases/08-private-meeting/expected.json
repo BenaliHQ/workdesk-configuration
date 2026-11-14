@@ -1,5 +1,8 @@
 {
-  "why": "Rule 9. The source is marked private. The meeting is written and marked private, and its words are not lifted into a quote or a decision.",
+  "why": "Rule 9. The source is marked private. The meeting is written and marked private, and its words never reach a summary, a synthesis or a brief.",
+  "private_words": [
+    "I would not raise prices before spring"
+  ],
   "exists": {
     "objects": [
       {
@@ -12,16 +15,7 @@
     "history": []
   },
   "absent": {
-    "objects": [
-      {
-        "path": "gtd/reference/quotes/maya-brandt-on-raising-prices.md",
-        "type": "quote"
-      },
-      {
-        "path": "atlas/decisions/2026-11-12-no-price-rise-before-spring.md",
-        "type": "decision"
-      }
-    ],
+    "objects": [],
     "links": [],
     "history": []
   }

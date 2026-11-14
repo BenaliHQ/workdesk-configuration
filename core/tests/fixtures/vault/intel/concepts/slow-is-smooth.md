@@ -10,4 +10,4 @@ Going carefully ends up faster than rushing and redoing. It fits the [[gtd/proje
 
 ## History
 
-- 2026-11-04 | Named in an article on small tools | stated | [[system/bookmarks/2026-11-04-the-case-for-small-tools]] "slow is smooth, and smooth is fast" | run-20261104-1815
+- 2026-11-04 | Named in an article on small tools | stated | [[system/bookmarks/2026-11-04-the-case-for-small-tools#^p0002]] | run-20261104-1815

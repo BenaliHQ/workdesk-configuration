@@ -11,4 +11,5 @@ A catch-up with [[atlas/people/lee-castillo|Lee Castillo]] and [[atlas/people/ni
 
 ## Notes
 
+- [[atlas/people/lee-castillo|Lee Castillo]] founded the lab.
 - [[atlas/people/nick-okafor|Nick Okafor]] is building the sensor boards.

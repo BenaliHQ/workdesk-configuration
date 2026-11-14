@@ -10,8 +10,8 @@ A shelf of what is worth reading twice. It leans on [[intel/concepts/slow-is-smo
 
 ## Currently
 
-- Collecting pieces on small tools. 2026-11-04, [[system/bookmarks/2026-11-04-the-case-for-small-tools]] "small tools outlast big plans"
+- Collecting pieces on small tools. 2026-11-04, [[system/bookmarks/2026-11-04-the-case-for-small-tools#^p0002]]
 
 ## History
 
-- 2026-11-04 | Collecting pieces on small tools | inferred | [[system/bookmarks/2026-11-04-the-case-for-small-tools]] "small tools outlast big plans" | run-20261104-1815
+- 2026-11-04 | Collecting pieces on small tools | inferred | [[system/bookmarks/2026-11-04-the-case-for-small-tools#^p0002]] | run-20261104-1815

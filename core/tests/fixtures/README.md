@@ -16,6 +16,8 @@ A small vault of 44 notes, owned by a made-up person called Robin Hale. Most not
 
 Two people are called Nick. One person is private.
 
+Meetings, decisions and the quote are shown as they are first written. They have no `## History` yet, because nothing about them has changed since.
+
 ## `cases/`
 
 Twelve things that could arrive, each with the right outcome written down. A case folder has `input/` (what arrived) and `expected.json` (what must exist afterwards and what must not). Each `expected.json` has:
@@ -23,8 +25,10 @@ Twelve things that could arrive, each with the right outcome written down. A cas
 - `why`: the rule of the contract the case rests on.
 - `exists` and `absent`, each with three lists:
   - `objects`: `path` and `type`, and `private` where it matters.
-  - `links`: `from` and `to`, and `shown` for the words the link shows.
+  - `links`: `from` and `to`, and `shown` for the words the link shows. `"in": "attendees"` means the link in the meeting's attendee list, and nowhere else.
   - `history`: `on` (the object), `text`, and where known `basis` and `source`.
+
+- `private_words`, where a source is private: words that must never reach a summary, a synthesis or a brief.
 
 The cases take the vault as their starting point.
 

@@ -11,8 +11,8 @@ Founder of [[atlas/companies/bluepeak-labs|Bluepeak Labs]]. Works closely with [
 
 ## Currently
 
-- Founder of Bluepeak Labs. 2026-11-09, [[atlas/meetings/2026-11-09-bluepeak-sync]] "Lee founded the lab"
+- Founder of Bluepeak Labs. 2026-11-09, [[atlas/meetings/2026-11-09-bluepeak-sync]] "founded the lab"
 
 ## History
 
-- 2026-11-09 | Founder of Bluepeak Labs | reported | [[atlas/meetings/2026-11-09-bluepeak-sync]] "Lee founded the lab" | run-20261109-1815
+- 2026-11-09 | Founder of Bluepeak Labs | reported | [[atlas/meetings/2026-11-09-bluepeak-sync]] "founded the lab" | run-20261109-1815

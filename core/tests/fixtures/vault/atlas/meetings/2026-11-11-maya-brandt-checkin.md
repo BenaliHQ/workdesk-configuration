@@ -10,4 +10,5 @@ A private conversation with [[atlas/people/maya-brandt|Maya Brandt]].
 
 ## Notes
 
+- She advises on pricing.
 - Kept out of summaries and briefs.

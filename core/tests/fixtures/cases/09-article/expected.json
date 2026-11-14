@@ -22,12 +22,7 @@
     ]
   },
   "absent": {
-    "objects": [
-      {
-        "path": "atlas/people/ines-calder.md",
-        "type": "person"
-      }
-    ],
+    "objects": [],
     "links": [],
     "history": []
   }

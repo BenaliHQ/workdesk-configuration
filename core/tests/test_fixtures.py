@@ -156,7 +156,9 @@ class TheCases(unittest.TestCase):
                 for entry in expected[part]["links"]:
                     where = "%s %s links %r" % (name, part, entry)
                     self.assertIsInstance(entry, dict, where)
-                    self.assertTrue({"from", "to"} <= set(entry) <= {"from", "to", "shown"}, where)
+                    self.assertTrue(
+                        {"from", "to"} <= set(entry) <= {"from", "to", "shown", "in"}, where)
+                    self.assertEqual(entry.get("in", "attendees"), "attendees", where)
                     for end in ("from", "to"):
                         self.assertTrue(entry[end].endswith(".md"), where)
                     self.assertTrue(entry.get("shown", "x").strip(), where)
@@ -171,6 +173,29 @@ class TheCases(unittest.TestCase):
                     self.assertTrue(entry["text"].strip() and "|" not in entry["text"], where)
                     self.assertIn(entry.get("basis", "stated"), BASES, where)
                     self.assertIn(".md", entry.get("source", ".md"), where)
+
+    def test_private_words_are_words_that_arrived(self):
+        marked = 0
+        for name, (folder, expected) in self.cases.items():
+            arrived = " ".join(
+                path.read_text(encoding="utf-8") for path in (folder / "input").iterdir()
+            )
+            for words in expected.get("private_words", []):
+                self.assertIn(words, arrived, name)
+                marked += 1
+        self.assertEqual(marked, 1)
+
+    def test_a_quoted_source_has_those_exact_words(self):
+        # A history line that cites a file plus words must quote words that are there.
+        cited = 0
+        quote = re.compile(r'\[\[([^\]|#]+)\]\] "([^"]+)"')
+        for name in self.vault.notes:
+            for target, words in quote.findall(self.vault.text(name)):
+                source = self.vault.resolve(target, name)
+                self.assertIsNotNone(source, "%s cites %s" % (name, target))
+                self.assertIn(words, self.vault.text(source), "%s cites %s" % (name, target))
+                cited += 1
+        self.assertGreater(cited, 3)
 
     def test_the_people_in_the_cases_are_the_people_in_the_vault(self):
         emails = {}
