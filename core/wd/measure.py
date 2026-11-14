@@ -1,0 +1,322 @@
+"""`wd check --measure <vault>`: count what is in a vault today.
+
+It reads the vault and writes one file, `measure.json`, into machine
+state. It never writes inside the vault.
+"""
+
+import datetime
+import json
+import os
+import re
+from pathlib import Path
+
+from wd import notes, places
+
+REPORT = "measure.json"
+EXAMPLES = 5
+IMPORT = re.compile(r"(?<![\w`@/])@([\w~.][\w~./-]*)")
+WEB_ADDRESS = re.compile(r"^[a-z][a-z0-9+.-]*://", re.IGNORECASE)
+NO_VALUE = ("", "null", "~", "[]", "none")
+MAX_IMPORT_DEPTH = 5
+
+LABELS = [
+    ("broken_links", "Links in objects and syntheses with a missing target"),
+    ("unlinked_objects", "Objects nothing links to"),
+    ("people_without_full_name", "People whose first heading has fewer than two words"),
+    ("meetings_with_missing_source", "Meetings with a missing transcript or source"),
+    ("sources_unprocessed", "Sources not processed"),
+]
+RUNTIME_NAMES = [("claude-code", "Claude Code"), ("codex", "Codex")]
+
+
+def homes(vault):
+    """Each home and the notes in it."""
+    found = {}
+    for _, folder in places.OBJECT_HOMES:
+        found[folder] = [name for name in vault.notes if places.in_home(name, folder)]
+    found[places.PROJECTS] = [
+        name for name in vault.notes if places.is_project_brief(name)
+    ]
+    for folder in places.SIGNAL_HOMES + places.SOURCE_HOMES + [places.INTAKE]:
+        found[folder] = [name for name in vault.notes if places.in_home(name, folder)]
+    return found
+
+
+def objects(by_home):
+    found = []
+    for _, folder in places.OBJECT_HOMES:
+        found += by_home[folder]
+    return found + by_home[places.PROJECTS]
+
+
+def broken_links(vault, by_home):
+    """Links in the object homes and syntheses whose target is missing."""
+    found = []
+    for name in objects(by_home) + by_home[places.SYNTHESES]:
+        for target in notes.link_targets(vault.text(name)):
+            if vault.resolve(target) is None:
+                found.append("%s -> %s" % (name, target))
+    return found
+
+
+def unlinked_objects(vault, by_home):
+    """Objects that no other note in the vault links to."""
+    linked = set()
+    for name in vault.notes:
+        for target in notes.link_targets(vault.text(name)):
+            resolved = vault.resolve(target)
+            if resolved and resolved != name:
+                linked.add(resolved)
+    return [name for name in objects(by_home) if name not in linked]
+
+
+def people_without_full_name(vault, by_home):
+    found = []
+    for name in by_home["atlas/people"]:
+        _, body = notes.front(vault.text(name))
+        if len(notes.words(notes.first_heading(body))) < 2:
+            found.append(name)
+    return found
+
+
+def missing_source(vault, value):
+    """Does a meeting's `transcript` or `source` value name something missing?"""
+    if value.lower() in NO_VALUE:
+        return False
+    targets = notes.link_targets(value)
+    if not targets:
+        if WEB_ADDRESS.match(value):
+            return False
+        targets = [value]
+    return any(vault.resolve(target) is None for target in targets)
+
+
+def meetings_with_missing_source(vault, by_home):
+    found = []
+    for name in by_home["atlas/meetings"]:
+        keys, _ = notes.front(vault.text(name))
+        if any(missing_source(vault, keys.get(key, "")) for key in ("transcript", "source")):
+            found.append(name)
+    return found
+
+
+def sources_unprocessed(vault, by_home):
+    found = []
+    for folder in places.SOURCE_HOMES + [places.INTAKE]:
+        for name in by_home[folder]:
+            keys, _ = notes.front(vault.text(name))
+            if keys.get("processed", "").lower() == "false":
+                found.append(name)
+    return found
+
+
+def read(path):
+    try:
+        return Path(path).read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return ""
+
+
+def with_imports(path, seen, depth=0):
+    """A file's words, plus the words of every file it imports with `@path`."""
+    path = Path(path)
+    if not path.is_file() or depth > MAX_IMPORT_DEPTH:
+        return 0
+    real = os.path.realpath(str(path))
+    if real in seen:
+        return 0
+    seen.add(real)
+    _, body = notes.front(read(path))
+    total = len(notes.words(body))
+    for named in IMPORT.findall(notes.without_code(body)):
+        named = named.rstrip(".")
+        target = Path(named).expanduser() if named.startswith("~") else path.parent / named
+        total += with_imports(target, seen, depth + 1)
+    return total
+
+
+def rule_words(folder, seen):
+    """Every rule file with no path limit."""
+    total = 0
+    for here, folders, names in os.walk(str(folder), followlinks=True):
+        folders.sort()
+        for name in sorted(names):
+            if not name.endswith(".md"):
+                continue
+            path = Path(here) / name
+            real = os.path.realpath(str(path))
+            if real in seen:
+                continue
+            seen.add(real)
+            keys, body = notes.front(read(path))
+            if "paths" not in keys:
+                total += len(notes.words(body))
+    return total
+
+
+def skill_files(folder):
+    """Each skill's SKILL.md, one or two folders down."""
+    folder = Path(folder)
+    if not folder.is_dir():
+        return []
+    found = []
+    for child in sorted(folder.iterdir()):
+        if (child / "SKILL.md").is_file():
+            found.append(child / "SKILL.md")
+        elif child.is_dir():
+            found += [
+                grandchild / "SKILL.md"
+                for grandchild in sorted(child.iterdir())
+                if (grandchild / "SKILL.md").is_file()
+            ]
+    return found
+
+
+def skill_words(folders, seen):
+    """Every skill description."""
+    total = 0
+    for folder in folders:
+        for path in skill_files(folder):
+            real = os.path.realpath(str(path))
+            if real in seen:
+                continue
+            seen.add(real)
+            keys, _ = notes.front(read(path))
+            total += len(notes.words(keys.get("description", "")))
+    return total
+
+
+def session_load(root, home):
+    """The words each runtime loads at the start of a session.
+
+    Build spec, "Measure fields". Claude Code: the user and vault
+    CLAUDE.md files and what they import, every rule file with no path
+    limit, and every skill description. Codex: the user and vault
+    AGENTS.md files and every skill description.
+    """
+    root, home = Path(root), Path(home)
+    seen = set()
+    claude = {
+        "instructions": sum(
+            with_imports(path, seen)
+            for path in (
+                home / ".claude" / "CLAUDE.md",
+                root / "CLAUDE.md",
+                root / ".claude" / "CLAUDE.md",
+            )
+        ),
+        "rules": sum(
+            rule_words(folder, seen)
+            for folder in (home / ".claude" / "rules", root / ".claude" / "rules")
+        ),
+        "skills": skill_words(
+            (home / ".claude" / "skills", root / ".claude" / "skills"), seen
+        ),
+    }
+    seen = set()
+    codex = {
+        "instructions": sum(
+            with_imports(path, seen)
+            for path in (home / ".codex" / "AGENTS.md", root / "AGENTS.md")
+        ),
+        "rules": 0,
+        "skills": skill_words(
+            (
+                home / ".codex" / "skills",
+                home / ".agents" / "skills",
+                root / ".codex" / "skills",
+                root / ".agents" / "skills",
+            ),
+            seen,
+        ),
+    }
+    return {"claude-code": claude, "codex": codex}
+
+
+def measure(root, home):
+    """Measure one vault. Returns the report."""
+    vault = notes.Vault(root)
+    by_home = homes(vault)
+    lists = {
+        "broken_links": broken_links(vault, by_home),
+        "unlinked_objects": unlinked_objects(vault, by_home),
+        "people_without_full_name": people_without_full_name(vault, by_home),
+        "meetings_with_missing_source": meetings_with_missing_source(vault, by_home),
+        "sources_unprocessed": sources_unprocessed(vault, by_home),
+    }
+    parts = session_load(vault.root, home)
+    report = {
+        "vault": str(vault.root),
+        "run_at": datetime.datetime.now().astimezone().replace(microsecond=0).isoformat(),
+        "notes": {folder: len(names) for folder, names in by_home.items()},
+    }
+    for name, _ in LABELS:
+        report[name] = len(lists[name])
+    report["session_load"] = {
+        runtime: sum(counts.values()) for runtime, counts in parts.items()
+    }
+    report["session_load_parts"] = parts
+    report["examples"] = {name: found[:EXAMPLES] for name, found in lists.items()}
+    report["unreadable"] = sorted(set(vault.unreadable))
+    return report
+
+
+def table(report):
+    rows = [("Notes", "")]
+    rows += [("  " + folder, count) for folder, count in report["notes"].items()]
+    rows.append(("", ""))
+    rows += [(label, report[name]) for name, label in LABELS]
+    rows += [
+        ("Session load, %s (words)" % label, report["session_load"][runtime])
+        for runtime, label in RUNTIME_NAMES
+    ]
+    width = max(len(label) for label, _ in rows)
+    lines = ["Measured %s at %s" % (report["vault"], report["run_at"]), ""]
+    for label, value in rows:
+        if value == "":
+            lines.append(label)
+        else:
+            lines.append("%s  %s" % (label.ljust(width), format(value, ",").rjust(7)))
+    return "\n".join(lines)
+
+
+def save(report, state):
+    """Write the report into machine state, whole or not at all."""
+    state = Path(state)
+    state.mkdir(parents=True, exist_ok=True)
+    scratch = state / (".%s.%d" % (REPORT, os.getpid()))
+    scratch.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    os.replace(str(scratch), str(state / REPORT))
+    return state / REPORT
+
+
+def run(arguments, out, err):
+    """`wd check --measure <vault>`. Returns a code."""
+    if len(arguments) != 1:
+        print("usage: wd check --measure <vault>", file=err)
+        return 2
+    root = Path(arguments[0]).expanduser()
+    if not root.is_dir():
+        print("wd check --measure: there is no vault at %s." % root, file=err)
+        return 1
+    root, state = root.resolve(), places.state_dir().resolve()
+    if state == root or root in state.parents:
+        print(
+            "wd check --measure: machine state is inside the vault (%s). "
+            "Nothing was measured, because this command never writes there." % state,
+            file=err,
+        )
+        return 1
+    report = measure(root, places.home())
+    saved = save(report, state)
+    print(table(report), file=out)
+    print("\nSaved to %s" % saved, file=out)
+    if report["unreadable"]:
+        print(
+            "wd check --measure: %d files or folders could not be read, so the "
+            "numbers are not complete. They are listed in the saved report."
+            % len(report["unreadable"]),
+            file=err,
+        )
+        return 1
+    return 0

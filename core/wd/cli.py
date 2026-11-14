@@ -32,9 +32,21 @@ COMMANDS = [
     ("install", "Install a release file.", "S6.2"),
 ]
 
+
+
+def check(arguments, out, err):
+    """`wd check --measure <vault>` is built. Plain `wd check` is not yet."""
+    if arguments and arguments[0] == "--measure":
+        from wd import measure
+        return measure.run(arguments[1:], out, err)
+    print("wd check: not built yet. It arrives with package S1.4. "
+          "`wd check --measure <vault>` is built.", file=err)
+    return NOT_BUILT
+
+
 # Commands that are built. Each maps a name to a function that takes
-# the remaining arguments and returns a code.
-BUILT = {}
+# the remaining arguments, where to print, and returns a code.
+BUILT = {"check": check}
 
 
 def usage():
@@ -64,7 +76,7 @@ def main(arguments=None, out=None, err=None):
         print(usage(), file=err)
         return USAGE
     if name in BUILT:
-        return BUILT[name](arguments[1:])
+        return BUILT[name](arguments[1:], out, err)
 
     where = packages[name]
     if where:
