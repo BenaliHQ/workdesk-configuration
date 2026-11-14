@@ -44,7 +44,8 @@ VAULT = {
     "atlas/meetings/2026-11-13-plain.md":
         "---\nsource: system/transcripts/2026-11-13-nope.md\n---\n# Plain\n",
     "atlas/decisions/2026-11-10-price.md":
-        "# Price\n\nDecided in [[2026-11-10-acme-kickoff#Decisions]].\n",
+        "# Price\n\nDecided in [[2026-11-10-acme-kickoff#Decisions]] "
+        "with [[../people/sam-rivera|Sam Rivera]], not [[../people/nobody]].\n",
     "gtd/projects/alpha/brief.md": "# Alpha Brief\n\nFor [[Acme]].\n",
     "gtd/projects/_archive/brief.md": "# Archived Brief\n",
     "gtd/projects/_archive/old/brief.md": "# Old Brief\n",
@@ -114,9 +115,10 @@ class Counts(unittest.TestCase):
         self.assertEqual(self.report["examples"]["broken_links"], [
             "atlas/people/sam-rivera.md -> missing-note",
             "atlas/meetings/2026-11-11-lost.md -> system/transcripts/2026-11-11-gone",
+            "atlas/decisions/2026-11-10-price.md -> ../people/nobody",
             "intel/syntheses/2026-11-12-pricing.md -> ghost",
         ])
-        self.assertEqual(self.report["broken_links"], 3)
+        self.assertEqual(self.report["broken_links"], 4)
 
     def test_objects_nothing_links_to(self):
         # The index page links to Nick. That is navigation, so he still counts.
@@ -244,6 +246,23 @@ class Reading(unittest.TestCase):
         self.assertEqual(vault.resolve("brief", "projects/one/status.md"), "projects/one/brief.md")
         self.assertEqual(vault.resolve("one/brief", "a/brief.md"), "projects/one/brief.md")
 
+    def test_a_link_that_starts_from_the_notes_own_folder(self):
+        with tempfile.TemporaryDirectory() as folder:
+            vault = notes.Vault(build(folder, {
+                "atlas/people/sam.md": "x", "atlas/meetings/m.md": "x",
+                "system/transcripts/t.md": "x", "other/meetings/m.md": "x",
+            }))
+        here = "atlas/people/sam.md"
+        self.assertEqual(vault.resolve("../meetings/m", here), "atlas/meetings/m.md")
+        self.assertEqual(vault.resolve("../Meetings/M.md", here), "atlas/meetings/m.md")
+        self.assertEqual(vault.resolve("../../system/transcripts/t", here), "system/transcripts/t.md")
+        self.assertEqual(vault.resolve("./sam", here), "atlas/people/sam.md")
+        # It must name a file exactly: no guessing, and no leaving the vault.
+        self.assertIsNone(vault.resolve("../meetings/gone", here))
+        self.assertIsNone(vault.resolve("../../../outside", here))
+        self.assertIsNone(vault.resolve("../m", "other/meetings/m.md"))
+        self.assertIsNone(vault.resolve("../meetings/m"))
+
     def test_project_briefs(self):
         self.assertTrue(places.is_project_brief("gtd/projects/alpha/brief.md"))
         self.assertTrue(places.is_project_brief(
@@ -275,7 +294,7 @@ class Command(unittest.TestCase):
             report = json.loads((state / "measure.json").read_text(encoding="utf-8"))
             self.assertEqual(sorted(path.name for path in state.iterdir()), ["measure.json"])
         self.assertEqual(finish.measure_problems(report), [])
-        self.assertEqual(report["broken_links"], 3)
+        self.assertEqual(report["broken_links"], 4)
         self.assertRegex(result.stdout, r"Objects nothing links to\s+7\n")
         self.assertRegex(result.stdout, r"Session load, Claude Code \(words\)\s+42\n")
         self.assertIn("Saved to", result.stdout)
