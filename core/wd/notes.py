@@ -93,20 +93,31 @@ class Vault:
     """Every file in a vault, and what a link resolves to.
 
     Folders and files whose names start with a dot are left out, as
-    Obsidian leaves them out.
+    Obsidian leaves them out. A top-level folder named in `leave_out`
+    is never opened.
     """
 
-    def __init__(self, root):
+    def __init__(self, root, leave_out=()):
         self.root = Path(root).resolve()
         self.files = []
         self.notes = []
         self.unreadable = []
         self._texts = {}
+        closed = [os.path.realpath(str(self.root / name)) for name in leave_out]
         for folder, folders, names in os.walk(str(self.root), onerror=self._could_not_open):
-            folders[:] = sorted(name for name in folders if not name.startswith("."))
+            top = Path(folder) == self.root
+            folders[:] = sorted(
+                name for name in folders
+                if not name.startswith(".") and not (top and name in leave_out)
+            )
             for name in sorted(names):
                 if name.startswith("."):
                     continue
+                if closed and os.path.islink(os.path.join(folder, name)):
+                    # A shortcut into a folder that is left out is left out too.
+                    real = os.path.realpath(os.path.join(folder, name))
+                    if any(real == shut or real.startswith(shut + os.sep) for shut in closed):
+                        continue
                 relative = (Path(folder) / name).relative_to(self.root).as_posix()
                 self.files.append(relative)
                 if name.endswith(".md"):

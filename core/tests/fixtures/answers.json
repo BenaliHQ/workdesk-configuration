@@ -25,5 +25,34 @@
       "claude-code": 67,
       "codex": 39
     }
+  },
+  "score": {
+    "by_type": {
+      "person": {
+        "correct": 41,
+        "wrong": 0,
+        "missed": 0
+      },
+      "company": {
+        "correct": 12,
+        "wrong": 0,
+        "missed": 0
+      },
+      "project": {
+        "correct": 9,
+        "wrong": 0,
+        "missed": 0
+      },
+      "term": {
+        "correct": 2,
+        "wrong": 0,
+        "missed": 0
+      },
+      "concept": {
+        "correct": 4,
+        "wrong": 0,
+        "missed": 0
+      }
+    }
   }
 }

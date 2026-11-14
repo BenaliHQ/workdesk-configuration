@@ -44,9 +44,15 @@ def check(arguments, out, err):
     return NOT_BUILT
 
 
+def score(arguments, out, err):
+    """`wd score <vault>`, the stage 0 scorer."""
+    import score as scorer
+    return scorer.run(arguments, out, err)
+
+
 # Commands that are built. Each maps a name to a function that takes
 # the remaining arguments, where to print, and returns a code.
-BUILT = {"check": check}
+BUILT = {"check": check, "score": score}
 
 
 def usage():
