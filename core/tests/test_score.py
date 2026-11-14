@@ -84,7 +84,8 @@ class TheTestVault(unittest.TestCase):
 
 class Names(unittest.TestCase):
     def test_a_project_is_named_without_its_brief(self):
-        for heading in ("Acme Rollout Brief", "Acme Rollout: Brief", "Acme Rollout - Brief"):
+        for heading in ("Acme Rollout Brief", "Acme Rollout: Brief", "Acme Rollout - Brief",
+                        "Acme Rollout \u2013 Brief", "Acme Rollout \u2014 Brief"):
             self.assertEqual(score.project_name(heading), "Acme Rollout")
         self.assertEqual(score.project_name("Briefing Room"), "Briefing Room")
 
@@ -152,6 +153,15 @@ class Matching(unittest.TestCase):
             % (SAM_LINK, SAM_LINK, SAM_LINK, SAM_LINK, SAM_LINK)
         )
         # Only the link in the callout's body is the linker's to make.
+        self.assertEqual(counts(report), (1, 0, 0))
+        self.assertEqual(copies["atlas/meetings/m.md"].count(SAM_LINK), 4)
+
+    def test_a_link_inside_a_comment_is_left_alone(self):
+        report, copies = self.one_note(
+            "%%%% hidden %s %%%% and <!-- also %s -->\n\n%%%%\nseveral lines\n%s\n%%%%\n\n"
+            "<!--\n%s\n-->\n\nBut %s counts."
+            % (SAM_LINK, SAM_LINK, SAM_LINK, SAM_LINK, SAM_LINK)
+        )
         self.assertEqual(counts(report), (1, 0, 0))
         self.assertEqual(copies["atlas/meetings/m.md"].count(SAM_LINK), 4)
 
@@ -223,6 +233,33 @@ class Command(unittest.TestCase):
         self.assertEqual(report["unreadable"], [])
         self.assertEqual(counts(report), (1, 0, 0))
         self.assertFalse([name for name in kept if "personal" in name])
+
+    def test_a_shortcut_into_the_private_folder_is_not_followed(self):
+        with tempfile.TemporaryDirectory() as folder:
+            vault = build(Path(folder) / "vault", dict(SAM, **{
+                "atlas/meetings/m.md": "# M\n\nMet %s.\n" % SAM_LINK,
+                "%s/journal.md" % score.PRIVATE: "# Private Page\n\nwd-canary-words %s\n" % SAM_LINK,
+            }))
+            os.symlink(str(vault / score.PRIVATE / "journal.md"),
+                       str(vault / "atlas" / "people" / "shortcut.md"))
+            state = Path(folder) / "state"
+            result = self.run_wd(["score", vault], state)
+            kept = "".join(
+                path.read_text(encoding="utf-8") for path in state.rglob("*") if path.is_file()
+            )
+        self.assertEqual(result.returncode, cli.OK, result.stderr)
+        self.assertNotIn("wd-canary-words", kept)
+        self.assertNotIn("shortcut.md", kept)
+
+    def test_it_will_not_score_its_own_scratch_folder(self):
+        with tempfile.TemporaryDirectory() as state:
+            self.assertEqual(self.run_wd(["score", VAULT], state).returncode, cli.OK)
+            scratch = Path(state) / "score-scratch"
+            kept = sorted(path.name for path in scratch.rglob("*.md"))
+            result = self.run_wd(["score", scratch], state)
+            self.assertEqual(result.returncode, cli.FAILED)
+            self.assertIn("own scratch folder", result.stderr)
+            self.assertEqual(sorted(path.name for path in scratch.rglob("*.md")), kept)
 
     def test_it_refuses_to_keep_its_state_inside_the_vault(self):
         with tempfile.TemporaryDirectory() as folder:

@@ -36,9 +36,10 @@ CALLOUT_TITLE = re.compile(r"^\s*>\s*\[!")
 INLINE_CODE = re.compile(r"`[^`\n]*`")
 # What the linker leaves alone inside a line: code, links and embeds
 # that are already there, web addresses and comments.
+EXISTING_LINK = re.compile(r"!?\[\[[^\[\]\n]+\]\]")
 LEFT_ALONE = [
     INLINE_CODE,
-    re.compile(r"!?\[\[[^\[\]\n]+\]\]"),
+    EXISTING_LINK,
     re.compile(r"!?\[[^\]\n]*\]\([^)\n]*\)"),
     re.compile(r"https?://\S+"),
     re.compile(r"%%.*?%%"),
@@ -48,7 +49,8 @@ LEFT_ALONE = [
 
 def project_name(heading):
     """Build spec, "Names": the heading without a trailing Brief and its dash or colon."""
-    return re.sub(r"\s*[-:]?\s*Brief$", "", heading).strip()
+    # A hyphen, an en dash, an em dash or a colon.
+    return re.sub(r"\s*[-\u2013\u2014:]?\s*Brief$", "", heading).strip()
 
 
 def linkable(vault):
@@ -110,14 +112,34 @@ def body_start(text):
 
 
 def workable(lines, start):
-    """Each line the linker may work in: not code, a heading or a callout title."""
-    inside = False
+    """Each line the linker may work in.
+
+    Not a code block, a heading, a callout title, or a comment that
+    runs over several lines.
+    """
+    code = False
+    comment = None
     for index in range(start, len(lines)):
         line = lines[index]
-        if FENCE.match(line):
-            inside = not inside
+        if comment:
+            # The line that closes a comment is left alone as well.
+            if comment in line:
+                comment = None
             continue
-        if not (inside or HEADING.match(line) or CALLOUT_TITLE.match(line)):
+        if FENCE.match(line):
+            code = not code
+            continue
+        if code:
+            continue
+        for opens, closes in (("%%", "%%"), ("<!--", "-->")):
+            rest = line
+            while opens in rest and not comment:
+                rest = rest.split(opens, 1)[1]
+                if closes in rest:
+                    rest = rest.split(closes, 1)[1]
+                else:
+                    comment = closes
+        if not (comment or HEADING.match(line) or CALLOUT_TITLE.match(line)):
             yield index, line
 
 
@@ -132,10 +154,15 @@ def strip_links(vault, note, known):
     lines = text.split("\n")
     wanted, unjudged = [], 0
     for index, line in workable(lines, body_start(text)):
-        code = [found.span() for found in INLINE_CODE.finditer(line)]
+        # A link inside code or a comment is not the linker's to make.
+        skip = [
+            found.span()
+            for pattern in LEFT_ALONE if pattern is not EXISTING_LINK
+            for found in pattern.finditer(line)
+        ]
         pieces, last, length = [], 0, 0
         for found in WIKILINK.finditer(line):
-            if found.group(1) or any(a <= found.start() < b for a, b in code):
+            if found.group(1) or any(a <= found.start() < b for a, b in skip):
                 continue
             target, _, shown = found.group(2).replace("\\|", "|").partition("|")
             target = target.split("#", 1)[0].strip()
@@ -261,8 +288,12 @@ def run(arguments, out, err):
         print("wd score: machine state is inside the vault (%s). Nothing was scored, "
               "because this command never writes there." % state, file=err)
         return 1
-    state.mkdir(parents=True, exist_ok=True)
     scratch = state / SCRATCH
+    if root == scratch or scratch in root.parents:
+        print("wd score: %s is this command's own scratch folder, which it clears "
+              "at the start of a run. Nothing was scored." % root, file=err)
+        return 1
+    state.mkdir(parents=True, exist_ok=True)
     if scratch.is_dir():
         # Last run's scratch copy. It is ours, and it is under machine state.
         shutil.rmtree(str(scratch))

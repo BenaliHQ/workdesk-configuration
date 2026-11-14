@@ -103,6 +103,7 @@ class Vault:
         self.notes = []
         self.unreadable = []
         self._texts = {}
+        closed = [os.path.realpath(str(self.root / name)) for name in leave_out]
         for folder, folders, names in os.walk(str(self.root), onerror=self._could_not_open):
             top = Path(folder) == self.root
             folders[:] = sorted(
@@ -112,6 +113,11 @@ class Vault:
             for name in sorted(names):
                 if name.startswith("."):
                     continue
+                if closed and os.path.islink(os.path.join(folder, name)):
+                    # A shortcut into a folder that is left out is left out too.
+                    real = os.path.realpath(os.path.join(folder, name))
+                    if any(real == shut or real.startswith(shut + os.sep) for shut in closed):
+                        continue
                 relative = (Path(folder) / name).relative_to(self.root).as_posix()
                 self.files.append(relative)
                 if name.endswith(".md"):
