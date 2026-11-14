@@ -103,7 +103,7 @@ class StandardLibraryOnly(unittest.TestCase):
     """Build spec, "Language": Python 3, standard library only."""
 
     # Our own package, and test files that import one another.
-    OWN = {"wd", "tests"} | {path.stem for path in (CORE / "tests").glob("*.py")}
+    OWN = {"wd", "score", "tests"} | {path.stem for path in (CORE / "tests").glob("*.py")}
 
     def program_files(self):
         files = [WD]

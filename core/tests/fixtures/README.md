@@ -39,3 +39,5 @@ A made-up home folder with Claude Code and Codex instructions, rules and skills.
 ## `answers.json`
 
 The known results of the commands on the test vault. The `measure` part was worked out by hand from the table above.
+
+The `score` part is the count of links in the vault that show a full name: 41 to people, 12 to companies, 9 to projects, 2 to terms and 4 to concepts. A test counts them a second way, with a plain search, and the two must agree.
