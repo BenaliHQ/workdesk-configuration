@@ -1,0 +1,11 @@
+{
+  "kind": "meeting-recording",
+  "title": "Acme floor check",
+  "date": "2026-11-12",
+  "attendees": [
+    {
+      "name": "Samuel Rivera",
+      "email": "sam@acme.example"
+    }
+  ]
+}

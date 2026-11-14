@@ -1,0 +1,15 @@
+{
+  "kind": "meeting-recording",
+  "title": "Bluepeak board review",
+  "date": "2026-11-12",
+  "attendees": [
+    {
+      "name": "Lee Castillo",
+      "email": "lee@bluepeak.example"
+    },
+    {
+      "name": "Nick Okafor",
+      "email": "nick@bluepeak.example"
+    }
+  ]
+}

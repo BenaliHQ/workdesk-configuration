@@ -1,0 +1,34 @@
+{
+  "why": "Rule 3. Two people are called Nick. The attendee list and its email address settle which one, once. A first name on its own is never linked.",
+  "exists": {
+    "objects": [
+      {
+        "path": "atlas/meetings/2026-11-12-bluepeak-board-review.md",
+        "type": "meeting"
+      }
+    ],
+    "links": [
+      {
+        "from": "atlas/meetings/2026-11-12-bluepeak-board-review.md",
+        "to": "atlas/people/nick-okafor.md",
+        "shown": "Nick Okafor"
+      }
+    ],
+    "history": []
+  },
+  "absent": {
+    "objects": [
+      {
+        "path": "atlas/people/nick.md",
+        "type": "person"
+      }
+    ],
+    "links": [
+      {
+        "from": "atlas/meetings/2026-11-12-bluepeak-board-review.md",
+        "to": "atlas/people/nick-alvarez.md"
+      }
+    ],
+    "history": []
+  }
+}

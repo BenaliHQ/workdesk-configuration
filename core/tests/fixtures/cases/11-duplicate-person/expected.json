@@ -1,0 +1,28 @@
+{
+  "why": "Rule 4. People match on email. The same address under another spelling of the name is the same person, so no second note is made.",
+  "exists": {
+    "objects": [
+      {
+        "path": "atlas/people/sam-rivera.md",
+        "type": "person"
+      }
+    ],
+    "links": [
+      {
+        "from": "atlas/meetings/2026-11-12-acme-floor-check.md",
+        "to": "atlas/people/sam-rivera.md"
+      }
+    ],
+    "history": []
+  },
+  "absent": {
+    "objects": [
+      {
+        "path": "atlas/people/samuel-rivera.md",
+        "type": "person"
+      }
+    ],
+    "links": [],
+    "history": []
+  }
+}

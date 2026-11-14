@@ -1,0 +1,12 @@
+{
+  "kind": "meeting-recording",
+  "title": "Maya Brandt check-in",
+  "date": "2026-11-12",
+  "attendees": [
+    {
+      "name": "Maya Brandt",
+      "email": "maya@brandt.example"
+    }
+  ],
+  "private": true
+}

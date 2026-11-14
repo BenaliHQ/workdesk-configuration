@@ -1,0 +1,28 @@
+{
+  "why": "Rule 9. The source is marked private. The meeting is written and marked private, and its words are not lifted into a quote or a decision.",
+  "exists": {
+    "objects": [
+      {
+        "path": "atlas/meetings/2026-11-12-maya-brandt-check-in.md",
+        "type": "meeting",
+        "private": true
+      }
+    ],
+    "links": [],
+    "history": []
+  },
+  "absent": {
+    "objects": [
+      {
+        "path": "gtd/reference/quotes/maya-brandt-on-raising-prices.md",
+        "type": "quote"
+      },
+      {
+        "path": "atlas/decisions/2026-11-12-no-price-rise-before-spring.md",
+        "type": "decision"
+      }
+    ],
+    "links": [],
+    "history": []
+  }
+}

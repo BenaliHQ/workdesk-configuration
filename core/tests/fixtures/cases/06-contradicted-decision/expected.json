@@ -1,0 +1,34 @@
+{
+  "why": "Rule 6. A decision that is replaced stays, and points to the one that replaced it. Nothing is deleted.",
+  "exists": {
+    "objects": [
+      {
+        "path": "atlas/decisions/2026-11-12-rollout-date.md",
+        "type": "decision"
+      },
+      {
+        "path": "atlas/decisions/2026-11-10-rollout-date.md",
+        "type": "decision"
+      }
+    ],
+    "links": [
+      {
+        "from": "atlas/decisions/2026-11-10-rollout-date.md",
+        "to": "atlas/decisions/2026-11-12-rollout-date.md"
+      }
+    ],
+    "history": [
+      {
+        "on": "gtd/projects/acme-rollout/brief.md",
+        "text": "Starts December 15",
+        "basis": "stated",
+        "source": "system/transcripts/2026-11-12-acme-rollout-change.md#^p0001"
+      }
+    ]
+  },
+  "absent": {
+    "objects": [],
+    "links": [],
+    "history": []
+  }
+}

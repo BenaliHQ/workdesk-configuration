@@ -1,0 +1,23 @@
+{
+  "why": "Rule 1 and the no-content path. A recording with nothing said is kept whole and produces no meeting, no object and no history.",
+  "exists": {
+    "objects": [],
+    "links": [],
+    "history": []
+  },
+  "absent": {
+    "objects": [
+      {
+        "path": "atlas/meetings/2026-11-12-bluepeak-sync.md",
+        "type": "meeting"
+      }
+    ],
+    "links": [],
+    "history": [
+      {
+        "on": "atlas/people/lee-castillo.md",
+        "text": "Attended"
+      }
+    ]
+  }
+}

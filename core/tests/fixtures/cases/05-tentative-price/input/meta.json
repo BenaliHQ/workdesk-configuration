@@ -1,0 +1,11 @@
+{
+  "kind": "meeting-recording",
+  "title": "Harbor and Vine spring review",
+  "date": "2026-11-12",
+  "attendees": [
+    {
+      "name": "Tomas Lindqvist",
+      "email": "tomas@harborvine.example"
+    }
+  ]
+}

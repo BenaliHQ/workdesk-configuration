@@ -1,0 +1,29 @@
+{
+  "measure": {
+    "notes": {
+      "atlas/people": 10,
+      "atlas/companies": 4,
+      "atlas/terms": 2,
+      "intel/concepts": 2,
+      "atlas/meetings": 6,
+      "atlas/decisions": 3,
+      "gtd/reference/quotes": 1,
+      "projects": 3,
+      "intel/briefings/daily": 1,
+      "intel/syntheses": 2,
+      "system/transcripts": 4,
+      "system/bookmarks": 3,
+      "system/session-log": 0,
+      "system/intake": 1
+    },
+    "broken_links": 2,
+    "unlinked_objects": 2,
+    "people_without_full_name": 1,
+    "meetings_with_missing_source": 1,
+    "sources_unprocessed": 2,
+    "session_load": {
+      "claude-code": 67,
+      "codex": 39
+    }
+  }
+}

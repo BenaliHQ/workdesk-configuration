@@ -1,0 +1,15 @@
+{
+  "kind": "meeting-recording",
+  "title": "Acme proposal review",
+  "date": "2026-11-12",
+  "attendees": [
+    {
+      "name": "Sam Rivera",
+      "email": "sam@acme.example"
+    },
+    {
+      "name": "Dana Whitfield",
+      "email": "dana@acme.example"
+    }
+  ]
+}
