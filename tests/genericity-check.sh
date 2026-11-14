@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Reject owner-specific values in the exact config tree shipped by release.sh.
+# Reject owner-specific values in the exact config tree shipped by release.sh,
+# and in the Workdesk Core program under core/ when the repository has one.
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
@@ -14,13 +15,27 @@ rsync -a \
   --exclude='.DS_Store' \
   "$repo_root/config/" "$stage/workdesk/"
 
-python3 - "$stage/workdesk" "$repo_root/tests/genericity-allowlist.txt" <<'PY'
+mkdir -p "$stage/core"
+if [[ -d "$repo_root/core" ]]; then
+  rsync -a \
+    --exclude='__pycache__/' \
+    --exclude='*.pyc' \
+    --exclude='.DS_Store' \
+    "$repo_root/core/" "$stage/core/"
+fi
+
+python3 - "$repo_root/tests/genericity-allowlist.txt" \
+  "config=$stage/workdesk" "core=$stage/core" <<'PY'
 from pathlib import Path
 import re
 import sys
 
-shipped_root = Path(sys.argv[1])
-allowlist_path = Path(sys.argv[2])
+allowlist_path = Path(sys.argv[1])
+# Each tree is given as <name shown in results>=<folder to scan>.
+shipped_trees = [
+    (label, Path(folder))
+    for label, _, folder in (argument.partition("=") for argument in sys.argv[2:])
+]
 
 allowlist = []
 for line_number, raw_line in enumerate(
@@ -54,25 +69,26 @@ forbidden = [
 zero_uuid = "00000000-0000-0000-0000-000000000000"
 violations = []
 
-for path in sorted(candidate for candidate in shipped_root.rglob("*") if candidate.is_file()):
-    relative_path = path.relative_to(shipped_root)
-    lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+for label, shipped_root in shipped_trees:
+    for path in sorted(candidate for candidate in shipped_root.rglob("*") if candidate.is_file()):
+        relative_path = path.relative_to(shipped_root)
+        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
 
-    for line_number, line in enumerate(lines, start=1):
-        candidate = f"config/{relative_path}:{line_number}:{line}"
-        if any(pattern.search(candidate) for pattern in allowlist):
-            continue
+        for line_number, line in enumerate(lines, start=1):
+            candidate = f"{label}/{relative_path}:{line_number}:{line}"
+            if any(pattern.search(candidate) for pattern in allowlist):
+                continue
 
-        matches = (
-            match.group(0)
-            for pattern in forbidden
-            for match in pattern.finditer(line)
-        )
-        if any(match.lower() != zero_uuid for match in matches):
-            violations.append(candidate)
+            matches = (
+                match.group(0)
+                for pattern in forbidden
+                for match in pattern.finditer(line)
+            )
+            if any(match.lower() != zero_uuid for match in matches):
+                violations.append(candidate)
 
 if violations:
-    print("Genericity check failed; owner-specific values remain in shipped config:")
+    print("Genericity check failed; owner-specific values remain in shipped files:")
     for violation in violations:
         print(violation)
     sys.exit(1)
