@@ -47,9 +47,8 @@ def main(arguments=None):
             environment["WD_CONTRACT"] = options.contract
         command += ["-s", str(TESTS), "-t", str(CORE), "-p", "test_*.py", "-v"]
     else:
-        finish = TESTS / "finish"
-        name = "stage%d.py" % options.finish
-        if not (finish / name).is_file():
+        name = "stage%d_finish.py" % options.finish
+        if not (TESTS / name).is_file():
             print("There is no finish test for stage %d." % options.finish,
                   file=sys.stderr)
             return 2
@@ -63,7 +62,7 @@ def main(arguments=None):
                 environment[setting] = value
             else:
                 environment.pop(setting, None)
-        command += ["-s", str(finish), "-t", str(finish), "-p", name, "-v"]
+        command += ["-s", str(TESTS), "-t", str(CORE), "-p", name, "-v"]
 
     return subprocess.call(command, env=environment)
 

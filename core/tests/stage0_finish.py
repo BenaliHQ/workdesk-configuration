@@ -13,15 +13,24 @@ Run it through the runner:
     /usr/bin/python3 core/tests/run.py --finish 0 \
         --vault <vault> --scorecard <note> --build-log <note>
 
-What this test expects from the packages that follow:
+What this test expects from the packages that follow. The build spec
+fixes the first two. The rest are names this test had to choose because
+it was written first.
 
-- `wd` reads the vault location from WD_VAULT and the machine state
-  location from WD_STATE_DIR, so every program can run on a copy.
+- `wd check --measure <vault>` and `wd score <vault>` take the vault as
+  their argument (build spec, "Commands").
+- The twelve cases are in `core/tests/fixtures/cases/<nn>-<slug>/`, each
+  with an `input/` folder and an `expected.json` (build spec, "Where
+  things live").
+- `wd` reads the machine state location from WD_STATE_DIR, so a test can
+  point it at a scratch folder.
 - `wd check --measure` writes `measure.json` into the state location.
-- `wd score` writes `score.json` into the state location.
-- The test vault's known right answers are in
-  `core/tests/fixtures/answers.json`, with three parts: `cases`,
-  `measure` and `score`.
+- `wd score` writes `score.json` into the state location, with
+  `by_type`, `right_rate`, `miss_rate` and `scratch`.
+- Each `expected.json` has an `exists` part and an `absent` part.
+- The test vault's known results for the two commands are in
+  `core/tests/fixtures/answers.json`, with a `measure` part and a
+  `score` part.
 """
 
 import hashlib
@@ -34,30 +43,31 @@ import tempfile
 import unittest
 from pathlib import Path
 
-CORE = Path(__file__).resolve().parents[2]
+CORE = Path(__file__).resolve().parents[1]
 WD = CORE / "bin" / "wd"
 FIXTURES = CORE / "tests" / "fixtures"
 TEST_VAULT = FIXTURES / "vault"
+CASES_HOME = FIXTURES / "cases"
 ANSWERS = FIXTURES / "answers.json"
 
 # Build spec, "Commands".
 COMMANDS = [
-    "check", "score", "link", "track", "fix", "find",
-    "pack", "brief", "status", "tick", "install",
+    "check", "score", "names", "link", "repair-sources", "graph-setting",
+    "track", "fix", "find", "pack", "brief", "status", "tick", "install",
 ]
 
-# Build spec, S0.2: what `wd check --measure` counts.
+# Build spec, "Measure fields", in its order.
 MEASURES = [
     "notes",
     "broken_links",
     "unlinked_objects",
     "people_without_full_name",
-    "meetings_with_dead_transcript_link",
+    "meetings_with_missing_source",
     "sources_unprocessed",
-    "session_start_words",
+    "session_load",
 ]
 
-# Build spec, S0.3: the twelve sources with known right answers.
+# Build spec, "The 12 cases", in its order.
 CASES = [
     "clean-meeting",
     "swapped-speakers",
@@ -77,8 +87,13 @@ CASES = [
 S05_CHECKS = ["a", "b", "c", "d", "e"]
 S05_OUTCOMES = ("verified", "failed", "worked around")
 
-# Build spec, "Gate to stage 1".
-GATE_FULL_NAME_ACCURACY = 0.99
+# Build spec, "Gate to stage 1": right at least 99 times in 100, and
+# misses at most 1 in 100, on the test vault.
+GATE_RIGHT_RATE = 0.99
+GATE_MISS_RATE = 0.01
+
+# Build spec, S0.6.
+SCORECARD_NAME = "core-stage-0-scorecard.md"
 
 PRIVATE_FOLDER = "personal"
 LONG_RUN_SECONDS = 3600
@@ -119,12 +134,11 @@ def changed_files(before, after):
     )
 
 
-def run_wd(arguments, vault, state):
+def run_wd(arguments, state):
     environment = dict(os.environ)
-    environment["WD_VAULT"] = str(vault)
     environment["WD_STATE_DIR"] = str(state)
     return subprocess.run(
-        [sys.executable, str(WD)] + list(arguments),
+        [sys.executable, str(WD)] + [str(argument) for argument in arguments],
         env=environment,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -190,10 +204,12 @@ class FinishCase(unittest.TestCase):
         except ValueError as problem:
             self.fail("%s is not valid JSON: %s" % (path, problem))
 
-    def answers(self, part):
-        document = self.read_json(ANSWERS, "S0.3")
+    def answers(self, part, built_by):
+        document = self.read_json(ANSWERS, built_by)
         if not document.get(part):
-            self.fail("answers.json has no '%s' part. It is built by S0.3." % part)
+            self.fail(
+                "answers.json has no '%s' part. It is built by %s." % (part, built_by)
+            )
         return document[part]
 
     def setting(self, name, what):
@@ -203,23 +219,20 @@ class FinishCase(unittest.TestCase):
         return Path(value).expanduser()
 
     def run_read_only(self, arguments, vault, state):
-        """Run one command and prove the vault is the same afterwards."""
+        """Run one command on a vault and prove the vault is the same afterwards."""
+        shown = "wd %s <vault>" % " ".join(arguments)
         before = file_hashes(vault)
-        result = run_wd(arguments, vault, state)
+        result = run_wd(list(arguments) + [vault], state)
         after = file_hashes(vault)
         self.assertEqual(
             changed_files(before, after), [],
-            "`wd %s` changed files in the vault." % " ".join(arguments),
+            "`%s` changed files in the vault." % shown,
         )
         self.assertEqual(
             result.returncode, 0,
-            "`wd %s` failed:\n%s%s"
-            % (" ".join(arguments), result.stdout, result.stderr),
+            "`%s` failed:\n%s%s" % (shown, result.stdout, result.stderr),
         )
-        self.assertTrue(
-            result.stdout.strip(),
-            "`wd %s` printed nothing." % " ".join(arguments),
-        )
+        self.assertTrue(result.stdout.strip(), "`%s` printed nothing." % shown)
         return result
 
     def check_measure(self, vault, state):
@@ -241,11 +254,12 @@ class FinishCase(unittest.TestCase):
                     "score.json by_type.%s.%s is not a whole number."
                     % (object_type, count),
                 )
-        accuracy = report.get("full_name_accuracy")
-        self.assertIsInstance(
-            accuracy, (int, float), "score.json has no 'full_name_accuracy'."
-        )
-        self.assertTrue(0 <= accuracy <= 1, "full_name_accuracy is not 0 to 1.")
+        for rate in ("right_rate", "miss_rate"):
+            value = report.get(rate)
+            self.assertIsInstance(
+                value, (int, float), "score.json has no '%s'." % rate
+            )
+            self.assertTrue(0 <= value <= 1, "%s is not 0 to 1." % rate)
         scratch = report.get("scratch")
         self.assertTrue(scratch, "score.json does not say where the scratch copy was.")
         scratch = Path(scratch).resolve()
@@ -273,26 +287,26 @@ class S01Skeleton(FinishCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         for command in COMMANDS:
-            self.assertRegex(result.stdout, r"(?m)^\s*%s\b" % command)
+            self.assertRegex(result.stdout, r"(?m)^\s*%s(\s|$)" % re.escape(command))
 
 
 class S02Measure(FinishCase):
     """S0.2: `wd check --measure` is read-only and counts the right things."""
 
     def test_measure_on_the_test_vault(self):
-        expected = self.answers("measure")
+        expected = self.answers("measure", "S0.2 and S0.3")
         with tempfile.TemporaryDirectory() as state:
             report = self.check_measure(TEST_VAULT, state)
         self.assertEqual(differences(expected, report), [])
 
     def test_the_answers_cover_every_measure(self):
-        expected = self.answers("measure")
+        expected = self.answers("measure", "S0.2 and S0.3")
         missing = [name for name in MEASURES if name not in every_key(expected)]
         self.assertEqual(missing, [], "answers.json 'measure' leaves out: %s" % missing)
 
 
 class S03TestVault(FinishCase):
-    """S0.3: about 40 made-up notes and 12 sources with known right answers."""
+    """S0.3: about 40 made-up notes and 12 cases with known right answers."""
 
     def test_about_forty_notes(self):
         if not TEST_VAULT.is_dir():
@@ -306,17 +320,26 @@ class S03TestVault(FinishCase):
             "The test vault has %d notes. The build spec says about 40." % len(notes),
         )
 
-    def test_twelve_sources_with_known_right_answers(self):
-        cases = self.answers("cases")
-        self.assertEqual(sorted(cases), sorted(CASES))
-        for name in CASES:
-            case = cases[name]
-            self.assertTrue(case.get("expect"), "%s has no right answer." % name)
-            source = case.get("source")
-            self.assertTrue(source, "%s names no source file." % name)
+    def test_twelve_cases_with_known_right_answers(self):
+        if not CASES_HOME.is_dir():
+            self.fail("The cases folder is missing. It is built by S0.3.")
+        wanted = ["%02d-%s" % (number, name) for number, name in enumerate(CASES, 1)]
+        found = sorted(path.name for path in CASES_HOME.iterdir() if path.is_dir())
+        self.assertEqual(found, wanted)
+        for name in wanted:
+            case = CASES_HOME / name
+            given = case / "input"
             self.assertTrue(
-                (FIXTURES / source).is_file(),
-                "%s points at a file that is not there: %s" % (name, source),
+                given.is_dir() and any(path.is_file() for path in given.rglob("*")),
+                "%s has nothing in its input folder." % name,
+            )
+            expected = self.read_json(case / "expected.json", "S0.3")
+            self.assertIsInstance(expected, dict, "%s: expected.json is not a group." % name)
+            for part in ("exists", "absent"):
+                self.assertIn(part, expected, "%s: expected.json has no '%s' part." % (name, part))
+            self.assertTrue(
+                expected["exists"] or expected["absent"],
+                "%s: expected.json lists nothing." % name,
             )
 
 
@@ -324,7 +347,7 @@ class S04Score(FinishCase):
     """S0.4: `wd score` works on a copy outside the vault and reports by type."""
 
     def test_score_on_the_test_vault(self):
-        expected = self.answers("score")
+        expected = self.answers("score", "S0.4")
         with tempfile.TemporaryDirectory() as state:
             report = self.check_score(TEST_VAULT, state)
         self.assertEqual(differences(expected, report), [])
@@ -353,14 +376,14 @@ class S05FiveChecks(FinishCase):
 
 
 class YouWillSee(FinishCase):
-    """Stage 0, "You will see": one scorecard note, nothing else changed."""
+    """Stage 0, "You will see": the scorecard note, nothing else changed."""
 
     def test_the_scorecard_note_exists(self):
         scorecard = self.setting("WD_FINISH_SCORECARD", "The scorecard note (--scorecard)")
         self.assertTrue(scorecard.is_file(), "No scorecard note at %s." % scorecard)
         self.assertEqual(
-            scorecard.parent.name, "notes",
-            "The scorecard belongs in the project's notes folder.",
+            (scorecard.parent.name, scorecard.name), ("notes", SCORECARD_NAME),
+            "The scorecard is notes/%s in the project." % SCORECARD_NAME,
         )
         self.assertTrue(
             scorecard.read_text(encoding="utf-8").strip(), "The scorecard is empty."
@@ -381,17 +404,20 @@ class YouWillSee(FinishCase):
 
 
 class ZGateToStage1(FinishCase):
-    """Gate to stage 1: right at least 99 times in 100 on full names."""
+    """Gate to stage 1, on the test vault."""
 
-    def test_the_linker_score_on_the_vault(self):
-        state = self.setting("WD_FINISH_STATE", "The machine state folder (--state)")
-        report = self.read_json(state / "score.json", "S0.4, run on the vault")
-        accuracy = report.get("full_name_accuracy")
-        self.assertIsInstance(accuracy, (int, float))
+    def test_the_scorer_on_the_test_vault(self):
+        with tempfile.TemporaryDirectory() as state:
+            report = self.check_score(TEST_VAULT, state)
         self.assertGreaterEqual(
-            accuracy, GATE_FULL_NAME_ACCURACY,
-            "The linker is right %.1f times in 100 on full names. The gate is 99."
-            % (accuracy * 100),
+            report["right_rate"], GATE_RIGHT_RATE,
+            "The scorer is right %.1f times in 100. The gate is at least 99."
+            % (report["right_rate"] * 100),
+        )
+        self.assertLessEqual(
+            report["miss_rate"], GATE_MISS_RATE,
+            "The scorer misses %.1f in 100. The gate is at most 1."
+            % (report["miss_rate"] * 100),
         )
 
 

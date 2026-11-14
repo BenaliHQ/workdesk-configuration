@@ -6,16 +6,25 @@ reported as NOT RUN.
 
 A word is anything with a letter or a digit in it. The header block at
 the top of the page, table bars, dashes and arrows are not words.
+
+The numbers live in `core/budgets.json`, copied from the contract's
+"Budgets" table.
 """
 
+import json
 import os
 import re
 import unittest
 from pathlib import Path
 
-# The contract's "Budgets" table. Changing a number here means the
-# contract changed first, with the operator's yes.
-LIMITS = {
+BUDGETS = Path(__file__).resolve().parents[1] / "budgets.json"
+LIMITS = json.loads(BUDGETS.read_text(encoding="utf-8"))
+
+# The contract's "Budgets" table as it was when this test was written.
+# The page itself cannot be read where the automated check runs, so this
+# copy is what stops the budget file from drifting there. Changing a
+# number means the contract changed first, with the operator's yes.
+CONTRACT_TABLE = {
     "Rules on this page": 12,
     "Words on this page": 1800,
     "Words loaded into a session, everything counted": 3000,
@@ -111,6 +120,11 @@ Adding means removing.
 """
 
 
+class BudgetFile(unittest.TestCase):
+    def test_the_budget_file_is_the_contracts_table(self):
+        self.assertEqual(LIMITS, CONTRACT_TABLE)
+
+
 class Counting(unittest.TestCase):
     def test_the_header_block_is_not_counted(self):
         self.assertNotIn("type:", body(SAMPLE))
@@ -155,7 +169,7 @@ class ContractPage(unittest.TestCase):
         self.assertGreater(count, 0, "No rules were found on the page.")
         self.assertLessEqual(count, LIMITS["Rules on this page"])
 
-    def test_the_limits_here_match_the_page(self):
+    def test_the_budget_file_matches_the_page(self):
         self.assertEqual(budget_table(self.text), LIMITS)
 
 

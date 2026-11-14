@@ -7,13 +7,19 @@ on:
 
 jobs:
   core:
-    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      - name: Workdesk Core tests on the Python that ships with macOS
+      - name: Workdesk Core tests on the Python that ships with the system
         run: |
           /usr/bin/python3 --version
           /usr/bin/python3 core/tests/run.py
+      - name: Workdesk Core tests, plain form
+        run: /usr/bin/python3 -m unittest discover -s core/tests
 
   smoke:
     runs-on: macos-latest

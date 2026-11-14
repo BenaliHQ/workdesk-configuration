@@ -10,15 +10,19 @@ import sysconfig
 import unittest
 from pathlib import Path
 
-from wd import cli
-
 CORE = Path(__file__).resolve().parents[1]
 WD = CORE / "bin" / "wd"
 
+# So the tests also run with a plain `python3 -m unittest discover -s core/tests`.
+if str(CORE) not in sys.path:
+    sys.path.insert(0, str(CORE))
+
+from wd import cli  # noqa: E402
+
 # Build spec, "Commands", in its order.
 SPEC_COMMANDS = [
-    "check", "score", "link", "track", "fix", "find",
-    "pack", "brief", "status", "tick", "install",
+    "check", "score", "names", "link", "repair-sources", "graph-setting",
+    "track", "fix", "find", "pack", "brief", "status", "tick", "install",
 ]
 
 
@@ -36,7 +40,7 @@ class Commands(unittest.TestCase):
         code, out, _ = run(["--help"])
         self.assertEqual(code, cli.OK)
         for name in SPEC_COMMANDS:
-            self.assertRegex(out, r"(?m)^\s*%s\b" % name)
+            self.assertRegex(out, r"(?m)^\s*%s\s" % name)
 
     def test_no_command_is_a_failure(self):
         code, out, err = run([])
