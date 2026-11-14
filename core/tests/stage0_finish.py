@@ -13,9 +13,11 @@ Run it through the runner:
     /usr/bin/python3 core/tests/run.py --finish 0 \
         --vault <vault> --scorecard <note> --build-log <note>
 
-What this test expects from the packages that follow. The build spec
-fixes the first two. The rest are names this test had to choose because
-it was written first.
+What the packages that follow must meet. The build spec fixes the first
+two. The rest are choices this test had to make because it was written
+first.
+
+Commands and places
 
 - `wd check --measure <vault>` and `wd score <vault>` take the vault as
   their argument (build spec, "Commands").
@@ -23,20 +25,65 @@ it was written first.
   with an `input/` folder and an `expected.json` (build spec, "Where
   things live").
 - `wd` reads the machine state location from WD_STATE_DIR, so a test can
-  point it at a scratch folder.
-- `wd check --measure` writes `measure.json` into the state location.
-- `wd score` writes `score.json` into the state location, with
-  `by_type`, `right_rate`, `miss_rate` and `scratch`.
-- Each `expected.json` has an `exists` part and an `absent` part.
-- The test vault's known results for the two commands are in
-  `core/tests/fixtures/answers.json`, with a `measure` part and a
-  `score` part.
+  point it at a scratch folder. It finds the user's own instruction
+  files through HOME.
+- `core/tests/fixtures/home/` is a made-up home folder with Claude Code
+  and Codex instructions, rules and skills. Runs on the test vault use
+  it, so session load is the same on every machine.
+
+`measure.json`, written into machine state by `wd check --measure`
+
+- `vault`: the vault that was measured, as a full path.
+- `run_at`: when, as local time with its offset, 2026-11-12T07:00:00-06:00.
+- `notes`: a whole number for each home.
+- `broken_links`, `unlinked_objects`, `people_without_full_name`,
+  `meetings_with_missing_source`, `sources_unprocessed`: whole numbers.
+- `session_load`: words for `claude-code` and for `codex`.
+
+`score.json`, written into machine state by `wd score`
+
+- `vault` and `run_at`, as above.
+- `by_type`: for each object type, `correct`, `wrong` and `missed`.
+  The scorer takes each existing link whose shown words are a name of
+  two words or more and strips its brackets. `correct`: the matcher
+  linked that spot to the same object. `wrong`: it linked that spot to
+  a different object. `missed`: it left that spot unlinked.
+- `right_rate`: correct / (correct + wrong), over all types.
+- `miss_rate`: missed / (correct + wrong + missed), over all types.
+- `scratch`: the scratch copy, a folder under machine state. It is left
+  in place after the run.
+
+Known right answers
+
+- `core/tests/fixtures/answers.json` has a `measure` part with every
+  measure above for the test vault, and a `score` part with `by_type`.
+- Each case's `expected.json` has an `exists` part and an `absent`
+  part. Each part has three lists: `objects`, `links` and `history`.
+
+The five checks in the build log (S0.5)
+
+One line for each check. Checks (b) and (c) have one line for each
+runtime. A check that was run again counts by its last line.
+
+    S0.5 (a): verified. Evidence: <what was done and seen>.
+    S0.5 (b) Claude Code: failed. Evidence: <...>. Consequence: <...>.
+    S0.5 (b) Codex: verified. Evidence: <...>.
+
+The outcome is `verified`, `failed` or `worked around`. Anything but
+`verified` also needs its consequence from the build spec's table.
+
+The scorecard (S0.6)
+
+`notes/core-stage-0-scorecard.md`, beside the build log. It shows the
+date of the run as 2026-11-12 and every number from the two reports of
+that run, which stay in machine state.
 """
 
 import hashlib
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -47,6 +94,7 @@ CORE = Path(__file__).resolve().parents[1]
 WD = CORE / "bin" / "wd"
 FIXTURES = CORE / "tests" / "fixtures"
 TEST_VAULT = FIXTURES / "vault"
+FIXTURE_HOME = FIXTURES / "home"
 CASES_HOME = FIXTURES / "cases"
 ANSWERS = FIXTURES / "answers.json"
 
@@ -57,15 +105,18 @@ COMMANDS = [
 ]
 
 # Build spec, "Measure fields", in its order.
-MEASURES = [
-    "notes",
+COUNTS = [
     "broken_links",
     "unlinked_objects",
     "people_without_full_name",
     "meetings_with_missing_source",
     "sources_unprocessed",
-    "session_load",
 ]
+RUNTIMES = ("claude-code", "codex")
+MEASURES = ["notes"] + COUNTS + ["session_load"]
+
+# Build spec, S0.4.
+SCORE_COUNTS = ("correct", "wrong", "missed")
 
 # Build spec, "The 12 cases", in its order.
 CASES = [
@@ -82,10 +133,18 @@ CASES = [
     "duplicate-person",
     "calendar-day",
 ]
+CASE_PARTS = ("exists", "absent")
+CASE_KINDS = ("objects", "links", "history")
 
 # Build spec, S0.5: the five checks and the three allowed outcomes.
 S05_CHECKS = ["a", "b", "c", "d", "e"]
-S05_OUTCOMES = ("verified", "failed", "worked around")
+S05_PER_RUNTIME = ("b", "c")
+S05_RUNTIMES = ("Claude Code", "Codex")
+S05_LINE = re.compile(
+    r"^[ \t>*-]*S0\.5 \(([a-e])\)(?: (Claude Code|Codex))?: "
+    r"(verified|failed|worked around)\.(.*)$",
+    re.MULTILINE,
+)
 
 # Build spec, "Gate to stage 1": right at least 99 times in 100, and
 # misses at most 1 in 100, on the test vault.
@@ -96,20 +155,34 @@ GATE_MISS_RATE = 0.01
 SCORECARD_NAME = "core-stage-0-scorecard.md"
 
 PRIVATE_FOLDER = "personal"
+CANARY = "wd-finish-canary-7f3a91c2"
 LONG_RUN_SECONDS = 3600
 
+# Left out of every before-and-after comparison, and so not covered by
+# "nothing else changed": the vault's own git folder, and the window
+# layout Obsidian rewrites whenever the app is open.
+SKIPPED_FOLDERS = (".git",)
+VOLATILE_FILES = (".obsidian/workspace",)
 
-def file_hashes(root):
-    """Hash every file under root, so a later pass can prove nothing changed."""
+STAMP = re.compile(r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d[+-]\d\d:\d\d$")
+
+
+def snapshot(root):
+    """Hash every file under root. Returns the hashes and what could not be read."""
     root = Path(root)
-    found = {}
-    for folder, folders, names in os.walk(str(root)):
-        folders[:] = sorted(name for name in folders if name != ".git")
+    found, problems = {}, []
+
+    def could_not_open(problem):
+        problems.append(
+            "could not open %s: %s" % (problem.filename, type(problem).__name__)
+        )
+
+    for folder, folders, names in os.walk(str(root), onerror=could_not_open):
+        folders[:] = sorted(name for name in folders if name not in SKIPPED_FOLDERS)
         for name in sorted(names):
             path = Path(folder) / name
             relative = path.relative_to(root).as_posix()
-            # Obsidian rewrites its window layout whenever the app is open.
-            if relative.startswith(".obsidian/workspace"):
+            if relative.startswith(VOLATILE_FILES):
                 continue
             if path.is_symlink():
                 found[relative] = "link:" + os.readlink(str(path))
@@ -120,10 +193,12 @@ def file_hashes(root):
                     for block in iter(lambda: handle.read(1 << 20), b""):
                         digest.update(block)
             except OSError as problem:
-                found[relative] = "unreadable:" + type(problem).__name__
+                problems.append(
+                    "could not read %s: %s" % (relative, type(problem).__name__)
+                )
                 continue
             found[relative] = digest.hexdigest()
-    return found
+    return found, problems
 
 
 def changed_files(before, after):
@@ -134,63 +209,193 @@ def changed_files(before, after):
     )
 
 
-def run_wd(arguments, state):
-    environment = dict(os.environ)
-    environment["WD_STATE_DIR"] = str(state)
-    return subprocess.run(
-        [sys.executable, str(WD)] + [str(argument) for argument in arguments],
-        env=environment,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        universal_newlines=True,
-        timeout=LONG_RUN_SECONDS,
+def whole(value):
+    """A count: a whole number, zero or more. True and False are not counts."""
+    return isinstance(value, int) and not isinstance(value, bool) and value >= 0
+
+
+def stamp_problems(report, vault):
+    """Does the report say which vault it measured, and when?"""
+    problems = []
+    named = report.get("vault") if isinstance(report, dict) else None
+    if not isinstance(named, str) or not named:
+        problems.append("vault: the report does not say which vault it measured")
+    elif Path(named).resolve() != Path(vault).resolve():
+        problems.append("vault: the report is for %s, not %s" % (named, vault))
+    run_at = report.get("run_at") if isinstance(report, dict) else None
+    if not isinstance(run_at, str) or not STAMP.match(run_at):
+        problems.append("run_at: expected a time like 2026-11-12T07:00:00-06:00")
+    return problems
+
+
+def measure_problems(report):
+    """Everything wrong with the shape of a measure report."""
+    if not isinstance(report, dict):
+        return ["the report is not a group of values"]
+    problems = []
+    notes = report.get("notes")
+    if not isinstance(notes, dict) or not notes:
+        problems.append("notes: expected a count for each home")
+    else:
+        for home, count in sorted(notes.items()):
+            if not whole(count):
+                problems.append("notes.%s: not a count" % home)
+    for name in COUNTS:
+        if not whole(report.get(name)):
+            problems.append("%s: not a count" % name)
+    load = report.get("session_load")
+    for runtime in RUNTIMES:
+        if not isinstance(load, dict) or not whole(load.get(runtime)):
+            problems.append("session_load.%s: not a count" % runtime)
+    return problems
+
+
+def by_type_problems(by_type):
+    if not isinstance(by_type, dict) or not by_type:
+        return ["by_type: expected counts for each object type"]
+    problems = []
+    for object_type, counts in sorted(by_type.items()):
+        for name in SCORE_COUNTS:
+            if not isinstance(counts, dict) or not whole(counts.get(name)):
+                problems.append("by_type.%s.%s: not a count" % (object_type, name))
+    return problems
+
+
+def rates(by_type):
+    """The two gate numbers, worked out from the counts.
+
+    Returns (right rate, miss rate, None), or (None, None, why not).
+    """
+    correct, wrong, missed = (
+        sum(counts[name] for counts in by_type.values()) for name in SCORE_COUNTS
+    )
+    if correct + wrong + missed == 0:
+        return None, None, "no links were scored, so the gate cannot be judged"
+    if correct + wrong == 0:
+        return None, None, "the matcher made no links, so it was never right"
+    return (
+        correct / float(correct + wrong),
+        missed / float(correct + wrong + missed),
+        None,
     )
 
 
-def every_key(document):
-    keys = set()
-    if isinstance(document, dict):
-        for key, value in document.items():
-            keys.add(key)
-            keys |= every_key(value)
-    elif isinstance(document, list):
-        for value in document:
-            keys |= every_key(value)
-    return keys
+def score_problems(report):
+    """Everything wrong with a score report, apart from where its scratch copy is."""
+    if not isinstance(report, dict):
+        return ["the report is not a group of values"]
+    problems = by_type_problems(report.get("by_type"))
+    if problems:
+        return problems
+    right, miss, why_not = rates(report["by_type"])
+    if why_not:
+        return [why_not]
+    for name, worked_out in (("right_rate", right), ("miss_rate", miss)):
+        reported = report.get(name)
+        if isinstance(reported, bool) or not isinstance(reported, (int, float)):
+            problems.append("%s: not a number" % name)
+        elif abs(reported - worked_out) > 1e-6:
+            problems.append(
+                "%s: the report says %r but the counts give %r"
+                % (name, reported, worked_out)
+            )
+    return problems
 
 
-def differences(expected, actual, where=""):
-    """List every place the known right answer is missing or different."""
-    if isinstance(expected, dict):
-        if not isinstance(actual, dict):
-            return ["%s: expected a group of values" % (where or "top")]
-        found = []
-        for key, value in expected.items():
-            here = "%s.%s" % (where, key) if where else key
-            if key not in actual:
-                found.append("%s: missing" % here)
-            else:
-                found.extend(differences(value, actual[key], here))
-        return found
-    if expected != actual:
-        return ["%s: expected %r, got %r" % (where or "top", expected, actual)]
-    return []
+def case_problems(expected):
+    """Everything wrong with one case's expected.json."""
+    if not isinstance(expected, dict):
+        return ["not a group of values"]
+    problems, listed = [], 0
+    for part in CASE_PARTS:
+        group = expected.get(part)
+        if not isinstance(group, dict):
+            problems.append("%s: expected objects, links and history" % part)
+            continue
+        for kind in CASE_KINDS:
+            entries = group.get(kind)
+            if not isinstance(entries, list):
+                problems.append("%s.%s: expected a list" % (part, kind))
+                continue
+            for entry in entries:
+                named = isinstance(entry, str) and entry.strip()
+                described = isinstance(entry, dict) and entry
+                if not (named or described):
+                    problems.append("%s.%s: an entry says nothing" % (part, kind))
+            listed += len(entries)
+        for extra in sorted(set(group) - set(CASE_KINDS)):
+            problems.append("%s.%s: not objects, links or history" % (part, extra))
+    if not problems and not listed:
+        problems.append("lists nothing that must exist or be absent")
+    return problems
 
 
-def note_type(path):
-    """The `type` in a note's opening block, or None."""
-    try:
-        lines = path.read_text(encoding="utf-8").splitlines()
-    except (OSError, UnicodeDecodeError):
-        return None
-    if not lines or lines[0].strip() != "---":
-        return None
-    for line in lines[1:]:
-        if line.strip() == "---":
-            return None
-        if line.startswith("type:"):
-            return line.split(":", 1)[1].strip()
-    return None
+def said_enough(rest, label, until=None):
+    """Are there at least three words after `label:` on the line?"""
+    pattern = r"%s: (.+?)(?= %s: |$)" % (label, until) if until else r"%s: (.+)$" % label
+    found = re.search(pattern, rest)
+    return bool(found) and len(found.group(1).split()) >= 3
+
+
+def s05_problems(text):
+    """Everything missing from the build log's record of the five checks."""
+    latest = {}
+    for match in S05_LINE.finditer(text):
+        letter, runtime, outcome, rest = match.groups()
+        latest[(letter, runtime)] = (outcome, rest)
+    problems = []
+    for letter in S05_CHECKS:
+        runtimes = S05_RUNTIMES if letter in S05_PER_RUNTIME else (None,)
+        for runtime in runtimes:
+            label = "S0.5 (%s)%s" % (letter, " " + runtime if runtime else "")
+            if (letter, runtime) not in latest:
+                problems.append("%s: no outcome logged" % label)
+                continue
+            outcome, rest = latest[(letter, runtime)]
+            if not said_enough(rest, "Evidence", until="Consequence"):
+                problems.append("%s: no evidence given" % label)
+            if outcome != "verified" and not said_enough(rest, "Consequence"):
+                problems.append("%s: %s, with no consequence given" % (label, outcome))
+    outcomes = [latest.get(("b", runtime), ("", ""))[0] for runtime in S05_RUNTIMES]
+    if all(outcome == "failed" for outcome in outcomes):
+        problems.append(
+            "S0.5 (b): the model step failed in both runtimes. "
+            "The build spec says stop and ask the operator."
+        )
+    return problems
+
+
+def has_number(text, number):
+    """Is this number written in the text, with or without thousands commas?"""
+    plain = re.sub(r"(?<=\d),(?=\d{3}(?!\d))", "", text)
+    return re.search(r"(?<![\d.])%d(?!\d|\.\d)" % number, plain) is not None
+
+
+def scorecard_problems(text, measure, score):
+    """Every number from the two reports that the scorecard leaves out."""
+    wanted = [("the date of the run", None)]
+    wanted += [("notes in %s" % home, count) for home, count in sorted(measure["notes"].items())]
+    wanted += [(name, measure[name]) for name in COUNTS]
+    wanted += [
+        ("session load, %s" % runtime, measure["session_load"][runtime])
+        for runtime in RUNTIMES
+    ]
+    for object_type, counts in sorted(score["by_type"].items()):
+        wanted += [
+            ("%s links %s" % (object_type, name), counts[name]) for name in SCORE_COUNTS
+        ]
+    problems = []
+    for label, number in wanted:
+        if number is None:
+            if measure["run_at"][:10] not in text:
+                problems.append("%s (%s)" % (label, measure["run_at"][:10]))
+        elif not has_number(text, number):
+            problems.append("%s (%d)" % (label, number))
+    return problems
+
+
+def note_count(vault):
+    return len(list(Path(vault).rglob("*.md")))
 
 
 class FinishCase(unittest.TestCase):
@@ -206,7 +411,7 @@ class FinishCase(unittest.TestCase):
 
     def answers(self, part, built_by):
         document = self.read_json(ANSWERS, built_by)
-        if not document.get(part):
+        if not isinstance(document, dict) or not document.get(part):
             self.fail(
                 "answers.json has no '%s' part. It is built by %s." % (part, built_by)
             )
@@ -218,12 +423,42 @@ class FinishCase(unittest.TestCase):
             self.fail("NOT RUN: %s was not given." % what)
         return Path(value).expanduser()
 
-    def run_read_only(self, arguments, vault, state):
+    def environment(self, state, made_up_home):
+        environment = dict(os.environ)
+        environment["WD_STATE_DIR"] = str(state)
+        if made_up_home:
+            if not FIXTURE_HOME.is_dir():
+                self.fail("The made-up home folder is missing. It is built by S0.2.")
+            # Nothing from the real user may leak into a run on the test vault.
+            for name in ("CLAUDE_CONFIG_DIR", "CODEX_HOME", "XDG_CONFIG_HOME",
+                         "XDG_DATA_HOME", "XDG_STATE_HOME"):
+                environment.pop(name, None)
+            environment["HOME"] = str(FIXTURE_HOME)
+        return environment
+
+    def snapshot(self, vault):
+        found, problems = snapshot(vault)
+        self.assertEqual(
+            problems, [],
+            "NOT RUN: parts of the vault could not be read, so nothing can be "
+            "said about whether it changed.",
+        )
+        return found
+
+    def run_read_only(self, arguments, vault, state, made_up_home):
         """Run one command on a vault and prove the vault is the same afterwards."""
         shown = "wd %s <vault>" % " ".join(arguments)
-        before = file_hashes(vault)
-        result = run_wd(list(arguments) + [vault], state)
-        after = file_hashes(vault)
+        environment = self.environment(state, made_up_home)
+        before = self.snapshot(vault)
+        result = subprocess.run(
+            [sys.executable, str(WD)] + list(arguments) + [str(vault)],
+            env=environment,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True,
+            timeout=LONG_RUN_SECONDS,
+        )
+        after = self.snapshot(vault)
         self.assertEqual(
             changed_files(before, after), [],
             "`%s` changed files in the vault." % shown,
@@ -235,45 +470,34 @@ class FinishCase(unittest.TestCase):
         self.assertTrue(result.stdout.strip(), "`%s` printed nothing." % shown)
         return result
 
-    def check_measure(self, vault, state):
-        self.run_read_only(["check", "--measure"], vault, state)
+    def check_measure(self, vault, state, made_up_home):
+        self.run_read_only(["check", "--measure"], vault, state, made_up_home)
         report = self.read_json(Path(state) / "measure.json", "S0.2")
-        missing = [name for name in MEASURES if name not in every_key(report)]
-        self.assertEqual(missing, [], "measure.json leaves out: %s" % missing)
+        self.assertEqual(measure_problems(report), [], "measure.json is not right.")
+        self.assertEqual(stamp_problems(report, vault), [], "measure.json is not right.")
         return report
 
-    def check_score(self, vault, state):
-        self.run_read_only(["score"], vault, state)
+    def check_score(self, vault, state, made_up_home):
+        result = self.run_read_only(["score"], vault, state, made_up_home)
         report = self.read_json(Path(state) / "score.json", "S0.4")
-        by_type = report.get("by_type")
-        self.assertTrue(by_type, "score.json has no 'by_type' part.")
-        for object_type, counts in by_type.items():
-            for count in ("correct", "missed"):
-                self.assertIsInstance(
-                    counts.get(count), int,
-                    "score.json by_type.%s.%s is not a whole number."
-                    % (object_type, count),
-                )
-        for rate in ("right_rate", "miss_rate"):
-            value = report.get(rate)
-            self.assertIsInstance(
-                value, (int, float), "score.json has no '%s'." % rate
-            )
-            self.assertTrue(0 <= value <= 1, "%s is not 0 to 1." % rate)
+        self.assertEqual(score_problems(report), [], "score.json is not right.")
+        self.assertEqual(stamp_problems(report, vault), [], "score.json is not right.")
         scratch = report.get("scratch")
-        self.assertTrue(scratch, "score.json does not say where the scratch copy was.")
-        scratch = Path(scratch).resolve()
-        vault = Path(vault).resolve()
-        self.assertFalse(
-            scratch == vault or vault in scratch.parents,
-            "The scratch copy was inside the vault: %s" % scratch,
+        self.assertTrue(
+            isinstance(scratch, str) and scratch,
+            "score.json does not say where the scratch copy was.",
         )
-        if scratch.is_dir():
-            self.assertFalse(
-                (scratch / PRIVATE_FOLDER).exists(),
-                "The private folder was copied to the scratch folder.",
-            )
-        return report
+        scratch = Path(scratch).resolve()
+        self.assertIn(
+            Path(state).resolve(), scratch.parents,
+            "The scratch copy is not under machine state: %s" % scratch,
+        )
+        self.assertTrue(scratch.is_dir(), "There is no scratch copy at %s." % scratch)
+        self.assertEqual(
+            [path for path in scratch.rglob(PRIVATE_FOLDER)], [],
+            "The private folder was copied to the scratch folder.",
+        )
+        return report, result
 
 
 class S01Skeleton(FinishCase):
@@ -293,16 +517,20 @@ class S01Skeleton(FinishCase):
 class S02Measure(FinishCase):
     """S0.2: `wd check --measure` is read-only and counts the right things."""
 
+    def test_the_answers_cover_every_measure(self):
+        expected = self.answers("measure", "S0.2 and S0.3")
+        self.assertEqual(
+            measure_problems(expected), [], "answers.json 'measure' is not complete."
+        )
+
     def test_measure_on_the_test_vault(self):
         expected = self.answers("measure", "S0.2 and S0.3")
         with tempfile.TemporaryDirectory() as state:
-            report = self.check_measure(TEST_VAULT, state)
-        self.assertEqual(differences(expected, report), [])
-
-    def test_the_answers_cover_every_measure(self):
-        expected = self.answers("measure", "S0.2 and S0.3")
-        missing = [name for name in MEASURES if name not in every_key(expected)]
-        self.assertEqual(missing, [], "answers.json 'measure' leaves out: %s" % missing)
+            report = self.check_measure(TEST_VAULT, state, made_up_home=True)
+        self.assertEqual(
+            {name: report.get(name) for name in MEASURES},
+            {name: expected.get(name) for name in MEASURES},
+        )
 
 
 class S03TestVault(FinishCase):
@@ -311,13 +539,10 @@ class S03TestVault(FinishCase):
     def test_about_forty_notes(self):
         if not TEST_VAULT.is_dir():
             self.fail("The test vault is missing. It is built by S0.3.")
-        notes = [
-            path for path in TEST_VAULT.rglob("*.md")
-            if note_type(path) != "source"
-        ]
+        count = note_count(TEST_VAULT)
         self.assertTrue(
-            35 <= len(notes) <= 45,
-            "The test vault has %d notes. The build spec says about 40." % len(notes),
+            35 <= count <= 45,
+            "The test vault has %d notes. The build spec says about 40." % count,
         )
 
     def test_twelve_cases_with_known_right_answers(self):
@@ -334,73 +559,126 @@ class S03TestVault(FinishCase):
                 "%s has nothing in its input folder." % name,
             )
             expected = self.read_json(case / "expected.json", "S0.3")
-            self.assertIsInstance(expected, dict, "%s: expected.json is not a group." % name)
-            for part in ("exists", "absent"):
-                self.assertIn(part, expected, "%s: expected.json has no '%s' part." % (name, part))
-            self.assertTrue(
-                expected["exists"] or expected["absent"],
-                "%s: expected.json lists nothing." % name,
+            self.assertEqual(
+                case_problems(expected), [], "%s: expected.json is not right." % name
             )
 
 
 class S04Score(FinishCase):
-    """S0.4: `wd score` works on a copy outside the vault and reports by type."""
+    """S0.4: `wd score` works on a copy under machine state and reports by type."""
+
+    def expected_by_type(self):
+        expected = self.answers("score", "S0.3 and S0.4")
+        by_type = expected.get("by_type") if isinstance(expected, dict) else None
+        self.assertEqual(
+            by_type_problems(by_type), [], "answers.json 'score' is not complete."
+        )
+        return by_type
 
     def test_score_on_the_test_vault(self):
-        expected = self.answers("score", "S0.4")
+        by_type = self.expected_by_type()
         with tempfile.TemporaryDirectory() as state:
-            report = self.check_score(TEST_VAULT, state)
-        self.assertEqual(differences(expected, report), [])
+            report, _ = self.check_score(TEST_VAULT, state, made_up_home=True)
+        self.assertEqual(report["by_type"], by_type)
+
+    def test_the_scorer_never_reads_the_private_folder(self):
+        by_type = self.expected_by_type()
+        if not TEST_VAULT.is_dir():
+            self.fail("The test vault is missing. It is built by S0.3.")
+        with tempfile.TemporaryDirectory() as folder:
+            vault = Path(folder) / "vault"
+            state = Path(folder) / "state"
+            state.mkdir()
+            shutil.copytree(
+                str(TEST_VAULT), str(vault),
+                ignore=shutil.ignore_patterns(PRIVATE_FOLDER),
+            )
+            # A private folder holding a copy of every note, so a scorer
+            # that reads it counts every link twice, and one marked note.
+            private = vault / PRIVATE_FOLDER
+            (private / "copies").mkdir(parents=True)
+            for number, note in enumerate(sorted(TEST_VAULT.rglob("*.md"))):
+                if PRIVATE_FOLDER in note.relative_to(TEST_VAULT).parts:
+                    continue
+                shutil.copyfile(
+                    str(note), str(private / "copies" / ("%03d-%s" % (number, note.name)))
+                )
+            (private / "marked.md").write_text("# Marked\n\n%s\n" % CANARY, encoding="utf-8")
+
+            report, result = self.check_score(vault, state, made_up_home=True)
+            self.assertEqual(
+                report["by_type"], by_type,
+                "The counts changed when a private folder was added.",
+            )
+            self.assertNotIn(CANARY, result.stdout + result.stderr)
+            leaked = [
+                path.relative_to(state).as_posix()
+                for path in state.rglob("*")
+                if path.is_file() and CANARY.encode() in path.read_bytes()
+            ]
+            self.assertEqual(leaked, [], "Private words reached machine state.")
 
 
 class S05FiveChecks(FinishCase):
-    """S0.5: five checks, each logged as verified, failed, or worked around."""
+    """S0.5: five checks, each with an outcome, its evidence and its consequence."""
 
-    def test_each_check_has_an_outcome_in_the_build_log(self):
+    def test_each_check_is_in_the_build_log(self):
         log = self.setting("WD_FINISH_BUILD_LOG", "The build log (--build-log)")
         if not log.is_file():
             self.fail("NOT RUN: the build log is not at %s." % log)
-        text = log.read_text(encoding="utf-8")
-        missing = []
-        for letter in S05_CHECKS:
-            pattern = r"(?im)^.*S0\.5\s*\(%s\).*\b(%s)\b" % (
-                letter, "|".join(S05_OUTCOMES),
-            )
-            if not re.search(pattern, text):
-                missing.append("S0.5 (%s)" % letter)
-        self.assertEqual(
-            missing, [],
-            "No outcome logged for: %s. Each needs a line with one of: %s."
-            % (", ".join(missing), ", ".join(S05_OUTCOMES)),
-        )
+        self.assertEqual(s05_problems(log.read_text(encoding="utf-8")), [])
 
 
 class YouWillSee(FinishCase):
-    """Stage 0, "You will see": the scorecard note, nothing else changed."""
+    """Stage 0, "You will see": the scorecard, and nothing else changed.
 
-    def test_the_scorecard_note_exists(self):
-        scorecard = self.setting("WD_FINISH_SCORECARD", "The scorecard note (--scorecard)")
-        self.assertTrue(scorecard.is_file(), "No scorecard note at %s." % scorecard)
-        self.assertEqual(
-            (scorecard.parent.name, scorecard.name), ("notes", SCORECARD_NAME),
-            "The scorecard is notes/%s in the project." % SCORECARD_NAME,
-        )
-        self.assertTrue(
-            scorecard.read_text(encoding="utf-8").strip(), "The scorecard is empty."
-        )
+    "Nothing else changed" is proven for the two commands: every file in
+    the vault is hashed before and after each. The vault's git folder
+    and Obsidian's window layout are left out.
+    """
 
     def test_nothing_else_in_the_vault_changed(self):
         vault = self.setting("WD_FINISH_VAULT", "The vault (--vault)")
-        state = self.setting("WD_FINISH_STATE", "The machine state folder (--state)")
         if not vault.is_dir():
             self.fail("NOT RUN: there is no vault at %s." % vault)
         # Prove both commands are read-only on the test vault before they
         # are allowed near the real one.
         with tempfile.TemporaryDirectory() as practice:
-            self.check_measure(TEST_VAULT, practice)
-            self.check_score(TEST_VAULT, practice)
-        self.check_measure(vault, state)
-        self.check_score(vault, state)
+            self.check_measure(TEST_VAULT, practice, made_up_home=True)
+            self.check_score(TEST_VAULT, practice, made_up_home=True)
+        # A scratch state folder, so the reports the scorecard was
+        # written from stay as they are.
+        with tempfile.TemporaryDirectory() as state:
+            self.check_measure(vault, state, made_up_home=False)
+            self.check_score(vault, state, made_up_home=False)
+
+    def test_the_scorecard_shows_the_numbers(self):
+        scorecard = self.setting("WD_FINISH_SCORECARD", "The scorecard note (--scorecard)")
+        log = self.setting("WD_FINISH_BUILD_LOG", "The build log (--build-log)")
+        vault = self.setting("WD_FINISH_VAULT", "The vault (--vault)")
+        state = self.setting("WD_FINISH_STATE", "The machine state folder (--state)")
+        self.assertTrue(scorecard.is_file(), "No scorecard note at %s." % scorecard)
+        self.assertEqual(
+            scorecard.name, SCORECARD_NAME,
+            "The scorecard is notes/%s in the project." % SCORECARD_NAME,
+        )
+        self.assertEqual(
+            scorecard.resolve().parent, log.resolve().parent,
+            "The scorecard belongs beside the build log, in the project's notes.",
+        )
+        self.assertIn(
+            vault.resolve(), scorecard.resolve().parents,
+            "The scorecard is not inside the vault.",
+        )
+        # The reports of the S0.6 run. They must be for this vault.
+        measure = self.read_json(state / "measure.json", "S0.6")
+        score = self.read_json(state / "score.json", "S0.6")
+        self.assertEqual(measure_problems(measure) + stamp_problems(measure, vault), [])
+        self.assertEqual(score_problems(score) + stamp_problems(score, vault), [])
+        missing = scorecard_problems(
+            scorecard.read_text(encoding="utf-8"), measure, score
+        )
+        self.assertEqual(missing, [], "The scorecard leaves out numbers from the run.")
 
 
 class ZGateToStage1(FinishCase):
@@ -408,16 +686,17 @@ class ZGateToStage1(FinishCase):
 
     def test_the_scorer_on_the_test_vault(self):
         with tempfile.TemporaryDirectory() as state:
-            report = self.check_score(TEST_VAULT, state)
+            report, _ = self.check_score(TEST_VAULT, state, made_up_home=True)
+        right, miss, why_not = rates(report["by_type"])
+        self.assertIsNone(why_not, why_not)
         self.assertGreaterEqual(
-            report["right_rate"], GATE_RIGHT_RATE,
+            right, GATE_RIGHT_RATE,
             "The scorer is right %.1f times in 100. The gate is at least 99."
-            % (report["right_rate"] * 100),
+            % (right * 100),
         )
         self.assertLessEqual(
-            report["miss_rate"], GATE_MISS_RATE,
-            "The scorer misses %.1f in 100. The gate is at most 1."
-            % (report["miss_rate"] * 100),
+            miss, GATE_MISS_RATE,
+            "The scorer misses %.1f in 100. The gate is at most 1." % (miss * 100),
         )
 
 
