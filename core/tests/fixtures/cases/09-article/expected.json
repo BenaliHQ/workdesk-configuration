@@ -1,0 +1,29 @@
+{
+  "why": "Rules 1 and 4, stage 4. An article is a source. A named idea in it becomes a concept and exact words become a quote, each pointing at its passage.",
+  "exists": {
+    "objects": [
+      {
+        "path": "intel/concepts/night-watch-test.md",
+        "type": "concept"
+      },
+      {
+        "path": "gtd/reference/quotes/ines-calder-on-automation.md",
+        "type": "quote"
+      }
+    ],
+    "links": [],
+    "history": [
+      {
+        "on": "intel/concepts/night-watch-test.md",
+        "text": "Named by Ines Calder",
+        "basis": "stated",
+        "source": "system/bookmarks/2026-11-12-three-questions-before-you-automate.md#^p0002"
+      }
+    ]
+  },
+  "absent": {
+    "objects": [],
+    "links": [],
+    "history": []
+  }
+}

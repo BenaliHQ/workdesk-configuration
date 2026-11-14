@@ -1,0 +1,43 @@
+{
+  "kind": "calendar",
+  "date": "2026-11-13",
+  "events": [
+    {
+      "start": "09:00",
+      "title": "Acme rollout check",
+      "status": "accepted",
+      "attendees": [
+        {
+          "name": "Sam Rivera",
+          "email": "sam@acme.example"
+        },
+        {
+          "name": "Dana Whitfield",
+          "email": "dana@acme.example"
+        }
+      ]
+    },
+    {
+      "start": "13:00",
+      "title": "Northwind audit readout",
+      "status": "accepted",
+      "attendees": [
+        {
+          "name": "Priya Raman",
+          "email": "priya@northwind.example"
+        }
+      ]
+    },
+    {
+      "start": "16:00",
+      "title": "Bluepeak demo",
+      "status": "declined",
+      "attendees": [
+        {
+          "name": "Lee Castillo",
+          "email": "lee@bluepeak.example"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "why": "Rules 1, 2, 3 and 12. A clear recording: the meeting is written, each full name is linked, a stated fact gets a history line that points at its turn, and nobody is made from a first name.",
+  "exists": {
+    "objects": [
+      {
+        "path": "atlas/meetings/2026-11-12-acme-proposal-review.md",
+        "type": "meeting"
+      }
+    ],
+    "links": [
+      {
+        "from": "atlas/meetings/2026-11-12-acme-proposal-review.md",
+        "to": "atlas/people/sam-rivera.md",
+        "shown": "Sam Rivera"
+      },
+      {
+        "from": "atlas/meetings/2026-11-12-acme-proposal-review.md",
+        "to": "atlas/people/dana-whitfield.md",
+        "shown": "Dana Whitfield"
+      }
+    ],
+    "history": [
+      {
+        "on": "atlas/people/sam-rivera.md",
+        "text": "The warehouse team reports to Sam Rivera",
+        "basis": "stated",
+        "source": "system/transcripts/2026-11-12-acme-proposal-review.md#^p0002"
+      }
+    ]
+  },
+  "absent": {
+    "objects": [
+      {
+        "path": "atlas/people/sam.md",
+        "type": "person"
+      },
+      {
+        "path": "atlas/people/dana.md",
+        "type": "person"
+      }
+    ],
+    "links": [],
+    "history": []
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "why": "Rules 1 and 3. A recording with nothing said is kept whole. Nobody is recorded as having attended on the strength of an invitation, and nothing is made up from it.",
+  "exists": {
+    "objects": [],
+    "links": [],
+    "history": []
+  },
+  "absent": {
+    "objects": [
+      {
+        "path": "atlas/decisions/2026-11-12-bluepeak-sync.md",
+        "type": "decision"
+      }
+    ],
+    "links": [
+      {
+        "from": "atlas/meetings/2026-11-12-bluepeak-sync.md",
+        "to": "atlas/people/lee-castillo.md",
+        "in": "attendees"
+      }
+    ],
+    "history": []
+  }
+}

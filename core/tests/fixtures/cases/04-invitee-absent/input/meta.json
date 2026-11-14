@@ -1,0 +1,15 @@
+{
+  "kind": "meeting-recording",
+  "title": "Northwind floor walk",
+  "date": "2026-11-12",
+  "attendees": [
+    {
+      "name": "Priya Raman",
+      "email": "priya@northwind.example"
+    },
+    {
+      "name": "Nick Alvarez",
+      "email": "nick@northwind.example"
+    }
+  ]
+}

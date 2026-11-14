@@ -1,0 +1,31 @@
+{
+  "why": "Rule 3 and the attendee step. Being invited is not attending. Only the person who was there is on the attendee list. The note may still name and link the one who was not.",
+  "exists": {
+    "objects": [
+      {
+        "path": "atlas/meetings/2026-11-12-northwind-floor-walk.md",
+        "type": "meeting"
+      }
+    ],
+    "links": [
+      {
+        "from": "atlas/meetings/2026-11-12-northwind-floor-walk.md",
+        "to": "atlas/people/nick-alvarez.md",
+        "shown": "Nick Alvarez",
+        "in": "attendees"
+      }
+    ],
+    "history": []
+  },
+  "absent": {
+    "objects": [],
+    "links": [
+      {
+        "from": "atlas/meetings/2026-11-12-northwind-floor-walk.md",
+        "to": "atlas/people/priya-raman.md",
+        "in": "attendees"
+      }
+    ],
+    "history": []
+  }
+}
