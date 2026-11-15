@@ -7,11 +7,11 @@ sample: true
 ---
 # Sam Rivera
 
-Leads operations at [[objects/companies/acme|Acme]]. Agreed to build [[objects/projects/acme-order-desk|Acme Order Desk]] after [[objects/terms/bespoke-systems|bespoke systems]] failed there twice.
+Leads operations at [[objects/companies/acme|Acme]]. Says [[objects/terms/bespoke-systems|bespoke systems]] were tried there twice and nobody kept them up. Agreed to build [[objects/projects/acme-order-desk|Acme Order Desk]] on the shared order sheet.
 
 ## Currently
 
-- Leads operations at Acme. 2026-11-10, [[sources/recordings/2026-11-10-acme-first-meeting#^p0002]]
+- Leads operations at [[objects/companies/acme|Acme]]. 2026-11-10, [[sources/recordings/2026-11-10-acme-first-meeting#^p0002]]
 
 ## History
 

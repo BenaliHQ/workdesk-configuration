@@ -7,7 +7,7 @@ sample: true
 ---
 # Acme
 
-Makes shop fittings for small stores. [[objects/people/sam-rivera|Sam Rivera]] leads operations there. Its orders are being pulled into [[objects/projects/acme-order-desk|Acme Order Desk]].
+Makes shop fittings, mostly for small stores. [[objects/people/sam-rivera|Sam Rivera]] leads operations there. [[objects/projects/acme-order-desk|Acme Order Desk]] is to be one place for every order.
 
 ## Currently
 

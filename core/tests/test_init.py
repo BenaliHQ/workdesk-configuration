@@ -46,6 +46,10 @@ CITED = re.compile(r"^- (.+) %s$" % PASSAGE)
 TURN = re.compile(r"^([A-Z][a-z]+(?: [A-Z][a-z]+)+): (.+) \^(p\d{4})$")
 LINK = re.compile(r"\[\[([^\[\]\n]+)\]\]")
 WORD = re.compile(r"[A-Za-z]+")
+# One entry of a list written on one line: in quotes, or plain.
+ENTRY = re.compile(r'"([^"]*)"|([^,\[\]"]+)')
+# One term of the graph's filter: a regular expression between slashes.
+TERM = re.compile(r"^-path:/(.+)/$")
 # Words a line uses to report what was said. They are not in the passage.
 REPORTING = {"said"}
 
@@ -123,6 +127,35 @@ def links(text):
         target, _, passage = target.partition("#")
         found.append((target.strip(), passage.lstrip("^") or None, shown.strip() or None))
     return found
+
+
+def entries(value):
+    """The entries of a list written on one line, such as `["a b", c d]`."""
+    assert value.startswith("[") and value.endswith("]"), value
+    return [
+        (quoted or plain).strip()
+        for quoted, plain in ENTRY.findall(value[1:-1]) if (quoted or plain).strip()
+    ]
+
+
+def shown_words(line):
+    """A line as it reads: each link replaced by the words it shows."""
+    return LINK.sub(lambda match: match.group(1).partition("|")[2].strip(), line)
+
+
+def hidden_from_the_graph(search, paths):
+    """The paths Obsidian's graph leaves out under this filter.
+
+    Each term is `-path:/<expression>/`. Obsidian tries the expression
+    against a note's path from the top of the vault, and without regard
+    to case. A note is left out when any term finds a match.
+    """
+    expressions = []
+    for term in search.split():
+        match = TERM.match(term)
+        assert match, "%s is not a -path: term with a regular expression" % term
+        expressions.append(re.compile(match.group(1), re.IGNORECASE))
+    return [path for path in paths if any(found.search(path) for found in expressions)]
 
 
 def rests_on(word, passage):
@@ -343,7 +376,27 @@ class Init(unittest.TestCase):
 
     def test_a_link_that_points_nowhere_is_refused(self):
         os.symlink(str(self.scratch / "gone"), str(self.vault))
-        self.refused(["init", self.vault])
+        err = self.refused(["init", self.vault])
+        self.assertIn("is a link", err)
+
+    def test_a_link_to_an_empty_folder_is_refused(self):
+        # The vault would land somewhere other than the path that was given.
+        elsewhere = self.scratch / "elsewhere"
+        elsewhere.mkdir()
+        os.symlink(str(elsewhere), str(self.vault))
+        err = self.refused(["init", self.vault, "--samples"])
+        self.assertEqual(len(err.strip().splitlines()), 1, "One plain sentence.")
+        self.assertIn("is a link", err)
+        self.assertIn("nothing was made", err)
+        self.assertEqual(list(elsewhere.iterdir()), [])
+        self.assertTrue(self.vault.is_symlink())
+
+    def test_a_link_to_a_file_is_refused(self):
+        kept = self.scratch / "kept.md"
+        kept.write_text("Not a folder.\n", encoding="utf-8")
+        os.symlink(str(kept), str(self.vault))
+        err = self.refused(["init", self.vault])
+        self.assertIn("is a link", err)
 
     def test_a_vault_that_init_made_is_refused_the_second_time(self):
         run(["init", self.vault])
@@ -546,15 +599,16 @@ class TheSamples(unittest.TestCase):
         self.assertEqual(finish.link_problems(
             {name: SAMPLE.text(name) for name in SAMPLE.vault.notes}), [])
 
-    def test_every_mention_of_a_named_object_is_linked_outside_the_program_sections(self):
-        # In a summary and in a meeting's sections. `## Currently` and
-        # `## History` hold plain text, as the test vault's do.
+    def test_every_mention_of_a_named_object_is_linked_outside_history(self):
+        # In a summary, under `## Currently` and in a meeting's sections,
+        # as the linker would leave them. The lines under `## History`
+        # stay plain: a history line's text may hold no bar.
         for kind, note in SAMPLE.objects:
             _, body = SAMPLE.parts(note)
             own = SAMPLE.names.get(note[:-3])
             lines = list(summary(body))
             for heading, under in sections(body):
-                if heading not in ("Currently", "History"):
+                if heading != "History":
                     lines += under
             if kind == "quote":
                 lines = [line for line in body.split("\n") if line.strip() and line[0] not in "#>"]
@@ -603,6 +657,8 @@ class TheSamples(unittest.TestCase):
                 match = CURRENTLY.match(line)
                 self.assertIsNotNone(match, "%s: %s" % (note, line))
                 text, date, target, marker = match.groups()
+                # The history line says the same thing in plain text.
+                text = shown_words(text)
                 passage = SAMPLE.passage(target, marker)
                 self.assertIsNotNone(passage, "%s: %s" % (note, line))
                 self.assertEqual(not_in_passage(text, passage), [], "%s: %s" % (note, line))
@@ -621,17 +677,31 @@ class TheSamples(unittest.TestCase):
         self.assertEqual(datetime.date.fromisoformat(keys["date"]).weekday(), TUESDAY)
         self.assertEqual(notes.link_targets(keys["source"]), [recording[:-3]])
         self.assertEqual(keys["date"], SAMPLE.parts(recording)[0]["date"])
-        # Each attendee is a link to a person, showing the full name.
-        attendees = json.loads(dict(raw_keys(SAMPLE.text(note)))["attendees"])
-        self.assertTrue(attendees)
+        # Each attendee is a full name. One who has a note is a link to it.
+        # The owner has no note among the nine samples, so is plain text.
+        attendees = entries(dict(raw_keys(SAMPLE.text(note)))["attendees"])
+        full_names = []
         for entry in attendees:
-            ((target, _, shown),) = links(entry)
-            self.assertEqual(entry, "[[%s|%s]]" % (target, shown))
-            self.assertIn(target + ".md", SAMPLE.of("person"))
-            self.assertEqual(shown, SAMPLE.names[target])
-            # An attendee speaks in the recording.
-            self.assertTrue(any(
-                block.startswith(shown + ": ") for block in SAMPLE.passages.values()), shown)
+            if LINK.search(entry):
+                ((target, _, shown),) = links(entry)
+                self.assertEqual(entry, "[[%s|%s]]" % (target, shown))
+                self.assertIn(target + ".md", SAMPLE.of("person"))
+                self.assertEqual(shown, SAMPLE.names[target])
+                full_names.append(shown)
+            else:
+                self.assertNotIn(entry, SAMPLE.names.values(), "%s has a note" % entry)
+                full_names.append(entry)
+        for name in full_names:
+            self.assertGreaterEqual(len(name.split()), 2, name)
+        self.assertEqual(len(full_names), len(set(full_names)))
+        self.assertEqual(
+            sorted(full_names[:1]), [SAMPLE.names[SAMPLE.of("person")[0][:-3]]],
+            "The person with a note comes first, as a link.",
+        )
+        # Everyone who speaks in the recording attended, and no one else.
+        speakers = {TURN.match(block).group(1) for block in SAMPLE.passages.values()}
+        self.assertEqual(set(full_names), speakers)
+        self.assertEqual(SAMPLE.parts(recording)[0]["author"], full_names[-1])
         # Every line under a section ends with its passage, and rests on it.
         found = dict(sections(body))
         for heading in ("Decisions", "Promises", "Detail"):
@@ -783,15 +853,57 @@ class GraphSetting(unittest.TestCase):
     def test_sources_briefs_and_the_root_files_are_hidden(self):
         search = dict(obsidian.wanted())["graph.json"]["search"]
         self.assertEqual(
-            search.split(),
-            ["-path:sources/", "-path:signals/briefs/",
-             "-file:AGENTS.md", "-file:CLAUDE.md", "-file:status.md"],
+            search,
+            r"-path:/^sources\// -path:/^signals\/briefs\// "
+            r"-path:/^AGENTS\.md$/ -path:/^CLAUDE\.md$/ -path:/^status\.md$/",
         )
+        self.assertEqual(search.split(), finish.graph_filter())
         for home in places.SOURCE_HOMES:
             self.assertTrue(home.startswith("sources/"), home)
-        # Objects, syntheses and the owner's writing stay in the graph.
-        for folder in ("objects", "signals/syntheses", "writing"):
-            self.assertNotIn(folder, search)
+
+    def test_the_filter_hides_those_and_nothing_else(self):
+        # The same expressions, tried on paths the way Obsidian tries
+        # them. The real proof is the owner looking at the graph.
+        search = dict(obsidian.wanted())["graph.json"]["search"]
+        hidden = [
+            "sources/recordings/2026-11-10-acme-first-meeting.md",
+            "sources/links/2026-11-04-the-case-for-small-tools.md",
+            "sources/sessions/2026-11-12-session.md",
+            "sources/captures/2026-11-11-voice-note.md",
+            "signals/briefs/2026-11-11.md",
+            "AGENTS.md",
+            "CLAUDE.md",
+            "status.md",
+        ]
+        shown = [
+            # Words that a plain `path:` or `file:` would match by mistake.
+            "writing/project-status.md",
+            "writing/resources/note.md",
+            "objects/terms/status.md",
+            "objects/terms/agents.md",
+            "objects/people/claude.md",
+            "objects/concepts/sources-of-truth.md",
+            "objects/terms/sources.md",
+            "writing/sources/a-note-of-mine.md",
+            "writing/signals/briefs/a-note-of-mine.md",
+            "writing/AGENTS.md",
+            "writing/status.md",
+            "status.md.md",
+            "my-status.md",
+            "sources.md",
+            "signals/briefs.md",
+            # What the graph is for.
+            "signals/syntheses/2026-11-07-what-clients-say-about-price.md",
+            "writing/2026-11-12.md",
+        ] + [note for note in SAMPLE.vault.notes if note.startswith("objects/")]
+        self.assertEqual(hidden_from_the_graph(search, hidden + shown), hidden)
+        # The filter this replaced hid three notes that are meant to show.
+        loose = [re.compile(words) for words in (r"sources/", r"signals/briefs/",
+                                                 r"AGENTS\.md", r"CLAUDE\.md", r"status\.md")]
+        wrongly = [path for path in shown if any(found.search(path) for found in loose)]
+        for path in ("writing/project-status.md", "writing/resources/note.md",
+                     "objects/terms/status.md"):
+            self.assertIn(path, wrongly)
 
     def test_dry_run_says_what_would_change_and_writes_nothing(self):
         self.put("graph.json", {"search": "tag:#mine", "scale": 0.5})
@@ -913,14 +1025,48 @@ class GraphSetting(unittest.TestCase):
             self.assertIn(words, err)
         self.assertEqual(snapshot(self.scratch), before)
 
-    def test_a_settings_folder_that_points_outside_the_vault_is_refused(self):
-        outside = self.scratch / "outside"
-        outside.mkdir()
-        os.symlink(str(outside), str(self.settings))
-        code, _, err = run(["graph-setting", self.vault, "--apply"])
-        self.assertEqual(code, cli.FAILED)
-        self.assertIn("outside the vault", err)
-        self.assertEqual(list(outside.iterdir()), [])
+    def refused_as_a_link(self, link):
+        """Both modes refuse, in one sentence, and nothing anywhere changes."""
+        before = snapshot(self.scratch)
+        for mode in ("--dry-run", "--apply"):
+            code, out, err = run(["graph-setting", self.vault, mode])
+            self.assertEqual(code, cli.FAILED, mode)
+            self.assertEqual(out, "")
+            self.assertEqual(len(err.strip().splitlines()), 1, "One plain sentence.")
+            self.assertIn("%s is a link, so nothing was changed." % link, err)
+            self.assertEqual(snapshot(self.scratch), before, mode)
+        self.assertTrue(link.is_symlink())
+
+    def test_a_settings_folder_that_is_a_link_is_refused(self):
+        # Outside the vault, and inside it: a link is refused either way.
+        for name in ("outside", "vault/kept-settings"):
+            target = self.scratch / name
+            target.mkdir()
+            os.symlink(str(target), str(self.settings))
+            self.refused_as_a_link(self.settings)
+            self.assertEqual(list(target.iterdir()), [])
+            self.settings.unlink()
+            target.rmdir()
+
+    def test_a_settings_file_that_is_a_link_is_refused(self):
+        outside = self.scratch / "outside.json"
+        for name in ("graph.json", "app.json"):
+            outside.write_text("{\"scale\": 0.5}\n", encoding="utf-8")
+            self.settings.mkdir(exist_ok=True)
+            link = self.settings / name
+            os.symlink(str(outside), str(link))
+            self.refused_as_a_link(link)
+            self.assertEqual(outside.read_text(encoding="utf-8"), "{\"scale\": 0.5}\n")
+            # The other file was not made on the way to the refusal.
+            self.assertEqual([path.name for path in self.settings.iterdir()], [name])
+            link.unlink()
+
+    def test_a_settings_file_that_is_a_link_to_nowhere_is_refused(self):
+        self.settings.mkdir()
+        link = self.settings / "app.json"
+        os.symlink(str(self.scratch / "gone.json"), str(link))
+        self.refused_as_a_link(link)
+        self.assertFalse((self.scratch / "gone.json").exists())
 
     def test_a_file_that_changed_since_it_was_read_is_not_written(self):
         self.put("app.json", {"tabSize": 2})
@@ -936,6 +1082,85 @@ class GraphSetting(unittest.TestCase):
         obsidian.write_safely(path, b"{}\n", path.read_bytes())
         self.assertEqual(path.read_bytes(), b"{}\n")
         self.assertEqual([p.name for p in self.settings.iterdir()], ["app.json"])
+
+    def test_a_file_or_link_left_at_a_temporary_name_is_never_written(self):
+        # The old temporary name could be guessed. Whatever sits at it,
+        # or at any name like it, is left exactly as it was.
+        self.put("app.json", {"tabSize": 2})
+        outside = self.scratch / "outside.txt"
+        outside.write_text("Not yours.\n", encoding="utf-8")
+        guessed = self.settings / (".app.json.wd-%d.tmp" % os.getpid())
+        os.symlink(str(outside), str(guessed))
+        left = self.settings / ".graph.json.tmp"
+        left.write_text("Left by something else.\n", encoding="utf-8")
+        code, _, err = run(["graph-setting", self.vault, "--apply"])
+        self.assertEqual((code, err), (cli.OK, ""))
+        self.assertEqual(outside.read_text(encoding="utf-8"), "Not yours.\n")
+        self.assertTrue(guessed.is_symlink())
+        self.assertEqual(left.read_text(encoding="utf-8"), "Left by something else.\n")
+        self.assertEqual(
+            sorted(path.name for path in self.settings.iterdir()),
+            sorted([guessed.name, left.name, "app.json", "graph.json"]),
+        )
+        self.assertEqual(finish.graph_problems(self.get("graph.json"), self.get("app.json")), [])
+
+    def test_each_temporary_file_has_its_own_name_and_is_made_only_if_new(self):
+        self.put("app.json", {"tabSize": 2})
+        made = []
+        real = tempfile.mkstemp
+
+        def watched(*arguments, **named):
+            handle, name = real(*arguments, **named)
+            made.append(name)
+            return handle, name
+
+        with mock.patch.object(tempfile, "mkstemp", watched):
+            run(["graph-setting", self.vault, "--apply"])
+            self.put("app.json", {"tabSize": 2})
+            run(["graph-setting", self.vault, "--apply"])
+        self.assertEqual(len(made), 3)
+        self.assertEqual(len(set(made)), 3, "No temporary name is used twice.")
+        for name in made:
+            self.assertEqual(Path(name).parent, self.settings)
+            self.assertTrue(Path(name).name.startswith("."), name)
+            self.assertFalse(Path(name).exists(), "%s was left behind" % name)
+
+    def test_a_write_that_fails_cleans_up_only_its_own_file(self):
+        self.put("app.json", {"tabSize": 2})
+        other = self.settings / ".app.json.other.tmp"
+        other.write_text("Someone else's.\n", encoding="utf-8")
+        path = self.settings / "app.json"
+
+        def fails(source, target):
+            raise OSError("the rename failed")
+
+        with mock.patch.object(os, "replace", fails):
+            with self.assertRaises(OSError):
+                obsidian.write_safely(path, b"{}\n", path.read_bytes())
+        self.assertEqual(
+            sorted(found.name for found in self.settings.iterdir()), [other.name, "app.json"])
+        self.assertEqual(other.read_text(encoding="utf-8"), "Someone else's.\n")
+        self.assertEqual(self.get("app.json"), {"tabSize": 2})
+
+    def test_a_written_file_keeps_its_permissions_and_a_new_one_is_not_private(self):
+        self.put("app.json", {"tabSize": 2})
+        os.chmod(str(self.settings / "app.json"), 0o640)
+        run(["graph-setting", self.vault, "--apply"])
+        self.assertEqual((self.settings / "app.json").stat().st_mode & 0o777, 0o640)
+        mask = os.umask(0)
+        os.umask(mask)
+        self.assertEqual((self.settings / "graph.json").stat().st_mode & 0o777, 0o666 & ~mask)
+
+    def test_a_link_is_never_written_through(self):
+        outside = self.scratch / "outside.json"
+        outside.write_text("{}\n", encoding="utf-8")
+        self.settings.mkdir()
+        link = self.settings / "app.json"
+        os.symlink(str(outside), str(link))
+        with self.assertRaises(obsidian.SettingError):
+            obsidian.write_safely(link, b"new\n", b"{}\n")
+        self.assertEqual(outside.read_text(encoding="utf-8"), "{}\n")
+        self.assertTrue(link.is_symlink())
 
     def test_the_write_goes_through_a_hidden_file_and_a_rename(self):
         self.put("app.json", {"tabSize": 2})

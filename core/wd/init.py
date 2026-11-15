@@ -7,9 +7,9 @@ skills from `core/product/`, and writes the Obsidian settings. With
 It finishes by writing the status page, `status.md`, the way
 `wd status` does, so a new vault has all three root files.
 
-It refuses a path that exists and is not empty, and changes nothing
-there. It never writes outside the folder it is given, and it writes
-nothing under `writing/`.
+It refuses a path that exists and is not empty, and a path that is a
+link, and changes nothing there. It never writes outside the folder it
+is given, and it writes nothing under `writing/`.
 """
 
 import os
@@ -118,6 +118,8 @@ def samples():
 
 def why_not(root):
     """One plain sentence on why this path cannot be a new vault, or None."""
+    if root.is_symlink():
+        return "%s is a link to somewhere else, so nothing was made." % root
     if not os.path.lexists(str(root)):
         return None
     if not root.is_dir():

@@ -64,7 +64,7 @@ GOOD_HELP = "usage: wd <command> [arguments]\n\ncommands:\n" + "".join(
 SKILL = "---\nname: %s\ndescription: %s\n---\n# %s\n\nWhat to do.\n"
 
 GOOD_GRAPH = {
-    "search": "-path:sources -path:signals/briefs -file:AGENTS.md -file:CLAUDE.md -file:status.md",
+    "search": " ".join(finish.graph_filter()),
     "colorGroups": [
         {"query": "path:%s" % home, "color": {"a": 1, "rgb": 1000 + number}}
         for number, (_, home, _) in enumerate(finish.OBJECT_TYPES)
@@ -363,9 +363,33 @@ class Rulebook(unittest.TestCase):
 class Graph(unittest.TestCase):
     def test_a_full_setting_gets_through(self):
         self.assertEqual(finish.graph_problems(GOOD_GRAPH, GOOD_APP), [])
-        quoted = dict(GOOD_GRAPH, search='-path:"sources/" -path:"signals/briefs/" '
-                                         '-file:"AGENTS" -file:CLAUDE -path:status.md')
-        self.assertEqual(finish.graph_problems(quoted, GOOD_APP), [])
+        self.assertEqual(
+            GOOD_GRAPH["search"],
+            r"-path:/^sources\// -path:/^signals\/briefs\// "
+            r"-path:/^AGENTS\.md$/ -path:/^CLAUDE\.md$/ -path:/^status\.md$/",
+        )
+        turned = dict(GOOD_GRAPH, search=" ".join(reversed(finish.graph_filter())))
+        self.assertEqual(finish.graph_problems(turned, GOOD_APP), [])
+
+    def test_a_filter_that_matches_anywhere_in_a_path_does_not_get_through(self):
+        # Obsidian matches these words anywhere in a path, so each hides
+        # notes that are meant to show.
+        for loose in (
+            "-path:sources -path:signals/briefs -file:AGENTS.md -file:CLAUDE.md -file:status.md",
+            "-path:sources/ -path:signals/briefs/ -file:AGENTS.md -file:CLAUDE.md -file:status.md",
+            '-path:"sources/" -path:"signals/briefs/" -file:"AGENTS" -file:CLAUDE -path:status.md',
+        ):
+            problems = finish.graph_problems(dict(GOOD_GRAPH, search=loose), GOOD_APP)
+            self.assertEqual(len(problems), 10, loose)
+            self.assertIn("graph.json: sources/ is not hidden", problems)
+            self.assertIn("graph.json: status.md is not hidden", problems)
+
+    def test_a_filter_that_hides_more_does_not_get_through(self):
+        more = dict(GOOD_GRAPH, search=GOOD_GRAPH["search"] + " -path:/^writing\\//")
+        self.assertEqual(
+            finish.graph_problems(more, GOOD_APP),
+            ["graph.json: the filter also holds -path:/^writing\\//"],
+        )
 
     def test_nothing_does_not_get_through(self):
         self.assertEqual(len(finish.graph_problems(None, None)), 2)
@@ -392,15 +416,21 @@ class Graph(unittest.TestCase):
         self.assertEqual(len(finish.graph_problems(graph, GOOD_APP)), 1)
 
     def test_what_must_be_hidden(self):
-        graph = dict(GOOD_GRAPH, search="-path:sources/recordings -file:AGENTS.md -file:CLAUDE.md")
+        kept = [finish.file_filter("AGENTS.md"), finish.file_filter("CLAUDE.md")]
+        graph = dict(GOOD_GRAPH, search=" ".join(kept))
         self.assertEqual(
             finish.graph_problems(graph, GOOD_APP),
             ["graph.json: sources/ is not hidden", "graph.json: signals/briefs/ is not hidden",
              "graph.json: status.md is not hidden"],
         )
         # Naming a folder is not hiding it.
-        graph = dict(GOOD_GRAPH, search=GOOD_GRAPH["search"].replace("-path:sources", "path:sources"))
-        self.assertEqual(finish.graph_problems(graph, GOOD_APP), ["graph.json: sources/ is not hidden"])
+        named = finish.folder_filter("sources")[1:]
+        graph = dict(GOOD_GRAPH, search=GOOD_GRAPH["search"].replace(
+            finish.folder_filter("sources"), named))
+        self.assertEqual(
+            finish.graph_problems(graph, GOOD_APP),
+            ["graph.json: sources/ is not hidden", "graph.json: the filter also holds " + named],
+        )
         # A group that hides a home does not color it.
         self.assertFalse(finish.names_path("-path:objects/people", "objects/people"))
 

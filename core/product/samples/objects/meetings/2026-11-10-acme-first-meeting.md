@@ -2,13 +2,13 @@
 type: meeting
 private: false
 date: 2026-11-10
-attendees: ["[[objects/people/sam-rivera|Sam Rivera]]"]
+attendees: ["[[objects/people/sam-rivera|Sam Rivera]]", Robin Hale]
 source: "[[sources/recordings/2026-11-10-acme-first-meeting]]"
 sample: true
 ---
 # Acme first meeting
 
-First meeting with [[objects/people/sam-rivera|Sam Rivera]] of [[objects/companies/acme|Acme]]. Orders there live in three places, and [[objects/terms/bespoke-systems|bespoke systems]] failed twice. The answer is [[objects/projects/acme-order-desk|Acme Order Desk]].
+A meeting with [[objects/people/sam-rivera|Sam Rivera]] of [[objects/companies/acme|Acme]]. Orders there live in three places, and [[objects/terms/bespoke-systems|bespoke systems]] were tried twice. They agreed to build [[objects/projects/acme-order-desk|Acme Order Desk]] on the shared order sheet.
 
 ## Decisions
 

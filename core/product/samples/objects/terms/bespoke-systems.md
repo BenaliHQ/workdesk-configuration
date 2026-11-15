@@ -7,7 +7,7 @@ sample: true
 ---
 # bespoke systems
 
-Systems built for one company by a single person. [[objects/people/sam-rivera|Sam Rivera]] raised the term. [[objects/companies/acme|Acme]] tried them twice, and both times nobody kept them up.
+[[objects/people/sam-rivera|Sam Rivera]]'s words for what [[objects/companies/acme|Acme]] tried twice to pull its orders together. Each was built by a single person, and both times nobody kept them up.
 
 ## History
 

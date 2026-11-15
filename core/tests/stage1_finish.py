@@ -1,4 +1,4 @@
-"""Finish test for stage 1, Structure.
+r"""Finish test for stage 1, Structure.
 
 This file was written and committed before the rest of stage 1 existed,
 so it fails until the stage is built. Only the operator seeing it pass
@@ -54,9 +54,14 @@ Commands (S1.3 and S1.4)
   and one recording in `sources/recordings/`.
 - The Obsidian settings are `.obsidian/app.json` and
   `.obsidian/graph.json`. In `graph.json`, `colorGroups` holds one
-  group for each object type, whose `query` is `path:<home>`, and
-  `search` holds `-path:sources`, `-path:signals/briefs` and
-  `-file:<name>` for each root file.
+  group for each object type, whose `query` is `path:<home>`. `search`
+  holds five terms and nothing else. Each is a regular expression tied
+  to the start of the path, because Obsidian's `path:` and `file:`
+  match their words anywhere in a path, and would hide notes that are
+  not meant:
+
+      -path:/^sources\// -path:/^signals\/briefs\//
+      -path:/^AGENTS\.md$/ -path:/^CLAUDE\.md$/ -path:/^status\.md$/
 - `wd graph-setting <vault> --dry-run` changes nothing. With `--apply`
   it writes the settings above into the two files and keeps every
   other key that was in them.
@@ -494,17 +499,33 @@ def names_path(query, folder):
     ) is not None
 
 
+# What the graph leaves out: every source, and the briefs.
+HIDDEN_FROM_GRAPH = ("sources", "signals/briefs")
+
+
+def folder_filter(folder):
+    """The one term that hides everything under a folder at the top of the vault."""
+    return "-path:/^%s\\//" % folder.replace("/", "\\/")
+
+
+def file_filter(name):
+    """The one term that hides one file at the top of the vault."""
+    return "-path:/^%s$/" % name.replace(".", "\\.")
+
+
+def graph_filter():
+    """The terms the graph's filter holds, in order."""
+    return [folder_filter(folder) for folder in HIDDEN_FROM_GRAPH] + [
+        file_filter(name) for name in ROOT_FILES
+    ]
+
+
 def hides_path(search, folder):
-    return isinstance(search, str) and re.search(
-        r'(?<!\S)-path:"?%s/?"?(?![\w/-])' % re.escape(folder), search
-    ) is not None
+    return isinstance(search, str) and folder_filter(folder) in search.split()
 
 
 def hides_file(search, name):
-    stem = name[:-3] if name.endswith(".md") else name
-    return isinstance(search, str) and re.search(
-        r'(?<!\S)-(?:file|path):"?%s(?:\.md)?"?(?![\w/.-])' % re.escape(stem), search
-    ) is not None
+    return isinstance(search, str) and file_filter(name) in search.split()
 
 
 def graph_problems(graph, app):
@@ -531,12 +552,16 @@ def graph_problems(graph, app):
     elif len(set(colors)) != len(colors):
         problems.append("graph.json: two object types share a color")
     search = graph.get("search")
-    for folder in ("sources", "signals/briefs"):
+    for folder in HIDDEN_FROM_GRAPH:
         if not hides_path(search, folder):
             problems.append("graph.json: %s/ is not hidden" % folder)
     for name in ROOT_FILES:
         if not hides_file(search, name):
             problems.append("graph.json: %s is not hidden" % name)
+    # Anything more in the filter hides notes that are meant to show.
+    for term in search.split() if isinstance(search, str) else []:
+        if term not in graph_filter():
+            problems.append("graph.json: the filter also holds %s" % term)
     return problems
 
 
