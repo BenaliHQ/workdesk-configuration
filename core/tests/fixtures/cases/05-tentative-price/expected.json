@@ -3,7 +3,7 @@
   "exists": {
     "objects": [
       {
-        "path": "atlas/meetings/2026-11-12-harbor-and-vine-spring-review.md",
+        "path": "objects/meetings/2026-11-12-harbor-and-vine-spring-review.md",
         "type": "meeting"
       }
     ],
@@ -13,18 +13,18 @@
   "absent": {
     "objects": [
       {
-        "path": "atlas/decisions/2026-11-12-top-tier-price.md",
+        "path": "objects/decisions/2026-11-12-top-tier-price.md",
         "type": "decision"
       }
     ],
     "links": [],
     "history": [
       {
-        "on": "atlas/companies/harbor-and-vine.md",
+        "on": "objects/companies/harbor-and-vine.md",
         "text": "On the top pricing tier"
       },
       {
-        "on": "atlas/companies/harbor-and-vine.md",
+        "on": "objects/companies/harbor-and-vine.md",
         "text": "Pays four thousand",
         "basis": "stated"
       }

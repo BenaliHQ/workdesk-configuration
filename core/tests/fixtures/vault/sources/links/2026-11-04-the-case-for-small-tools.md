@@ -9,7 +9,7 @@ status: read
 starred: false
 private: false
 take: Small tools you keep up beat big systems you do not.
-produced: []
+produced: ["[[objects/concepts/slow-is-smooth]]"]
 sha256-original: 52280cce02661010bbada71ba8be73660ea55a35fd324b3b5567f395631bce5c
 ---
 Most teams buy a big system and use a tenth of it. ^p0001

@@ -20,47 +20,50 @@ for folder in (CORE, TESTS):
 import stage0_finish as finish  # noqa: E402
 from wd import cli, measure, notes, places  # noqa: E402
 
-SOURCE = "---\ntype: source\nprocessed: %s\n---\n%s\n"
+SOURCE = "---\ntype: source\nkind: %s\nproduced: %s\n---\n%s\n"
 
 VAULT = {
-    "atlas/people/sam-rivera.md":
-        "# Sam Rivera\n\nWorks with [[atlas/companies/acme|Acme]]. "
+    "objects/people/sam-rivera.md":
+        "# Sam Rivera\n\nWorks with [[objects/companies/acme|Acme]]. "
         "Met in [[2026-11-10-acme-kickoff]]. See [[missing-note]].\n",
-    "atlas/people/nick.md": "# Nick\n\nNo last name known.\n",
-    "atlas/people/index.md": "# People\n\n[[nowhere]] and [[nick]]\n",
-    "atlas/companies/acme.md":
+    "objects/people/nick.md": "# Nick\n\nNo last name known.\n",
+    # A file at the top of the vault. Its links are navigation.
+    "status.md": "# Status\n\n[[nowhere]] and [[nick]]\n",
+    "objects/companies/acme.md":
         "# Acme\n\nA made-up company. ![[logo.png]] and `[[not-a-link]]`\n\n"
         "```\n[[also-not-a-link]]\n```\n",
     "attachments/logo.png": "not really a picture",
-    "atlas/meetings/2026-11-10-acme-kickoff.md":
-        "---\ntranscript: \"[[system/transcripts/2026-11-10-acme-kickoff]]\"\n"
-        "source: granola\n---\n"
-        "# Acme kickoff\n\nWith [[atlas/people/sam-rivera|Sam Rivera]].\n\n"
-        "| who | where |\n|---|---|\n| Sam | [[atlas/companies/acme\\|Acme]] |\n",
-    "atlas/meetings/2026-11-11-lost.md":
-        "---\ntranscript: \"[[system/transcripts/2026-11-11-gone]]\"\n---\n# Lost\n",
-    "atlas/meetings/2026-11-12-web.md":
-        "---\nsource: https://example.com/call\ntranscript:\n---\n# Web\n",
-    "atlas/meetings/2026-11-13-plain.md":
-        "---\nsource: system/transcripts/2026-11-13-nope.md\n---\n# Plain\n",
-    "atlas/decisions/2026-11-10-price.md":
+    "objects/meetings/2026-11-10-acme-kickoff.md":
+        "---\nsource: \"[[sources/recordings/2026-11-10-acme-kickoff]]\"\n---\n"
+        "# Acme kickoff\n\nWith [[objects/people/sam-rivera|Sam Rivera]].\n\n"
+        "| who | where |\n|---|---|\n| Sam | [[objects/companies/acme\\|Acme]] |\n",
+    "objects/meetings/2026-11-11-lost.md":
+        "---\nsource: \"[[sources/recordings/2026-11-11-gone]]\"\n---\n# Lost\n",
+    "objects/meetings/2026-11-12-web.md":
+        "---\nsource: https://example.com/call\n---\n# Web\n",
+    "objects/meetings/2026-11-13-plain.md":
+        "---\nsource: sources/recordings/2026-11-13-nope.md\n---\n# Plain\n",
+    "objects/meetings/2026-11-14-label.md": "---\nsource: a recorder\n---\n# Label\n",
+    "objects/meetings/2026-11-15-empty.md": "---\nsource:\n---\n# Empty\n",
+    "objects/decisions/2026-11-10-price.md":
         "# Price\n\nDecided in [[2026-11-10-acme-kickoff#Decisions]] "
         "with [[../people/sam-rivera|Sam Rivera]], not [[../people/nobody]].\n",
-    "gtd/projects/alpha/brief.md": "# Alpha Brief\n\nFor [[Acme]].\n",
-    "gtd/projects/_archive/brief.md": "# Archived Brief\n",
-    "gtd/projects/_archive/old/brief.md": "# Old Brief\n",
-    "atlas/clients/acme/brief.md": "# A client brief is not a project\n",
-    "atlas/clients/acme/projects/site/brief.md": "# Site Brief\n",
-    "intel/syntheses/2026-11-12-pricing.md":
-        "About [[atlas/people/sam-rivera]] and [[ghost]].\n",
-    "intel/concepts/bespoke-systems.md": "# Bespoke systems\n",
-    "system/transcripts/2026-11-10-acme-kickoff.md":
-        SOURCE % ("true", "Sam: hello [[unknown-in-a-source]]"),
-    "system/intake/a.md": SOURCE % ("false", "Dropped today."),
-    "system/bookmarks/b.md": SOURCE % ("false", "A saved link."),
-    "system/bookmarks/c.md": SOURCE % ("true", "A read link."),
-    "daily/2026-11-12.md": "Read about [[bespoke-systems]] today.\n",
-    ".hidden/x.md": "A dot folder is not part of the vault: [[atlas/people/nick]].\n",
+    "objects/projects/alpha.md": "# Alpha\n\nFor [[Acme]].\n",
+    "objects/projects/site.md": "# Site\n",
+    "signals/syntheses/2026-11-12-pricing.md":
+        "About [[objects/people/sam-rivera]] and [[ghost]].\n",
+    "objects/concepts/bespoke-systems.md": "# Bespoke systems\n",
+    "sources/recordings/2026-11-10-acme-kickoff.md":
+        SOURCE % ("meeting-recording", "[\"[[objects/meetings/2026-11-10-acme-kickoff]]\"]",
+                  "Sam: hello [[unknown-in-a-source]]"),
+    "sources/captures/a.md": SOURCE % ("capture", "[]", "Dropped today."),
+    "sources/links/b.md": SOURCE % ("article", "[]", "A saved link."),
+    "sources/links/c.md":
+        SOURCE % ("article", "\n  - \"[[objects/concepts/bespoke-systems]]\"", "A read link."),
+    # No `produced` key at all: nothing is known to have come of it.
+    "sources/sessions/d.md": "---\ntype: source\nkind: agent-session\n---\nA session.\n",
+    "writing/2026-11-12.md": "Read about [[bespoke-systems]] today.\n",
+    ".hidden/x.md": "A dot folder is not part of the vault: [[objects/people/nick]].\n",
     ".obsidian/app.json": "{}",
 }
 
@@ -93,64 +96,73 @@ class Counts(unittest.TestCase):
 
     def test_notes_in_each_home(self):
         self.assertEqual(self.report["notes"], {
-            "atlas/people": 2,
-            "atlas/companies": 1,
-            "atlas/terms": 0,
-            "intel/concepts": 1,
-            "atlas/meetings": 4,
-            "atlas/decisions": 1,
-            "gtd/reference/quotes": 0,
-            "projects": 2,
-            "intel/briefings/daily": 0,
-            "intel/syntheses": 1,
-            "system/transcripts": 1,
-            "system/bookmarks": 2,
-            "system/session-log": 0,
-            "system/intake": 1,
+            "objects/people": 2,
+            "objects/companies": 1,
+            "objects/projects": 2,
+            "objects/terms": 0,
+            "objects/concepts": 1,
+            "objects/meetings": 6,
+            "objects/decisions": 1,
+            "objects/quotes": 0,
+            "signals/briefs": 0,
+            "signals/syntheses": 1,
+            "sources/recordings": 1,
+            "sources/links": 2,
+            "sources/sessions": 1,
+            "sources/captures": 1,
         })
+        # The homes come in the build spec's order: objects, signals, sources.
+        self.assertEqual(
+            list(self.report["notes"]),
+            [home for _, home in places.OBJECT_HOMES] + places.SIGNAL_HOMES + places.SOURCE_HOMES,
+        )
 
     def test_links_with_a_missing_target(self):
         # Only in objects and syntheses. Code, pictures that exist,
         # headings, shown words and table bars do not confuse it.
         self.assertEqual(self.report["examples"]["broken_links"], [
-            "atlas/people/sam-rivera.md -> missing-note",
-            "atlas/meetings/2026-11-11-lost.md -> system/transcripts/2026-11-11-gone",
-            "atlas/decisions/2026-11-10-price.md -> ../people/nobody",
-            "intel/syntheses/2026-11-12-pricing.md -> ghost",
+            "objects/people/sam-rivera.md -> missing-note",
+            "objects/meetings/2026-11-11-lost.md -> sources/recordings/2026-11-11-gone",
+            "objects/decisions/2026-11-10-price.md -> ../people/nobody",
+            "signals/syntheses/2026-11-12-pricing.md -> ghost",
         ])
         self.assertEqual(self.report["broken_links"], 4)
 
     def test_objects_nothing_links_to(self):
-        # The index page links to Nick. That is navigation, so he still counts.
-        self.assertEqual(self.report["unlinked_objects"], 7)
+        # The status page links to Nick. That is navigation, so he still
+        # counts. A link from the operator's own writing is a connection,
+        # and so is a source naming what it produced.
+        self.assertEqual(self.report["unlinked_objects"], 9)
         self.assertEqual(self.report["examples"]["unlinked_objects"], [
-            "atlas/people/nick.md",
-            "atlas/meetings/2026-11-11-lost.md",
-            "atlas/meetings/2026-11-12-web.md",
-            "atlas/meetings/2026-11-13-plain.md",
-            "atlas/decisions/2026-11-10-price.md",
+            "objects/people/nick.md",
+            "objects/projects/alpha.md",
+            "objects/projects/site.md",
+            "objects/meetings/2026-11-11-lost.md",
+            "objects/meetings/2026-11-12-web.md",
         ])
 
     def test_people_without_a_full_name(self):
         self.assertEqual(self.report["people_without_full_name"], 1)
         self.assertEqual(
-            self.report["examples"]["people_without_full_name"], ["atlas/people/nick.md"]
+            self.report["examples"]["people_without_full_name"], ["objects/people/nick.md"]
         )
 
     def test_meetings_with_a_missing_source(self):
         # A web address is not a vault target, and neither is a label such
         # as the name of the recorder. An empty value names nothing.
         self.assertEqual(self.report["examples"]["meetings_with_missing_source"], [
-            "atlas/meetings/2026-11-11-lost.md",
-            "atlas/meetings/2026-11-13-plain.md",
+            "objects/meetings/2026-11-11-lost.md",
+            "objects/meetings/2026-11-13-plain.md",
         ])
         self.assertEqual(self.report["meetings_with_missing_source"], 2)
 
-    def test_sources_not_processed(self):
+    def test_sources_that_produced_nothing(self):
+        # An empty list, or no list at all. A list written over several
+        # lines is a list with something in it.
         self.assertEqual(self.report["examples"]["sources_unprocessed"], [
-            "system/bookmarks/b.md", "system/intake/a.md",
+            "sources/links/b.md", "sources/sessions/d.md", "sources/captures/a.md",
         ])
-        self.assertEqual(self.report["sources_unprocessed"], 2)
+        self.assertEqual(self.report["sources_unprocessed"], 3)
 
     def test_the_report_has_the_shape_the_finish_test_wants(self):
         self.assertEqual(finish.measure_problems(self.report), [])
@@ -219,10 +231,10 @@ class Reading(unittest.TestCase):
 
     def test_comments_in_the_opening_block(self):
         keys, _ = notes.front(
-            "---\nprocessed: false # waiting\n# a line of its own\n"
-            "title: \"A # B\" # after\nsource: system/x.md   # where\n---\n"
+            "---\nstarred: false # waiting\n# a line of its own\n"
+            "title: \"A # B\" # after\nsource: sources/x.md   # where\n---\n"
         )
-        self.assertEqual(keys, {"processed": "false", "title": "A # B", "source": "system/x.md"})
+        self.assertEqual(keys, {"starred": "false", "title": "A # B", "source": "sources/x.md"})
 
     def test_links(self):
         self.assertEqual(
@@ -232,44 +244,46 @@ class Reading(unittest.TestCase):
 
     def test_a_link_resolves_by_any_tail_of_the_path_and_any_case(self):
         with tempfile.TemporaryDirectory() as folder:
-            vault = notes.Vault(build(folder, {"atlas/people/Sam Rivera.md": "x"}))
-        for target in ("sam rivera", "people/Sam Rivera", "atlas/people/sam rivera.md"):
-            self.assertEqual(vault.resolve(target), "atlas/people/Sam Rivera.md", target)
+            vault = notes.Vault(build(folder, {"objects/people/Sam Rivera.md": "x"}))
+        for target in ("sam rivera", "people/Sam Rivera", "objects/people/sam rivera.md"):
+            self.assertEqual(vault.resolve(target), "objects/people/Sam Rivera.md", target)
         self.assertIsNone(vault.resolve("rivera"))
 
     def test_a_file_in_the_linking_notes_own_folder_wins(self):
         with tempfile.TemporaryDirectory() as folder:
             vault = notes.Vault(build(folder, {
-                "a/brief.md": "x", "projects/one/brief.md": "x", "projects/one/status.md": "x",
+                "a/acme.md": "x", "objects/companies/acme.md": "x",
+                "objects/companies/bluepeak.md": "x",
             }))
-        self.assertEqual(vault.resolve("brief"), "a/brief.md")
-        self.assertEqual(vault.resolve("brief", "projects/one/status.md"), "projects/one/brief.md")
-        self.assertEqual(vault.resolve("one/brief", "a/brief.md"), "projects/one/brief.md")
+        self.assertEqual(vault.resolve("acme"), "a/acme.md")
+        self.assertEqual(
+            vault.resolve("acme", "objects/companies/bluepeak.md"), "objects/companies/acme.md")
+        self.assertEqual(vault.resolve("companies/acme", "a/acme.md"), "objects/companies/acme.md")
 
     def test_a_link_that_starts_from_the_notes_own_folder(self):
         with tempfile.TemporaryDirectory() as folder:
             vault = notes.Vault(build(folder, {
-                "atlas/people/sam.md": "x", "atlas/meetings/m.md": "x",
-                "system/transcripts/t.md": "x", "other/meetings/m.md": "x",
+                "objects/people/sam.md": "x", "objects/meetings/m.md": "x",
+                "sources/recordings/t.md": "x", "other/meetings/m.md": "x",
             }))
-        here = "atlas/people/sam.md"
-        self.assertEqual(vault.resolve("../meetings/m", here), "atlas/meetings/m.md")
-        self.assertEqual(vault.resolve("../Meetings/M.md", here), "atlas/meetings/m.md")
-        self.assertEqual(vault.resolve("../../system/transcripts/t", here), "system/transcripts/t.md")
-        self.assertEqual(vault.resolve("./sam", here), "atlas/people/sam.md")
+        here = "objects/people/sam.md"
+        self.assertEqual(vault.resolve("../meetings/m", here), "objects/meetings/m.md")
+        self.assertEqual(vault.resolve("../Meetings/M.md", here), "objects/meetings/m.md")
+        self.assertEqual(vault.resolve("../../sources/recordings/t", here), "sources/recordings/t.md")
+        self.assertEqual(vault.resolve("./sam", here), "objects/people/sam.md")
         # It must name a file exactly: no guessing, and no leaving the vault.
         self.assertIsNone(vault.resolve("../meetings/gone", here))
         self.assertIsNone(vault.resolve("../../../outside", here))
         self.assertIsNone(vault.resolve("../m", "other/meetings/m.md"))
         self.assertIsNone(vault.resolve("../meetings/m"))
 
-    def test_project_briefs(self):
-        self.assertTrue(places.is_project_brief("gtd/projects/alpha/brief.md"))
-        self.assertTrue(places.is_project_brief(
-            "atlas/businesses/acme/initiatives/growth/projects/site/brief.md"))
-        self.assertFalse(places.is_project_brief("gtd/projects/alpha/status.md"))
-        self.assertFalse(places.is_project_brief("gtd/projects/_archive/brief.md"))
-        self.assertFalse(places.is_project_brief("atlas/businesses/acme/brief.md"))
+    def test_a_project_is_a_plain_note_in_its_home(self):
+        home = places.home_of("project")
+        self.assertEqual(home, "objects/projects")
+        self.assertTrue(places.in_home("objects/projects/alpha.md", home))
+        self.assertFalse(places.in_home("objects/projects.md", home))
+        self.assertFalse(places.in_home("objects/projects-old/alpha.md", home))
+        self.assertFalse(places.in_home("writing/objects/projects/alpha.md", home))
 
 
 class Command(unittest.TestCase):
@@ -295,7 +309,8 @@ class Command(unittest.TestCase):
             self.assertEqual(sorted(path.name for path in state.iterdir()), ["measure.json"])
         self.assertEqual(finish.measure_problems(report), [])
         self.assertEqual(report["broken_links"], 4)
-        self.assertRegex(result.stdout, r"Objects nothing links to\s+7\n")
+        self.assertRegex(result.stdout, r"Objects nothing links to\s+9\n")
+        self.assertRegex(result.stdout, r"Sources that produced nothing\s+3\n")
         self.assertRegex(result.stdout, r"Session load, Claude Code \(words\)\s+42\n")
         self.assertIn("Saved to", result.stdout)
 
@@ -326,7 +341,7 @@ class Command(unittest.TestCase):
     def test_a_note_that_cannot_be_read_is_a_failure(self):
         with tempfile.TemporaryDirectory() as folder:
             vault = build(Path(folder) / "vault", VAULT)
-            locked = vault / "atlas/people/nick.md"
+            locked = vault / "objects/people/nick.md"
             locked.chmod(0)
             try:
                 result = self.run_wd(["check", "--measure", vault], Path(folder) / "state")

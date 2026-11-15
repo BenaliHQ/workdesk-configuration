@@ -3,7 +3,7 @@
   "exists": {
     "objects": [
       {
-        "path": "atlas/meetings/2026-11-12-acme-budget-call.md",
+        "path": "objects/meetings/2026-11-12-acme-budget-call.md",
         "type": "meeting"
       }
     ],
@@ -15,16 +15,16 @@
     "links": [],
     "history": [
       {
-        "on": "atlas/people/dana-whitfield.md",
+        "on": "objects/people/dana-whitfield.md",
         "text": "Leaving Acme in March",
         "basis": "stated"
       },
       {
-        "on": "atlas/people/dana-whitfield.md",
+        "on": "objects/people/dana-whitfield.md",
         "text": "Leads operations at Acme"
       },
       {
-        "on": "atlas/people/sam-rivera.md",
+        "on": "objects/people/sam-rivera.md",
         "text": "Runs finance at Acme"
       }
     ]

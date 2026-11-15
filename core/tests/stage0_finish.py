@@ -4,6 +4,12 @@ This file was written and committed before any stage 0 program existed,
 so it fails until the stage is built. Only the operator seeing it pass
 finishes the stage.
 
+Changed in package S1.1, after stage 0 was built. The test vault, the
+cases and the command list moved to the new vault's layout (build spec
+2.0), so the checks on the test vault now run on that layout. With the
+operator's approval of 2026-11-15, checks (a) and (e) are no longer
+asked for here. They moved to stage 1 (S1.R2) and its finish test.
+
 Every check names the build spec line it comes from. A check that cannot
 run is reported as NOT RUN and counts as a failure. Unknown is never
 healthy.
@@ -38,6 +44,8 @@ Commands and places
 - `notes`: a whole number for each home.
 - `broken_links`, `unlinked_objects`, `people_without_full_name`,
   `meetings_with_missing_source`, `sources_unprocessed`: whole numbers.
+  Since S1.1 a source counts as unprocessed when its `produced` list is
+  empty.
 - `session_load`: words for `claude-code` and for `codex`.
 
 `score.json`, written into machine state by `wd score`
@@ -60,12 +68,13 @@ Known right answers
 - Each case's `expected.json` has an `exists` part and an `absent`
   part. Each part has three lists: `objects`, `links` and `history`.
 
-The five checks in the build log (S0.5)
+The checks in the build log (S0.5)
 
 One line for each check. Checks (b) and (c) have one line for each
-runtime. A check that was run again counts by its last line.
+runtime. A check that was run again counts by its last line. Checks (a)
+and (e) are logged the same way, and are read by stage 1's finish test.
 
-    S0.5 (a): verified. Evidence: <what was done and seen>.
+    S0.5 (d): verified. Evidence: <what was done and seen>.
     S0.5 (b) Claude Code: failed. Evidence: <...>. Consequence: <...>.
     S0.5 (b) Codex: verified. Evidence: <...>.
 
@@ -98,10 +107,11 @@ FIXTURE_HOME = FIXTURES / "home"
 CASES_HOME = FIXTURES / "cases"
 ANSWERS = FIXTURES / "answers.json"
 
-# Build spec, "Commands".
+# Build spec, "Commands". Version 2.0 dropped `names` and
+# `repair-sources` and added `init`, `add` and `process`.
 COMMANDS = [
-    "check", "score", "names", "link", "repair-sources", "graph-setting",
-    "track", "fix", "find", "pack", "brief", "status", "tick", "install",
+    "init", "check", "score", "status", "graph-setting", "add", "process", "link",
+    "track", "fix", "find", "pack", "brief", "tick", "install",
 ]
 
 # Build spec, "Measure fields", in its order.
@@ -136,8 +146,10 @@ CASES = [
 CASE_PARTS = ("exists", "absent")
 CASE_KINDS = ("objects", "links", "history")
 
-# Build spec, S0.5: the five checks and the three allowed outcomes.
-S05_CHECKS = ["a", "b", "c", "d", "e"]
+# Build spec, S0.5: the checks and the three allowed outcomes. Checks (a)
+# and (e) moved to stage 1 (S1.R2), so stage 0 asks for (b), (c) and (d).
+# The line format still covers all five letters.
+S05_CHECKS = ["b", "c", "d"]
 S05_PER_RUNTIME = ("b", "c")
 S05_RUNTIMES = ("Claude Code", "Codex")
 S05_LINE = re.compile(
@@ -154,7 +166,8 @@ GATE_MISS_RATE = 0.01
 # Build spec, S0.6.
 SCORECARD_NAME = "core-stage-0-scorecard.md"
 
-PRIVATE_FOLDER = "personal"
+# The operator's own folder in the new vault's layout. The scorer never opens it.
+PRIVATE_FOLDER = "writing"
 CANARY = "wd-finish-canary-7f3a91c2"
 LONG_RUN_SECONDS = 3600
 
@@ -338,7 +351,7 @@ def said_enough(rest, label, until=None):
 
 
 def s05_problems(text):
-    """Everything missing from the build log's record of the five checks."""
+    """Everything missing from the build log's record of checks (b), (c) and (d)."""
     latest = {}
     for match in S05_LINE.finditer(text):
         letter, runtime, outcome, rest = match.groups()
@@ -620,7 +633,10 @@ class S04Score(FinishCase):
 
 
 class S05FiveChecks(FinishCase):
-    """S0.5: five checks, each with an outcome, its evidence and its consequence."""
+    """S0.5: each check with an outcome, its evidence and its consequence.
+
+    Three of the five are asked for here. Checks (a) and (e) are stage 1's.
+    """
 
     def test_each_check_is_in_the_build_log(self):
         log = self.setting("WD_FINISH_BUILD_LOG", "The build log (--build-log)")

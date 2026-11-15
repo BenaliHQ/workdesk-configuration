@@ -1,14 +1,19 @@
 ---
 type: meeting
-date: 2026-11-11
-attendees: ["[[atlas/people/maya-brandt|Maya Brandt]]"]
 private: true
+date: 2026-11-11
+attendees: ["[[objects/people/maya-brandt|Maya Brandt]]"]
+source:
 ---
 # Maya Brandt check-in
 
-A private conversation with [[atlas/people/maya-brandt|Maya Brandt]].
+A private conversation with [[objects/people/maya-brandt|Maya Brandt]].
 
-## Notes
+## Decisions
+
+## Promises
+
+## Detail
 
 - She advises on pricing.
 - Kept out of summaries and briefs.

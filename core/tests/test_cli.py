@@ -9,6 +9,7 @@ import sys
 import sysconfig
 import unittest
 from pathlib import Path
+from unittest import mock
 
 CORE = Path(__file__).resolve().parents[1]
 WD = CORE / "bin" / "wd"
@@ -21,9 +22,17 @@ from wd import cli  # noqa: E402
 
 # Build spec, "Commands", in its order.
 SPEC_COMMANDS = [
-    "check", "score", "names", "link", "repair-sources", "graph-setting",
-    "track", "fix", "find", "pack", "brief", "status", "tick", "install",
+    "init", "check", "score", "status", "graph-setting", "add", "process", "link",
+    "track", "fix", "find", "pack", "brief", "tick", "install",
 ]
+# The package that builds each command (build spec, stages 1 to 7).
+SPEC_PACKAGES = {
+    "init": "S1.3", "check": "S1.4", "status": "S1.4", "graph-setting": "S1.3",
+    "add": "S2.1", "process": "S2.4", "link": "S2.2", "track": "S2.5", "fix": "S2.5",
+    "find": "S4.5", "pack": "S4.5", "brief": "S4.2", "tick": "S4.6", "install": "S7.2",
+}
+# Dropped in build spec 2.0. They repaired notes in the old vault.
+DROPPED = ("names", "repair-sources")
 
 
 def run(arguments):
@@ -66,6 +75,29 @@ class Commands(unittest.TestCase):
 
     def test_only_spec_commands_can_be_built(self):
         self.assertEqual(set(cli.BUILT) - set(SPEC_COMMANDS), set())
+
+    def test_each_command_names_the_package_that_builds_it(self):
+        for name, _, package in cli.COMMANDS:
+            if name in SPEC_PACKAGES:
+                self.assertIn(SPEC_PACKAGES[name], package, name)
+
+    def test_the_dropped_commands_are_gone(self):
+        for name in DROPPED:
+            code, _, err = run([name])
+            self.assertEqual(code, cli.USAGE, name)
+            self.assertIn("no command called '%s'" % name, err)
+
+    def test_broken_declarations_are_a_plain_failure(self):
+        from wd import declarations
+
+        def broken(arguments, out, err):
+            raise declarations.DeclarationError("The declarations are not right.")
+
+        with mock.patch.dict(cli.BUILT, {"check": broken}):
+            code, out, err = run(["check"])
+        self.assertEqual(code, cli.FAILED)
+        self.assertEqual(out, "")
+        self.assertIn("wd check: The declarations are not right.", err)
 
 
 class EntryPoint(unittest.TestCase):

@@ -3,26 +3,26 @@
   "exists": {
     "objects": [
       {
-        "path": "atlas/decisions/2026-11-12-rollout-date.md",
+        "path": "objects/decisions/2026-11-12-rollout-date.md",
         "type": "decision"
       },
       {
-        "path": "atlas/decisions/2026-11-10-rollout-date.md",
+        "path": "objects/decisions/2026-11-10-rollout-date.md",
         "type": "decision"
       }
     ],
     "links": [
       {
-        "from": "atlas/decisions/2026-11-10-rollout-date.md",
-        "to": "atlas/decisions/2026-11-12-rollout-date.md"
+        "from": "objects/decisions/2026-11-10-rollout-date.md",
+        "to": "objects/decisions/2026-11-12-rollout-date.md"
       }
     ],
     "history": [
       {
-        "on": "gtd/projects/acme-rollout/brief.md",
+        "on": "objects/projects/acme-rollout.md",
         "text": "Starts December 15",
         "basis": "stated",
-        "source": "system/transcripts/2026-11-12-acme-rollout-change.md#^p0001"
+        "source": "sources/recordings/2026-11-12-acme-rollout-change.md#^p0001"
       }
     ]
   },

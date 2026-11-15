@@ -50,8 +50,8 @@ def counts(report, kind="person"):
     return tuple(report["by_type"][kind][name] for name in ("correct", "wrong", "missed"))
 
 
-SAM = {"atlas/people/sam-rivera.md": PERSON % ("Sam Rivera", "Leads operations.")}
-SAM_LINK = "[[atlas/people/sam-rivera|Sam Rivera]]"
+SAM = {"objects/people/sam-rivera.md": PERSON % ("Sam Rivera", "Leads operations.")}
+SAM_LINK = "[[objects/people/sam-rivera|Sam Rivera]]"
 
 
 class TheTestVault(unittest.TestCase):
@@ -83,59 +83,70 @@ class TheTestVault(unittest.TestCase):
 
 
 class Names(unittest.TestCase):
-    def test_a_project_is_named_without_its_brief(self):
-        for heading in ("Acme Rollout Brief", "Acme Rollout: Brief", "Acme Rollout - Brief",
-                        "Acme Rollout \u2013 Brief", "Acme Rollout \u2014 Brief"):
-            self.assertEqual(score.project_name(heading), "Acme Rollout")
-        self.assertEqual(score.project_name("Briefing Room"), "Briefing Room")
+    def test_a_name_is_the_first_heading_for_every_type(self):
+        # A project is named as it is headed. Nothing is cut from the end.
+        report, _ = scored({
+            "objects/projects/rollout.md": "# Acme Rollout Brief\n\nA project.\n",
+            "objects/terms/standing-order.md": "# standing order\n\nA term.\n",
+            "objects/meetings/m.md":
+                "# M\n\nThe [[objects/projects/rollout|Acme Rollout Brief]] runs on a "
+                "[[objects/terms/standing-order|standing order]].\n",
+        })
+        self.assertEqual(report["names"], 2)
+        self.assertEqual(counts(report, "project"), (1, 0, 0))
+        self.assertEqual(counts(report, "term"), (1, 0, 0))
+
+    def test_the_types_are_the_ones_linked_by_name(self):
+        self.assertEqual(score.TYPES, ("person", "company", "project", "term", "concept"))
+        self.assertEqual(set(score.LABELS), set(score.TYPES))
 
     def test_a_shared_name_and_a_first_name_are_not_linked(self):
         vault_files = dict(SAM)
         vault_files.update({
-            "atlas/people/nick.md": PERSON % ("Nick", "First name only."),
-            "atlas/people/lee-one.md": PERSON % ("Lee Castillo", "One."),
-            "atlas/people/lee-two.md": PERSON % ("Lee Castillo", "Two."),
-            "atlas/companies/acme.md": "# Acme\n\nWith [[atlas/people/lee-one|Lee Castillo]] and Nick.\n",
+            "objects/people/nick.md": PERSON % ("Nick", "First name only."),
+            "objects/people/lee-one.md": PERSON % ("Lee Castillo", "One."),
+            "objects/people/lee-two.md": PERSON % ("Lee Castillo", "Two."),
+            "objects/companies/acme.md": "# Acme\n\nWith [[objects/people/lee-one|Lee Castillo]] and Nick.\n",
         })
         report, copies = scored(vault_files)
         self.assertEqual(report["names_shared_by_two_objects"], ["Lee Castillo"])
         self.assertEqual(report["names"], 2)
         # The link was not taken, because its words are not a name any more.
-        self.assertIn("[[atlas/people/lee-one|Lee Castillo]]", copies["atlas/companies/acme.md"])
+        self.assertIn("[[objects/people/lee-one|Lee Castillo]]", copies["objects/companies/acme.md"])
         self.assertEqual(counts(report), (0, 0, 0))
 
 
 class Matching(unittest.TestCase):
     def one_note(self, body, extra=None):
         files = dict(SAM)
-        files["atlas/meetings/m.md"] = "---\ntype: meeting\n---\n# Meeting\n\n%s\n" % body
+        files["objects/meetings/m.md"] = "---\ntype: meeting\n---\n# Meeting\n\n%s\n" % body
         files.update(extra or {})
         return scored(files)
 
     def test_a_plain_link_comes_back(self):
         report, copies = self.one_note("Met %s today." % SAM_LINK)
         self.assertEqual(counts(report), (1, 0, 0))
-        self.assertIn("Met Sam Rivera today.", copies["atlas/meetings/m.md"])
+        self.assertIn("Met Sam Rivera today.", copies["objects/meetings/m.md"])
 
     def test_a_possessive_and_a_table_cell(self):
         report, _ = self.one_note(
-            "%s's plan.\n\n| who |\n|---|\n| [[atlas/people/sam-rivera\\|Sam Rivera]] |" % SAM_LINK
+            "%s's plan.\n\n| who |\n|---|\n| [[objects/people/sam-rivera\\|Sam Rivera]] |" % SAM_LINK
         )
         self.assertEqual(counts(report), (2, 0, 0))
 
     def test_the_longest_name_wins(self):
-        extra = {"gtd/projects/rollout/brief.md": "# Sam Rivera Rollout Brief\n\nA project.\n"}
+        extra = {"objects/projects/rollout.md": "# Sam Rivera Rollout\n\nA project.\n"}
         report, _ = self.one_note(
-            "The [[gtd/projects/rollout/brief|Sam Rivera Rollout]] and %s." % SAM_LINK, extra
+            "The [[objects/projects/rollout|Sam Rivera Rollout]] and %s." % SAM_LINK, extra
         )
         self.assertEqual(counts(report, "project"), (1, 0, 0))
         self.assertEqual(counts(report), (1, 0, 0))
 
     def test_a_link_that_showed_a_name_but_pointed_elsewhere_is_wrong(self):
-        extra = {"atlas/people/dana-whitfield.md": PERSON % ("Dana Whitfield", "Finance.")}
-        report, _ = self.one_note("With [[atlas/people/dana-whitfield|Sam Rivera]].", extra)
+        extra = {"objects/people/dana-whitfield.md": PERSON % ("Dana Whitfield", "Finance.")}
+        report, _ = self.one_note("With [[objects/people/dana-whitfield|Sam Rivera]].", extra)
         self.assertEqual(counts(report), (0, 1, 0))
-        self.assertEqual(report["examples"]["wrong"], ["atlas/meetings/m.md line 6: Sam Rivera"])
+        self.assertEqual(report["examples"]["wrong"], ["objects/meetings/m.md line 6: Sam Rivera"])
 
     def test_part_of_a_longer_word_is_missed_not_matched(self):
         # The words run into a digit, so they are not a whole name there.
@@ -143,7 +154,7 @@ class Matching(unittest.TestCase):
         self.assertEqual(counts(report), (0, 0, 1))
 
     def test_a_notes_own_name_is_not_linked(self):
-        files = {"atlas/people/sam-rivera.md": PERSON % ("Sam Rivera", "About %s." % SAM_LINK)}
+        files = {"objects/people/sam-rivera.md": PERSON % ("Sam Rivera", "About %s." % SAM_LINK)}
         report, _ = scored(files)
         self.assertEqual(counts(report), (0, 0, 1))
 
@@ -154,7 +165,7 @@ class Matching(unittest.TestCase):
         )
         # Only the link in the callout's body is the linker's to make.
         self.assertEqual(counts(report), (1, 0, 0))
-        self.assertEqual(copies["atlas/meetings/m.md"].count(SAM_LINK), 4)
+        self.assertEqual(copies["objects/meetings/m.md"].count(SAM_LINK), 4)
 
     def test_a_link_inside_a_comment_is_left_alone(self):
         report, copies = self.one_note(
@@ -163,19 +174,19 @@ class Matching(unittest.TestCase):
             % (SAM_LINK, SAM_LINK, SAM_LINK, SAM_LINK, SAM_LINK)
         )
         self.assertEqual(counts(report), (1, 0, 0))
-        self.assertEqual(copies["atlas/meetings/m.md"].count(SAM_LINK), 4)
+        self.assertEqual(copies["objects/meetings/m.md"].count(SAM_LINK), 4)
 
     def test_a_dead_link_cannot_be_judged(self):
-        report, _ = self.one_note("With [[atlas/people/gone|Sam Rivera]].")
+        report, _ = self.one_note("With [[objects/people/gone|Sam Rivera]].")
         self.assertEqual(counts(report), (0, 0, 0))
         self.assertEqual(report["links_with_a_missing_target"], 1)
 
     def test_a_one_word_name_and_a_link_outside_the_object_homes_are_not_taken(self):
-        extra = {"atlas/companies/acme.md": "# Acme\n\nA company.\n",
-                 "daily/today.md": "Saw %s." % SAM_LINK}
-        report, copies = self.one_note("At [[atlas/companies/acme|Acme]].", extra)
+        extra = {"objects/companies/acme.md": "# Acme\n\nA company.\n",
+                 "notes/today.md": "Saw %s." % SAM_LINK}
+        report, copies = self.one_note("At [[objects/companies/acme|Acme]].", extra)
         self.assertEqual(sum(sum(c.values()) for c in report["by_type"].values()), 0)
-        self.assertNotIn("daily/today.md", copies)
+        self.assertNotIn("notes/today.md", copies)
 
     def test_nothing_scored_gives_no_rates(self):
         report, _ = scored(SAM)
@@ -202,7 +213,7 @@ class Command(unittest.TestCase):
             report = json.loads((Path(state) / "score.json").read_text(encoding="utf-8"))
             scratch = Path(report["scratch"])
             self.assertEqual(scratch, (Path(state) / "score-scratch").resolve())
-            self.assertTrue((scratch / "atlas/people/sam-rivera.md").is_file())
+            self.assertTrue((scratch / "objects/people/sam-rivera.md").is_file())
             # A second run starts from a clean scratch folder.
             (scratch / "left-over.md").write_text("old", encoding="utf-8")
             self.assertEqual(self.run_wd(["score", VAULT], state).returncode, cli.OK)
@@ -212,14 +223,17 @@ class Command(unittest.TestCase):
         self.assertEqual(finish.stamp_problems(report, VAULT), [])
         self.assertIn("Right 100.0 times in 100. Misses 0.0 in 100.", result.stdout)
 
+    def test_the_private_folder_is_the_operators_writing(self):
+        self.assertEqual(score.PRIVATE, "writing")
+
     @unittest.skipIf(os.geteuid() == 0, "the administrator can open every folder")
     def test_the_private_folder_is_never_opened(self):
         with tempfile.TemporaryDirectory() as folder:
             vault = build(Path(folder) / "vault", dict(SAM, **{
-                "atlas/meetings/m.md": "# M\n\nMet %s.\n" % SAM_LINK,
-                "personal/journal.md": "Wrote about %s. wd-canary-words\n" % SAM_LINK,
+                "objects/meetings/m.md": "# M\n\nMet %s.\n" % SAM_LINK,
+                "%s/journal.md" % score.PRIVATE: "Wrote about %s. wd-canary-words\n" % SAM_LINK,
             }))
-            private = vault / "personal"
+            private = vault / score.PRIVATE
             # Locked shut: opening it at all would be reported as unreadable.
             private.chmod(0)
             try:
@@ -232,16 +246,16 @@ class Command(unittest.TestCase):
         self.assertEqual(result.returncode, cli.OK, result.stderr)
         self.assertEqual(report["unreadable"], [])
         self.assertEqual(counts(report), (1, 0, 0))
-        self.assertFalse([name for name in kept if "personal" in name])
+        self.assertFalse([name for name in kept if score.PRIVATE in name])
 
     def test_a_shortcut_into_the_private_folder_is_not_followed(self):
         with tempfile.TemporaryDirectory() as folder:
             vault = build(Path(folder) / "vault", dict(SAM, **{
-                "atlas/meetings/m.md": "# M\n\nMet %s.\n" % SAM_LINK,
+                "objects/meetings/m.md": "# M\n\nMet %s.\n" % SAM_LINK,
                 "%s/journal.md" % score.PRIVATE: "# Private Page\n\nwd-canary-words %s\n" % SAM_LINK,
             }))
             os.symlink(str(vault / score.PRIVATE / "journal.md"),
-                       str(vault / "atlas" / "people" / "shortcut.md"))
+                       str(vault / "objects" / "people" / "shortcut.md"))
             state = Path(folder) / "state"
             result = self.run_wd(["score", vault], state)
             kept = "".join(

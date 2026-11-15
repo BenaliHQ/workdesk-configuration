@@ -1,19 +1,21 @@
 ---
 type: meeting
-date: 2026-11-06
-attendees: ["[[atlas/people/tomas-lindqvist|Tomas Lindqvist]]", "[[atlas/people/june-park|June Park]]"]
-transcript: "[[system/transcripts/2026-11-06-harbor-and-vine-pricing]]"
 private: false
+date: 2026-11-06
+attendees: ["[[objects/people/tomas-lindqvist|Tomas Lindqvist]]", "[[objects/people/june-park|June Park]]"]
+source: "[[sources/recordings/2026-11-06-harbor-and-vine-pricing]]"
 ---
 # Harbor and Vine pricing
 
-[[atlas/people/tomas-lindqvist|Tomas Lindqvist]] and [[atlas/people/june-park|June Park]] chose a price for [[atlas/companies/harbor-and-vine|Harbor and Vine]].
+[[objects/people/tomas-lindqvist|Tomas Lindqvist]] and [[objects/people/june-park|June Park]] chose a price for [[objects/companies/harbor-and-vine|Harbor and Vine]].
 
 ## Decisions
 
-- [[atlas/decisions/2026-11-06-pricing-tier]]
+- [[objects/decisions/2026-11-06-pricing-tier]]
 
-## Notes
+## Promises
 
-- A [[intel/concepts/two-way-door|Two-Way Door]]: they can change tier in spring.
-- Quote kept: [[gtd/reference/quotes/tomas-lindqvist-on-price]]
+## Detail
+
+- A [[objects/concepts/two-way-door|Two-Way Door]]: they can change tier in spring.
+- Quote kept: [[objects/quotes/tomas-lindqvist-on-price]]

@@ -9,7 +9,7 @@ status: read
 starred: false
 private: false
 take: They chose the middle tier and want it reviewed in spring.
-produced: ["[[atlas/meetings/2026-11-06-harbor-and-vine-pricing]]", "[[atlas/decisions/2026-11-06-pricing-tier]]", "[[gtd/reference/quotes/tomas-lindqvist-on-price]]"]
+produced: ["[[objects/meetings/2026-11-06-harbor-and-vine-pricing]]", "[[objects/decisions/2026-11-06-pricing-tier]]", "[[objects/quotes/tomas-lindqvist-on-price]]"]
 sha256-original: a0e50a4c6a85b3ea54778456295b7ffb17297ffca11e49a2be7be051d16d180f
 ---
 Tomas Lindqvist: I own Harbor and Vine. June does all our buying. ^p0001

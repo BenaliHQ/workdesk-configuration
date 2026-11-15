@@ -1,12 +1,13 @@
 ---
 type: decision
-date: 2026-11-10
 private: false
+date: 2026-11-10
+source: "[[sources/recordings/2026-11-10-acme-rollout-planning#^p0001]]"
 ---
 # Rollout date
 
-The [[gtd/projects/acme-rollout/brief|Acme Rollout]] starts on December 1. Decided by [[atlas/people/sam-rivera|Sam Rivera]].
+The [[objects/projects/acme-rollout|Acme Rollout]] starts on December 1. Decided by [[objects/people/sam-rivera|Sam Rivera]].
 
-## Basis
+## History
 
-- [[system/transcripts/2026-11-10-acme-rollout-planning#^p0001]]
+- 2026-11-10 | Decided that the rollout starts on December 1 | stated | [[sources/recordings/2026-11-10-acme-rollout-planning#^p0001]] | run-20261110-1815

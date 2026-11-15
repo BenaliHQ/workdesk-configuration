@@ -1,20 +1,22 @@
 ---
 type: meeting
-date: 2026-11-05
-attendees: ["[[atlas/people/priya-raman|Priya Raman]]", "[[atlas/people/nick-alvarez|Nick Alvarez]]"]
-transcript: "[[system/transcripts/2026-11-05-northwind-audit-kickoff]]"
 private: false
+date: 2026-11-05
+attendees: ["[[objects/people/priya-raman|Priya Raman]]", "[[objects/people/nick-alvarez|Nick Alvarez]]"]
+source: "[[sources/recordings/2026-11-05-northwind-audit-kickoff]]"
 ---
 # Northwind audit kickoff
 
-Kickoff of the [[atlas/clients/northwind-supply/projects/warehouse-audit/brief|Warehouse Audit]] with [[atlas/people/priya-raman|Priya Raman]] and [[atlas/people/nick-alvarez|Nick Alvarez]].
+Kickoff of the [[objects/projects/warehouse-audit|Warehouse Audit]] with [[objects/people/priya-raman|Priya Raman]] and [[objects/people/nick-alvarez|Nick Alvarez]].
 
 ## Decisions
 
-- [[atlas/decisions/2026-11-05-audit-scope]]
+- [[objects/decisions/2026-11-05-audit-scope]]
 
-## Notes
+## Promises
+
+## Detail
 
 | Who | Said |
 |---|---|
-| [[atlas/people/nick-alvarez\|Nick Alvarez]] | Stock is counted on a [[atlas/terms/standing-order\|standing order]]. |
+| [[objects/people/nick-alvarez\|Nick Alvarez]] | Stock is counted on a [[objects/terms/standing-order\|standing order]]. |

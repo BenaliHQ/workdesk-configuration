@@ -1,19 +1,21 @@
 ---
 type: meeting
-date: 2026-11-03
-attendees: ["[[atlas/people/sam-rivera|Sam Rivera]]", "[[atlas/people/dana-whitfield|Dana Whitfield]]"]
-transcript: "[[system/transcripts/2026-11-03-acme-intro]]"
 private: false
+date: 2026-11-03
+attendees: ["[[objects/people/sam-rivera|Sam Rivera]]", "[[objects/people/dana-whitfield|Dana Whitfield]]"]
+source: "[[sources/recordings/2026-11-03-acme-intro]]"
 ---
 # Acme intro
 
-First meeting with [[atlas/people/sam-rivera|Sam Rivera]] and [[atlas/people/dana-whitfield|Dana Whitfield]] of [[atlas/companies/acme|Acme]]. They want one plan before December.
+First meeting with [[objects/people/sam-rivera|Sam Rivera]] and [[objects/people/dana-whitfield|Dana Whitfield]] of [[objects/companies/acme|Acme]]. They want one plan before December.
 
-## Notes
-
-- [[atlas/people/sam-rivera|Sam Rivera]] said they tried [[atlas/terms/bespoke-systems|bespoke systems]] twice. [[system/transcripts/2026-11-03-acme-intro#^p0004]]
-- [[atlas/people/dana-whitfield|Dana Whitfield]] signs off on anything over ten thousand. [[system/transcripts/2026-11-03-acme-intro#^p0003]]
+## Decisions
 
 ## Promises
 
-- A one-page plan to Sam Rivera's team by Friday. [[system/transcripts/2026-11-03-acme-intro#^p0005]]
+- A one-page plan to Sam Rivera's team by Friday. [[sources/recordings/2026-11-03-acme-intro#^p0005]]
+
+## Detail
+
+- [[objects/people/sam-rivera|Sam Rivera]] said they tried [[objects/terms/bespoke-systems|bespoke systems]] twice. [[sources/recordings/2026-11-03-acme-intro#^p0004]]
+- [[objects/people/dana-whitfield|Dana Whitfield]] signs off on anything over ten thousand. [[sources/recordings/2026-11-03-acme-intro#^p0003]]

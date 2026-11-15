@@ -1,10 +1,12 @@
 ---
 type: quote
-date: 2026-11-06
 private: false
+by: Tomas Lindqvist
+source: "[[sources/recordings/2026-11-06-harbor-and-vine-pricing#^p0003]]"
+date: 2026-11-06
 ---
 # A price is a promise
 
 > A price is a promise you have to keep twice.
 
-Said by [[atlas/people/tomas-lindqvist|Tomas Lindqvist]]. [[system/transcripts/2026-11-06-harbor-and-vine-pricing#^p0003]]
+Said by [[objects/people/tomas-lindqvist|Tomas Lindqvist]]. [[sources/recordings/2026-11-06-harbor-and-vine-pricing#^p0003]]

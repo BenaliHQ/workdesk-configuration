@@ -14,24 +14,25 @@ NOT_BUILT = 3
 # The commands fixed by the build spec, in its order. Each carries one
 # line on what it does and the work package that builds it.
 COMMANDS = [
+    ("init", "Make a new, empty vault.", "S1.3"),
     ("check", "Check the vault and the notes agents write.",
      "S0.2 (--measure) and S1.4"),
     ("score", "Score the linker against the links already in the vault.",
      "S0.4"),
-    ("names", "Give every linkable object its name.", "S1.2"),
-    ("link", "Link every exact mention of an object.", "S1.3"),
-    ("repair-sources", "Repoint meetings whose source link is dead.", "S1.5"),
-    ("graph-setting", "Write the graph's colors and what it hides.", "S1.6"),
-    ("track", "Start tracking a word or phrase as a term.", "S1.7"),
-    ("fix", "Apply a correction and record it as yours.", "S2.3"),
-    ("find", "Find an object by name.", "S3.5"),
-    ("pack", "Gather the context on one object.", "S3.5"),
-    ("brief", "Write the daily brief.", "S3.2"),
-    ("status", "Show what is declared and when each part last ran.", "S5.3"),
-    ("tick", "The one scheduled entry point.", "S1.4"),
-    ("install", "Install a release file.", "S6.2"),
+    ("status", "Write the status page: what is there and what a session loads.",
+     "S1.4"),
+    ("graph-setting", "Write the graph's colors and what it hides.", "S1.3"),
+    ("add", "Bring a source in and give it its permanent home.", "S2.1"),
+    ("process", "Turn a source into objects, links and history lines.", "S2.4"),
+    ("link", "Link every exact mention of an object.", "S2.2"),
+    ("track", "Start tracking a word or phrase as a term.", "S2.5"),
+    ("fix", "Apply a correction and record it as yours.", "S2.5"),
+    ("find", "Find an object by name.", "S4.5"),
+    ("pack", "Gather the context on one object.", "S4.5"),
+    ("brief", "Write the daily brief.", "S4.2"),
+    ("tick", "The one scheduled entry point.", "S4.6"),
+    ("install", "Install a release file.", "S7.2"),
 ]
-
 
 
 def check(arguments, out, err):
@@ -82,7 +83,12 @@ def main(arguments=None, out=None, err=None):
         print(usage(), file=err)
         return USAGE
     if name in BUILT:
-        return BUILT[name](arguments[1:], out, err)
+        from wd import declarations
+        try:
+            return BUILT[name](arguments[1:], out, err)
+        except declarations.DeclarationError as problem:
+            print("wd %s: %s" % (name, problem), file=err)
+            return FAILED
 
     where = packages[name]
     if where:

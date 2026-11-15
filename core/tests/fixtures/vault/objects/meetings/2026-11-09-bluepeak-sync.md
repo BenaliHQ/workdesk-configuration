@@ -1,15 +1,19 @@
 ---
 type: meeting
-date: 2026-11-09
-attendees: ["[[atlas/people/lee-castillo|Lee Castillo]]", "[[atlas/people/nick-okafor|Nick Okafor]]"]
-transcript: "[[system/transcripts/2026-11-09-bluepeak-sync]]"
 private: false
+date: 2026-11-09
+attendees: ["[[objects/people/lee-castillo|Lee Castillo]]", "[[objects/people/nick-okafor|Nick Okafor]]"]
+source: "[[sources/recordings/2026-11-09-bluepeak-sync]]"
 ---
 # Bluepeak sync
 
-A catch-up with [[atlas/people/lee-castillo|Lee Castillo]] and [[atlas/people/nick-okafor|Nick Okafor]] of [[atlas/companies/bluepeak-labs|Bluepeak Labs]].
+A catch-up with [[objects/people/lee-castillo|Lee Castillo]] and [[objects/people/nick-okafor|Nick Okafor]] of [[objects/companies/bluepeak-labs|Bluepeak Labs]].
 
-## Notes
+## Decisions
 
-- [[atlas/people/lee-castillo|Lee Castillo]] founded the lab.
-- [[atlas/people/nick-okafor|Nick Okafor]] is building the sensor boards.
+## Promises
+
+## Detail
+
+- [[objects/people/lee-castillo|Lee Castillo]] founded the lab.
+- [[objects/people/nick-okafor|Nick Okafor]] is building the sensor boards.

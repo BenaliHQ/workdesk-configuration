@@ -1,40 +1,32 @@
 """Where things live on the machine and in a vault."""
 
 import os
-import re
 from pathlib import Path
+
+from wd import declarations
 
 DEFAULT_STATE = Path(".local") / "state" / "workdesk" / "core"
 
 # Build spec, "Object homes". An object's type is decided by its home.
-OBJECT_HOMES = [
-    ("person", "atlas/people"),
-    ("company", "atlas/companies"),
-    ("term", "atlas/terms"),
-    ("concept", "intel/concepts"),
-    ("meeting", "atlas/meetings"),
-    ("decision", "atlas/decisions"),
-    ("quote", "gtd/reference/quotes"),
-]
+# The homes are written down once, in the declarations.
+OBJECT_HOMES = declarations.object_homes()
+# The types that are linked by name.
+LINKABLE = declarations.linkable()
 
-# A project object is the brief file in each project folder.
-PROJECTS = "projects"
-PROJECT_BRIEFS = [
-    re.compile(r"^gtd/projects/[^/]+/brief\.md$"),
-    re.compile(r"^atlas/clients/[^/]+/projects/[^/]+/brief\.md$"),
-    re.compile(r"^atlas/businesses/[^/]+/projects/[^/]+/brief\.md$"),
-    re.compile(r"^atlas/businesses/[^/]+/initiatives/[^/]+/projects/[^/]+/brief\.md$"),
-]
+# Build spec, "Signal homes".
+BRIEFS = "signals/briefs"
+SYNTHESES = "signals/syntheses"
+SIGNAL_HOMES = [BRIEFS, SYNTHESES]
 
-# Build spec, "Signal homes" and "Source homes". Intake is the door only.
-SIGNAL_HOMES = ["intel/briefings/daily", "intel/syntheses"]
-SYNTHESES = "intel/syntheses"
-SOURCE_HOMES = ["system/transcripts", "system/bookmarks", "system/session-log"]
-INTAKE = "system/intake"
+# Build spec, "Source homes, permanent from arrival".
+SOURCE_HOMES = declarations.source_homes()
 
-ARCHIVES = ("archive", "_archive")
-# Files that sit in a home for navigation or agents. They are not notes.
-NOT_NOTES = ("index.md", "AGENTS.md", "CLAUDE.md")
+# The operator's own writing. Agents read it. No program writes there
+# before stage 8.
+WRITING = "writing"
+# The files at the top of a vault. They are for agents and for the
+# status page, so a link from one is not a connection between notes.
+ROOT_FILES = ("AGENTS.md", "CLAUDE.md", "status.md")
 
 
 def home():
@@ -48,20 +40,11 @@ def state_dir():
     return Path(given).expanduser() if given else home() / DEFAULT_STATE
 
 
-def in_archive(relative):
-    return any(part in ARCHIVES for part in relative.split("/")[:-1])
-
-
-def is_project_brief(relative):
-    return not in_archive(relative) and any(
-        pattern.match(relative) for pattern in PROJECT_BRIEFS
-    )
+def home_of(kind):
+    """The home folder of one object type."""
+    return dict(OBJECT_HOMES)[kind]
 
 
 def in_home(relative, folder):
-    """Is this note in this home? Navigation files and archives are not."""
-    return (
-        relative.startswith(folder + "/")
-        and relative.rsplit("/", 1)[-1] not in NOT_NOTES
-        and not in_archive(relative)
-    )
+    """Is this note in this home?"""
+    return relative.startswith(folder + "/")

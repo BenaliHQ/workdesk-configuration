@@ -1,5 +1,5 @@
 {
-  "why": "Rule 1, stage 4. A video with no transcript has no words to quote. Nothing is made up from its title.",
+  "why": "Rule 1, stage 5. A video with no transcript has no words to quote. Nothing is made up from its title.",
   "exists": {
     "objects": [],
     "links": [],
@@ -8,11 +8,11 @@
   "absent": {
     "objects": [
       {
-        "path": "gtd/reference/quotes/otto-brandvold-on-cycle-counting.md",
+        "path": "objects/quotes/otto-brandvold-on-cycle-counting.md",
         "type": "quote"
       },
       {
-        "path": "intel/concepts/cycle-counting.md",
+        "path": "objects/concepts/cycle-counting.md",
         "type": "concept"
       }
     ],

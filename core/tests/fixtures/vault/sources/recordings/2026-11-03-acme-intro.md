@@ -9,7 +9,7 @@ status: read
 starred: false
 private: false
 take: Acme wants one rollout plan before December.
-produced: ["[[atlas/meetings/2026-11-03-acme-intro]]"]
+produced: ["[[objects/meetings/2026-11-03-acme-intro]]"]
 sha256-original: 00fc2e1f8cf961adfcad310a641e63dd4b1734c80d41d78547feae97a5f2e252
 ---
 Robin Hale: Thanks for making the time. Who runs what on your side? ^p0001
