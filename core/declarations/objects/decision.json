@@ -1,0 +1,15 @@
+{
+  "home": "objects/decisions",
+  "linkable": false,
+  "name-from": null,
+  "required-keys": [
+    "type",
+    "date",
+    "source",
+    "private"
+  ],
+  "sections": [
+    "History"
+  ],
+  "summary-max-words": 60
+}

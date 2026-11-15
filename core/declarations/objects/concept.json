@@ -1,0 +1,16 @@
+{
+  "home": "objects/concepts",
+  "linkable": true,
+  "name-from": "first-heading",
+  "required-keys": [
+    "type",
+    "name",
+    "aliases",
+    "private",
+    "from"
+  ],
+  "sections": [
+    "History"
+  ],
+  "summary-max-words": 60
+}

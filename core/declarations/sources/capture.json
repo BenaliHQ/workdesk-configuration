@@ -1,0 +1,18 @@
+{
+  "kind": "capture",
+  "home": "sources/captures",
+  "required-keys": [
+    "type",
+    "kind",
+    "title",
+    "date",
+    "author",
+    "sent-by",
+    "status",
+    "starred",
+    "private",
+    "take",
+    "produced",
+    "sha256-original"
+  ]
+}

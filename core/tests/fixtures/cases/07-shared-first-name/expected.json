@@ -3,14 +3,14 @@
   "exists": {
     "objects": [
       {
-        "path": "atlas/meetings/2026-11-12-bluepeak-board-review.md",
+        "path": "objects/meetings/2026-11-12-bluepeak-board-review.md",
         "type": "meeting"
       }
     ],
     "links": [
       {
-        "from": "atlas/meetings/2026-11-12-bluepeak-board-review.md",
-        "to": "atlas/people/nick-okafor.md",
+        "from": "objects/meetings/2026-11-12-bluepeak-board-review.md",
+        "to": "objects/people/nick-okafor.md",
         "shown": "Nick Okafor"
       }
     ],
@@ -19,14 +19,14 @@
   "absent": {
     "objects": [
       {
-        "path": "atlas/people/nick.md",
+        "path": "objects/people/nick.md",
         "type": "person"
       }
     ],
     "links": [
       {
-        "from": "atlas/meetings/2026-11-12-bluepeak-board-review.md",
-        "to": "atlas/people/nick-alvarez.md"
+        "from": "objects/meetings/2026-11-12-bluepeak-board-review.md",
+        "to": "objects/people/nick-alvarez.md"
       }
     ],
     "history": []

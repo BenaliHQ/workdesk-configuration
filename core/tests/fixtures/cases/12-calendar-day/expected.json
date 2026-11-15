@@ -1,21 +1,21 @@
 {
-  "why": "Rules 8 and 9, stage 3. One fixed day. The brief lists the day's meetings with a link to each person, and leaves out a meeting that was declined.",
+  "why": "Rules 8 and 9, stage 4. One fixed day. The brief lists the day's meetings with a link to each person, and leaves out a meeting that was declined.",
   "exists": {
     "objects": [],
     "links": [
       {
-        "from": "intel/briefings/daily/2026-11-13.md",
-        "to": "atlas/people/sam-rivera.md",
+        "from": "signals/briefs/2026-11-13.md",
+        "to": "objects/people/sam-rivera.md",
         "shown": "Sam Rivera"
       },
       {
-        "from": "intel/briefings/daily/2026-11-13.md",
-        "to": "atlas/people/dana-whitfield.md",
+        "from": "signals/briefs/2026-11-13.md",
+        "to": "objects/people/dana-whitfield.md",
         "shown": "Dana Whitfield"
       },
       {
-        "from": "intel/briefings/daily/2026-11-13.md",
-        "to": "atlas/people/priya-raman.md",
+        "from": "signals/briefs/2026-11-13.md",
+        "to": "objects/people/priya-raman.md",
         "shown": "Priya Raman"
       }
     ],
@@ -25,8 +25,8 @@
     "objects": [],
     "links": [
       {
-        "from": "intel/briefings/daily/2026-11-13.md",
-        "to": "atlas/people/lee-castillo.md"
+        "from": "signals/briefs/2026-11-13.md",
+        "to": "objects/people/lee-castillo.md"
       }
     ],
     "history": []

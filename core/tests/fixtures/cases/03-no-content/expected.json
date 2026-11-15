@@ -8,14 +8,14 @@
   "absent": {
     "objects": [
       {
-        "path": "atlas/decisions/2026-11-12-bluepeak-sync.md",
+        "path": "objects/decisions/2026-11-12-bluepeak-sync.md",
         "type": "decision"
       }
     ],
     "links": [
       {
-        "from": "atlas/meetings/2026-11-12-bluepeak-sync.md",
-        "to": "atlas/people/lee-castillo.md",
+        "from": "objects/meetings/2026-11-12-bluepeak-sync.md",
+        "to": "objects/people/lee-castillo.md",
         "in": "attendees"
       }
     ],

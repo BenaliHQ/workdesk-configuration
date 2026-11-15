@@ -16,29 +16,57 @@ for folder in (CORE, TESTS):
         sys.path.insert(0, str(folder))
 
 import stage0_finish as finish  # noqa: E402
-from wd import measure, notes, places  # noqa: E402
+import stage1_finish  # noqa: E402
+from wd import declarations, measure, notes, places  # noqa: E402
 
 TYPE_HOMES = dict(places.OBJECT_HOMES)
+PEOPLE = TYPE_HOMES["person"]
 BASES = ("stated", "reported", "inferred", "correction")
 HISTORY = re.compile(
     r"^- \d{4}-\d\d-\d\d \| [^|]+ \| (%s) \| [^|]+ \| run-\d{8}-\d{4}$" % "|".join(BASES)
 )
 # The links that are left dead on purpose. See fixtures/README.md.
 DEAD_ON_PURPOSE = {
-    "system/transcripts/2026-11-09-bluepeak-sync",
-    "intel/concepts/handoff-tax",
+    "sources/recordings/2026-11-09-bluepeak-sync",
+    "objects/concepts/handoff-tax",
 }
-
-
-def project_name(heading):
-    """Build spec, "Names": the heading without a trailing Brief and its dash or colon."""
-    return re.sub(r"\s*[-:]?\s*Brief$", "", heading).strip()
+# An older note, left without its keys on purpose. See fixtures/README.md.
+NOT_IN_FORMAT = {"objects/people/marcus.md"}
+# Build spec, "Object frontmatter": the keys every object opens with, in order.
+OPENING_KEYS = ["type", "name", "aliases", "private"]
+MAX_SUMMARY_LINES = 3
 
 
 def in_right_home(path, kind):
-    if kind == "project":
-        return places.is_project_brief(path)
     return kind in TYPE_HOMES and places.in_home(path, TYPE_HOMES[kind])
+
+
+def key_order(text):
+    """The keys of a note's opening block, in the order they are written."""
+    order = []
+    for line in text.split("\n")[1:]:
+        if line.strip() == "---":
+            break
+        found = notes.KEY.match(line)
+        if found:
+            order.append(found.group(1))
+    return order
+
+
+def headings(body):
+    return [line[3:].strip() for line in body.split("\n") if line.startswith("## ")]
+
+
+def summary(body):
+    """The first paragraph under the title."""
+    lines = body.split("\n")
+    start = next(number for number, line in enumerate(lines) if line.startswith("# ")) + 1
+    while not lines[start].strip():
+        start += 1
+    end = start
+    while end < len(lines) and lines[end].strip():
+        end += 1
+    return lines[start:end]
 
 
 class TheVault(unittest.TestCase):
@@ -47,13 +75,24 @@ class TheVault(unittest.TestCase):
         cls.vault = notes.Vault(VAULT)
 
     def linkable(self):
-        found = []
-        for kind in ("person", "company", "term", "concept"):
-            found += [n for n in self.vault.notes if places.in_home(n, TYPE_HOMES[kind])]
-        return found + [n for n in self.vault.notes if places.is_project_brief(n)]
+        return [
+            note for kind in places.LINKABLE
+            for note in self.vault.notes if places.in_home(note, TYPE_HOMES[kind])
+        ]
+
+    def objects(self):
+        return [
+            (kind, note) for kind, home in places.OBJECT_HOMES
+            for note in self.vault.notes if places.in_home(note, home)
+        ]
 
     def test_about_forty_notes(self):
         self.assertEqual(finish.note_count(VAULT), 44)
+
+    def test_the_vault_is_in_the_new_layout(self):
+        files, folders = stage1_finish.tree(VAULT)
+        self.assertEqual(stage1_finish.layout_problems(files, folders), [])
+        self.assertEqual(stage1_finish.home_problems(files), [])
 
     def test_the_measure_answers_are_what_the_command_counts(self):
         answers = json.loads((FIXTURES / "answers.json").read_text(encoding="utf-8"))["measure"]
@@ -74,15 +113,57 @@ class TheVault(unittest.TestCase):
         for note in self.linkable():
             keys, body = notes.front(self.vault.text(note))
             if "name" not in keys:
+                self.assertIn(note, NOT_IN_FORMAT)
                 continue
-            heading = notes.first_heading(body)
-            wanted = project_name(heading) if places.is_project_brief(note) else heading
-            self.assertEqual(keys["name"], wanted, note)
+            self.assertEqual(keys["name"], notes.first_heading(body), note)
             self.assertIn(keys.get("private"), ("true", "false"), note)
             self.assertTrue(keys.get("aliases", "").startswith("["), note)
             names.setdefault(keys["name"], []).append(note)
         self.assertEqual({name: where for name, where in names.items() if len(where) > 1}, {})
         self.assertEqual(len(names), 20)
+
+    def test_every_object_follows_its_declaration(self):
+        checked = 0
+        for kind, note in self.objects():
+            if note in NOT_IN_FORMAT:
+                continue
+            declared = declarations.objects()[kind]
+            text = self.vault.text(note)
+            keys, body = notes.front(text)
+            self.assertEqual(keys.get("type"), kind, note)
+            for key in declared["required-keys"]:
+                self.assertIn(key, keys, note)
+            # type, name, aliases, private, then the type's own keys.
+            order = key_order(text)
+            opening = [key for key in OPENING_KEYS if key in declared["required-keys"]]
+            self.assertEqual(order[:len(opening)], opening, note)
+            rest = [key for key in declared["required-keys"] if key not in OPENING_KEYS]
+            self.assertEqual(order[len(opening):len(opening) + len(rest)], rest, note)
+            self.assertEqual(
+                [heading for heading in headings(body) if heading in declared["sections"]],
+                declared["sections"], note,
+            )
+            self.assertEqual(
+                [heading for heading in headings(body) if heading not in declared["sections"]],
+                [], note,
+            )
+            opening_lines = summary(body)
+            self.assertLessEqual(len(opening_lines), MAX_SUMMARY_LINES, note)
+            self.assertLessEqual(
+                len(notes.words(" ".join(opening_lines))), declared["summary-max-words"], note)
+            checked += 1
+        self.assertEqual(checked, 30)
+
+    def test_a_meetings_attendees_are_links_to_people(self):
+        for kind, note in self.objects():
+            if kind != "meeting":
+                continue
+            keys, _ = notes.front(self.vault.text(note))
+            attendees = notes.link_targets(keys["attendees"])
+            self.assertTrue(attendees, note)
+            for target in attendees:
+                self.assertTrue(
+                    places.in_home(self.vault.resolve(target, note) or "", PEOPLE), note)
 
     def test_every_history_line_has_its_five_fields(self):
         lines = 0
@@ -96,23 +177,29 @@ class TheVault(unittest.TestCase):
                     lines += 1
         self.assertGreater(lines, 15)
 
-    def test_every_turn_in_a_new_source_has_its_marker_in_order(self):
+    def test_every_source_has_its_keys_its_home_and_a_marker_on_each_passage(self):
         marked = 0
         for name in self.vault.notes:
-            keys, body = notes.front(self.vault.text(name))
-            if keys.get("type") != "source" or "kind" not in keys:
+            if not any(places.in_home(name, home) for home in places.SOURCE_HOMES):
                 continue
+            keys, body = notes.front(self.vault.text(name))
+            self.assertEqual(keys.get("type"), "source", name)
+            declared = declarations.sources()[keys["kind"]]
+            self.assertTrue(places.in_home(name, declared["home"]), name)
+            self.assertEqual(key_order(self.vault.text(name)), declared["required-keys"], name)
+            self.assertIn(keys["status"], ("saved", "read"), name)
             self.assertRegex(keys.get("sha256-original", ""), r"^[0-9a-f]{64}$", name)
-            blocks = [block for block in body.strip().split("\n\n") if block.strip()]
-            for number, block in enumerate(blocks, 1):
-                self.assertTrue(block.endswith(" ^p%04d" % number), "%s block %d" % (name, number))
+            self.assertEqual(stage1_finish.marker_problems(self.vault.text(name)), [], name)
+            # Whatever a source produced is in the vault.
+            for target in notes.link_targets(keys["produced"]):
+                self.assertIsNotNone(self.vault.resolve(target, name), name)
             marked += 1
-        self.assertEqual(marked, 6)
+        self.assertEqual(marked, 8)
 
     def test_two_people_share_a_first_name_and_one_person_is_private(self):
-        people = [n.rsplit("/", 1)[-1] for n in self.vault.notes if places.in_home(n, "atlas/people")]
+        people = [n.rsplit("/", 1)[-1] for n in self.vault.notes if places.in_home(n, PEOPLE)]
         self.assertEqual(len([name for name in people if name.startswith("nick-")]), 2)
-        keys, _ = notes.front(self.vault.text("atlas/people/maya-brandt.md"))
+        keys, _ = notes.front(self.vault.text(PEOPLE + "/maya-brandt.md"))
         self.assertEqual(keys["private"], "true")
 
 
@@ -143,7 +230,15 @@ class TheCases(unittest.TestCase):
                 if path.suffix == ".json":
                     json.loads(path.read_text(encoding="utf-8"))
 
+    def test_what_arrives_is_a_declared_kind(self):
+        for name, (folder, _) in self.cases.items():
+            for path in (folder / "input").glob("*.json"):
+                arrived = json.loads(path.read_text(encoding="utf-8"))
+                self.assertIn(arrived["kind"], declarations.SOURCE_KINDS, name)
+
     def test_every_entry_has_its_fields(self):
+        homes = [home for _, home in places.OBJECT_HOMES]
+        written = homes + places.SIGNAL_HOMES
         for name, (_, expected) in self.cases.items():
             made = {entry["path"] for entry in expected["exists"]["objects"]}
             for part in finish.CASE_PARTS:
@@ -161,6 +256,9 @@ class TheCases(unittest.TestCase):
                     self.assertEqual(entry.get("in", "attendees"), "attendees", where)
                     for end in ("from", "to"):
                         self.assertTrue(entry[end].endswith(".md"), where)
+                        # A link starts and ends in an object home or a signal.
+                        self.assertTrue(
+                            any(places.in_home(entry[end], home) for home in written), where)
                     self.assertTrue(entry.get("shown", "x").strip(), where)
                     # Whatever is linked to must be in the vault or made by this case.
                     self.assertTrue(entry["to"] in self.vault.notes or entry["to"] in made, where)
@@ -173,6 +271,11 @@ class TheCases(unittest.TestCase):
                     self.assertTrue(entry["text"].strip() and "|" not in entry["text"], where)
                     self.assertIn(entry.get("basis", "stated"), BASES, where)
                     self.assertIn(".md", entry.get("source", ".md"), where)
+                    if "source" in entry:
+                        # A history line points into a source's permanent home.
+                        self.assertTrue(
+                            any(places.in_home(entry["source"], home)
+                                for home in places.SOURCE_HOMES), where)
 
     def test_private_words_are_words_that_arrived(self):
         marked = 0
@@ -200,7 +303,7 @@ class TheCases(unittest.TestCase):
     def test_the_people_in_the_cases_are_the_people_in_the_vault(self):
         emails = {}
         for note in self.vault.notes:
-            if places.in_home(note, "atlas/people"):
+            if places.in_home(note, PEOPLE):
                 keys, _ = notes.front(self.vault.text(note))
                 if "email" in keys:
                     emails[keys["email"]] = keys.get("name")

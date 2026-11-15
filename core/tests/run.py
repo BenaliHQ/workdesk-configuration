@@ -11,6 +11,10 @@
             --vault <vault> --scorecard <note> --build-log <note>
         Run a stage's finish test. It fails until the stage is built.
 
+    /usr/bin/python3 core/tests/run.py --finish 1 \
+            --new-vault <the new vault> --build-log <note>
+        Stage 1's finish test. Without --new-vault it looks at ~/Workdesk.
+
 Tests run with outside packages switched off, so anything that is not
 in the standard library fails here before it fails on someone's Mac.
 """
@@ -32,6 +36,8 @@ def main(arguments=None):
     parser.add_argument("--finish", metavar="STAGE", type=int,
                         help="run this stage's finish test instead")
     parser.add_argument("--vault", help="finish test: the vault to check")
+    parser.add_argument("--new-vault",
+                        help="finish test, stage 1 on: the new vault (default ~/Workdesk)")
     parser.add_argument("--state", default=DEFAULT_STATE,
                         help="finish test: the machine state folder")
     parser.add_argument("--scorecard", help="finish test: the scorecard note")
@@ -62,6 +68,8 @@ def main(arguments=None):
                 environment[setting] = value
             else:
                 environment.pop(setting, None)
+        if options.new_vault:
+            environment["WD_NEW_VAULT"] = options.new_vault
         command += ["-s", str(TESTS), "-t", str(CORE), "-p", name, "-v"]
 
     return subprocess.call(command, env=environment)

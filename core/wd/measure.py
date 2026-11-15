@@ -23,30 +23,27 @@ LABELS = [
     ("broken_links", "Links in objects and syntheses with a missing target"),
     ("unlinked_objects", "Objects nothing links to"),
     ("people_without_full_name", "People whose first heading has fewer than two words"),
-    ("meetings_with_missing_source", "Meetings with a missing transcript or source"),
-    ("sources_unprocessed", "Sources not processed"),
+    ("meetings_with_missing_source", "Meetings with a missing source"),
+    ("sources_unprocessed", "Sources that produced nothing"),
 ]
 RUNTIME_NAMES = [("claude-code", "Claude Code"), ("codex", "Codex")]
 
 
 def homes(vault):
     """Each home and the notes in it."""
-    found = {}
-    for _, folder in places.OBJECT_HOMES:
-        found[folder] = [name for name in vault.notes if places.in_home(name, folder)]
-    found[places.PROJECTS] = [
-        name for name in vault.notes if places.is_project_brief(name)
-    ]
-    for folder in places.SIGNAL_HOMES + places.SOURCE_HOMES + [places.INTAKE]:
-        found[folder] = [name for name in vault.notes if places.in_home(name, folder)]
-    return found
+    folders = [folder for _, folder in places.OBJECT_HOMES]
+    folders += places.SIGNAL_HOMES + places.SOURCE_HOMES
+    return {
+        folder: [name for name in vault.notes if places.in_home(name, folder)]
+        for folder in folders
+    }
 
 
 def objects(by_home):
     found = []
     for _, folder in places.OBJECT_HOMES:
         found += by_home[folder]
-    return found + by_home[places.PROJECTS]
+    return found
 
 
 def broken_links(vault, by_home):
@@ -62,12 +59,13 @@ def broken_links(vault, by_home):
 def unlinked_objects(vault, by_home):
     """Objects that no other note in the vault links to.
 
-    A link from an index page or an agent file is navigation, not a
-    connection, so it does not count.
+    A link from a file at the top of the vault, such as the rulebook or
+    the status page, is navigation, not a connection, so it does not
+    count.
     """
     linked = set()
     for name in vault.notes:
-        if name.rsplit("/", 1)[-1] in places.NOT_NOTES:
+        if name in places.ROOT_FILES:
             continue
         for target in notes.link_targets(vault.text(name)):
             resolved = vault.resolve(target, name)
@@ -78,7 +76,7 @@ def unlinked_objects(vault, by_home):
 
 def people_without_full_name(vault, by_home):
     found = []
-    for name in by_home["atlas/people"]:
+    for name in by_home[places.home_of("person")]:
         _, body = notes.front(vault.text(name))
         if len(notes.words(notes.first_heading(body))) < 2:
             found.append(name)
@@ -86,7 +84,7 @@ def people_without_full_name(vault, by_home):
 
 
 def missing_source(vault, value, name):
-    """Does a meeting's `transcript` or `source` value name a file that is missing?
+    """Does a meeting's `source` value name a file that is missing?
 
     A link or a path names a file. A web address does not, and neither
     does a plain label such as the name of the recorder.
@@ -103,22 +101,24 @@ def missing_source(vault, value, name):
 
 def meetings_with_missing_source(vault, by_home):
     found = []
-    for name in by_home["atlas/meetings"]:
+    for name in by_home[places.home_of("meeting")]:
         keys, _ = notes.front(vault.text(name))
-        if any(
-            missing_source(vault, keys.get(key, ""), name)
-            for key in ("transcript", "source")
-        ):
+        if missing_source(vault, keys.get("source", ""), name):
             found.append(name)
     return found
 
 
 def sources_unprocessed(vault, by_home):
+    """Sources whose `produced` list is empty: nothing has been made from them.
+
+    A source with no `produced` key counts as well. Unknown is never
+    healthy.
+    """
     found = []
-    for folder in places.SOURCE_HOMES + [places.INTAKE]:
+    for folder in places.SOURCE_HOMES:
         for name in by_home[folder]:
             keys, _ = notes.front(vault.text(name))
-            if keys.get("processed", "").lower() == "false":
+            if keys.get("produced", "").lower() in NO_VALUE:
                 found.append(name)
     return found
 
@@ -233,7 +233,7 @@ def skill_words(folders, seen):
 def session_load(root, home):
     """The words each runtime loads at the start of a session.
 
-    Build spec, "Measure fields". Claude Code: the user and vault
+    Build spec, stage 1, "Session load". Claude Code: the user and vault
     CLAUDE.md files and what they import, every rule file with no path
     limit, and every skill description, including the skills of plugins
     that are switched on. Codex: the user and vault

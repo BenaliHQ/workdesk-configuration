@@ -1,12 +1,13 @@
 """`wd score <vault>`: how well would the linker do on the links already there?
 
-A throwaway scorer for stage 0 (build spec, S0.4). It reads each
-linkable object's name from its first heading. It takes every existing
-link whose shown words are a name of two words or more, strips its
-brackets in a scratch copy under machine state, runs the matcher over
-the copy, and counts how often the matcher puts the same link back.
+A throwaway scorer from stage 0 (S0.4). It reads each linkable object's
+name from its first heading. It takes every existing link whose shown
+words are a name of two words or more, strips its brackets in a scratch
+copy under machine state, runs the matcher over the copy, and counts how
+often the matcher puts the same link back.
 
-It never writes inside the vault, and it never opens the private folder.
+It never writes inside the vault, and it never opens `writing/`, the
+operator's own folder.
 """
 
 import datetime
@@ -20,12 +21,12 @@ from wd import notes, places
 
 REPORT = "score.json"
 SCRATCH = "score-scratch"
-PRIVATE = "personal"
+# The operator's own writing. The scorer leaves it shut.
+PRIVATE = places.WRITING
 EXAMPLES = 10
 
 # The five types that are linked by name (build spec, "Object homes").
-LINKABLE = ("person", "company", "term", "concept")
-TYPES = ("person", "company", "project", "term", "concept")
+TYPES = places.LINKABLE
 LABELS = {"person": "People", "company": "Companies", "project": "Projects",
           "term": "Terms", "concept": "Concepts"}
 
@@ -47,20 +48,12 @@ LEFT_ALONE = [
 ]
 
 
-def project_name(heading):
-    """Build spec, "Names": the heading without a trailing Brief and its dash or colon."""
-    # A hyphen, an en dash, an em dash or a colon.
-    return re.sub(r"\s*[-\u2013\u2014:]?\s*Brief$", "", heading).strip()
-
-
 def linkable(vault):
     """(type, note) for every object that is linked by name."""
-    homes = dict(places.OBJECT_HOMES)
-    found = [
-        (kind, name) for kind in LINKABLE
-        for name in vault.notes if places.in_home(name, homes[kind])
+    return [
+        (kind, name) for kind in TYPES
+        for name in vault.notes if places.in_home(name, places.home_of(kind))
     ]
-    return found + [("project", name) for name in vault.notes if places.is_project_brief(name)]
 
 
 def workplace(vault):
@@ -68,7 +61,6 @@ def workplace(vault):
     found = []
     for _, folder in places.OBJECT_HOMES:
         found += [name for name in vault.notes if places.in_home(name, folder)]
-    found += [name for name in vault.notes if places.is_project_brief(name)]
     return found + [name for name in vault.notes if places.in_home(name, places.SYNTHESES)]
 
 
@@ -82,8 +74,6 @@ def names(vault):
     for kind, note in linkable(vault):
         _, body = notes.front(vault.text(note))
         name = notes.first_heading(body)
-        if kind == "project":
-            name = project_name(name)
         if not name or (kind == "person" and len(name.split()) < 2):
             continue
         if name in known:

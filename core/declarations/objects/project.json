@@ -1,0 +1,16 @@
+{
+  "home": "objects/projects",
+  "linkable": true,
+  "name-from": "first-heading",
+  "required-keys": [
+    "type",
+    "name",
+    "aliases",
+    "private"
+  ],
+  "sections": [
+    "Currently",
+    "History"
+  ],
+  "summary-max-words": 60
+}

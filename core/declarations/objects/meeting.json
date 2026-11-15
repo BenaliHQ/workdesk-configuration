@@ -1,0 +1,18 @@
+{
+  "home": "objects/meetings",
+  "linkable": false,
+  "name-from": null,
+  "required-keys": [
+    "type",
+    "date",
+    "attendees",
+    "source",
+    "private"
+  ],
+  "sections": [
+    "Decisions",
+    "Promises",
+    "Detail"
+  ],
+  "summary-max-words": 60
+}

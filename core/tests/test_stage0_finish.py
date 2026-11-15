@@ -20,7 +20,7 @@ import stage0_finish as finish  # noqa: E402
 MEASURE = {
     "vault": "/made-up/vault",
     "run_at": "2026-11-12T07:00:00-06:00",
-    "notes": {"atlas/people": 1204, "atlas/meetings": 31},
+    "notes": {"objects/people": 1204, "objects/meetings": 31},
     "broken_links": 17,
     "unlinked_objects": 9,
     "people_without_full_name": 4,
@@ -119,7 +119,7 @@ class Measure(unittest.TestCase):
     def test_true_and_negative_numbers_are_not_counts(self):
         self.assertTrue(finish.measure_problems(changed(MEASURE, broken_links=True)))
         self.assertTrue(finish.measure_problems(changed(MEASURE, broken_links=-1)))
-        self.assertTrue(finish.measure_problems(changed(MEASURE, notes={"atlas/people": "many"})))
+        self.assertTrue(finish.measure_problems(changed(MEASURE, notes={"objects/people": "many"})))
 
     def test_session_load_needs_both_runtimes(self):
         one = changed(MEASURE, session_load={"claude-code": 28110})
@@ -173,8 +173,8 @@ class Score(unittest.TestCase):
 class Case(unittest.TestCase):
     GOOD = {
         "exists": {
-            "objects": ["atlas/people/sam-rivera"],
-            "links": [{"from": "atlas/meetings/2026-11-10-acme", "to": "atlas/people/sam-rivera"}],
+            "objects": ["objects/people/sam-rivera"],
+            "links": [{"from": "objects/meetings/2026-11-10-acme", "to": "objects/people/sam-rivera"}],
             "history": [],
         },
         "absent": {"objects": [], "links": [], "history": ["Sam Rivera | COO"]},
@@ -206,15 +206,26 @@ class FiveChecks(unittest.TestCase):
     def test_a_full_record_gets_through(self):
         self.assertEqual(finish.s05_problems(GOOD_LOG), [])
 
+    def test_checks_a_and_e_are_not_asked_for_here(self):
+        # They moved to stage 1, with the operator's approval of 2026-11-15.
+        self.assertEqual(finish.S05_CHECKS, ["b", "c", "d"])
+        log = "\n".join(
+            line for line in GOOD_LOG.splitlines()
+            if "S0.5 (a)" not in line and "S0.5 (e)" not in line
+        )
+        self.assertEqual(finish.s05_problems(log), [])
+        # A failed (a) or (e) does not fail stage 0 either.
+        self.assertEqual(finish.s05_problems(log + "\n- S0.5 (a): failed.\n"), [])
+
     def test_five_bare_failures_do_not_get_through(self):
         bare = "\n".join("S0.5 (%s) failed" % letter for letter in "abcde")
-        self.assertEqual(len(finish.s05_problems(bare)), 7)
+        self.assertEqual(len(finish.s05_problems(bare)), 5)
         bare = "\n".join("- S0.5 (%s): failed." % letter for letter in "abcde")
         self.assertTrue(finish.s05_problems(bare))
 
     def test_a_mention_in_a_sentence_is_not_a_record(self):
-        prose = "The builder will log S0.5 (a): verified. Evidence: one two three."
-        self.assertIn("S0.5 (a): no outcome logged", finish.s05_problems(prose))
+        prose = "The builder will log S0.5 (d): verified. Evidence: one two three."
+        self.assertIn("S0.5 (d): no outcome logged", finish.s05_problems(prose))
 
     def test_each_runtime_needs_its_own_line(self):
         log = GOOD_LOG.replace("- S0.5 (b) Codex: failed.", "- S0.5 (x) Codex: failed.")
@@ -227,8 +238,8 @@ class FiveChecks(unittest.TestCase):
         )
 
     def test_an_outcome_needs_evidence(self):
-        log = GOOD_LOG.replace("Evidence: both edits were kept in one note.", "Evidence: yes.")
-        self.assertEqual(finish.s05_problems(log), ["S0.5 (e): no evidence given"])
+        log = GOOD_LOG.replace("Evidence: the check fired after a write.", "Evidence: yes.")
+        self.assertEqual(finish.s05_problems(log), ["S0.5 (c) Claude Code: no evidence given"])
 
     def test_both_runtimes_failing_stops_the_stage(self):
         log = GOOD_LOG.replace(

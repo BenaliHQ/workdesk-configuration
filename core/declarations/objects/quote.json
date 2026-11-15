@@ -1,0 +1,13 @@
+{
+  "home": "objects/quotes",
+  "linkable": false,
+  "name-from": null,
+  "required-keys": [
+    "type",
+    "by",
+    "source",
+    "private"
+  ],
+  "sections": [],
+  "summary-max-words": 60
+}

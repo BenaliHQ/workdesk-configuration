@@ -1,0 +1,18 @@
+---
+type: company
+name: Acme
+aliases: []
+private: false
+web: acme.example
+---
+# Acme
+
+A maker of shop fittings. [[objects/people/sam-rivera|Sam Rivera]] leads operations and [[objects/people/dana-whitfield|Dana Whitfield]] runs finance.
+
+## Currently
+
+- Starts its rollout on December 1. 2026-11-10, [[sources/recordings/2026-11-10-acme-rollout-planning#^p0001]]
+
+## History
+
+- 2026-11-10 | Starts its rollout on December 1 | stated | [[sources/recordings/2026-11-10-acme-rollout-planning#^p0001]] | run-20261110-1815
