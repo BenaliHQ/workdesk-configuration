@@ -48,7 +48,7 @@ core/bin/wd init <vault>
 core/bin/wd init <vault> --samples
 ```
 
-`wd init` makes the folders above, copies `AGENTS.md`, `CLAUDE.md` and the four skills (into `.claude/skills/` and `.agents/skills/`), and writes the Obsidian settings. It refuses a path that exists and is not empty, and changes nothing there. It does not write `status.md`, and it writes nothing under `writing/`.
+`wd init` makes the folders above, copies `AGENTS.md`, `CLAUDE.md` and the four skills (into `.claude/skills/` and `.agents/skills/`), and writes the Obsidian settings. It finishes by writing `status.md`, the way `wd status` does, so a new vault has all three root files. It refuses a path that exists and is not empty, and changes nothing there. It writes nothing outside the folder it is given and nothing under `writing/`.
 
 `--samples` adds nine made-up notes from `product/samples/`: one of each object type and one recording, all marked `sample: true` and linked to each other. Every history line and every current fact in them points at a passage of the sample recording.
 

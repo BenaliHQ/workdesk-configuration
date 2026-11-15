@@ -48,6 +48,7 @@ The product files (S1.2)
 Commands (S1.3 and S1.4)
 
 - `wd init <vault>` and `wd init <vault> --samples`: the path first.
+  It makes all three root files, the status page among them.
 - A sample is a note with `sample: true` in its opening block. With
   samples there are nine notes in the vault: one in each object home
   and one recording in `sources/recordings/`.
@@ -56,9 +57,15 @@ Commands (S1.3 and S1.4)
   group for each object type, whose `query` is `path:<home>`, and
   `search` holds `-path:sources`, `-path:signals/briefs` and
   `-file:<name>` for each root file.
+- `wd graph-setting <vault> --dry-run` changes nothing. With `--apply`
+  it writes the settings above into the two files and keeps every
+  other key that was in them.
 - `wd check <vault>` writes `check.json` into machine state, with
   `vault`, `run_at` and `problems`, a list with one entry for each
-  problem. It never writes inside the vault.
+  problem. An entry holds `note`, the note's path in the vault, and
+  `kind`, a fixed word. Among the kinds: `missing-key`,
+  `summary-too-long`, `link-goes-nowhere`, `first-name-link`,
+  `unlinked` and `name-not-unique`. It never writes inside the vault.
 - `wd status <vault> --dry-run` writes nothing. `wd status <vault>
   --apply` writes `status.md` at the top of the vault and nothing else.
   The page names each home with its count, has a line with the word
@@ -149,8 +156,10 @@ FOLDERS = [
     "signals/briefs", "signals/syntheses",
 ]
 ROOT_FILES = ("AGENTS.md", "CLAUDE.md", "status.md")
-# `status.md` is written by `wd status`, so `wd init` need not make it.
-FILES_FROM_INIT = ("AGENTS.md", "CLAUDE.md")
+# Build spec, S1.3: `wd init` creates the root files, all three. It
+# writes `status.md` the way `wd status` does.
+FILES_FROM_INIT = ROOT_FILES
+STATUS_PAGE = "status.md"
 SETTINGS = ".obsidian"
 SKILL_FOLDERS = (".claude/skills", ".agents/skills")
 HIDDEN = (SETTINGS,) + SKILL_FOLDERS
@@ -531,6 +540,25 @@ def graph_problems(graph, app):
     return problems
 
 
+# Settings that are wrong in every way the graph setting must repair,
+# each with one key of the owner's that must be kept.
+WRONG_GRAPH = {"colorGroups": [], "search": "path:sources", "scale": 1.5}
+WRONG_APP = {"alwaysUpdateLinks": False, "showLineNumber": True}
+
+
+def kept_key_problems(name, before, after):
+    """The keys in a settings file that the graph setting must leave as they were."""
+    if not isinstance(after, dict):
+        return ["%s: missing, or not a group of values" % name]
+    return [
+        "%s: %s was %s and is now %s" % (
+            name, key, json.dumps(before[key]), json.dumps(after.get(key, "not there")))
+        for key in sorted(before)
+        if key not in ("colorGroups", "search", "alwaysUpdateLinks")
+        and (key not in after or after[key] != before[key])
+    ]
+
+
 def marker_problems(text):
     """A source's blocks, each of which must end with its passage marker, in order."""
     blocks = [block for block in body(text).strip().split("\n\n") if block.strip()]
@@ -655,6 +683,10 @@ def init_problems(root, samples=False):
 
 # ---- S1.4 ----
 
+def said(value):
+    return isinstance(value, str) and bool(value.strip())
+
+
 def check_report_problems(report):
     """Everything wrong with the shape of `check.json`."""
     if not isinstance(report, dict):
@@ -663,10 +695,98 @@ def check_report_problems(report):
     if not isinstance(found, list):
         return ["problems: expected a list with one entry for each problem"]
     return [
-        "problems: an entry says nothing"
+        "problems: an entry does not name its note and its kind"
         for entry in found
-        if not ((isinstance(entry, str) and entry.strip()) or (isinstance(entry, dict) and entry))
+        if not (isinstance(entry, dict) and said(entry.get("note")) and said(entry.get("kind")))
     ]
+
+
+TWICE = "name-not-unique"
+PERSON = (
+    "---\ntype: person\nname: %(name)s\naliases: []\nprivate: false\n---\n"
+    "# %(name)s\n\n%(says)s\n"
+)
+
+
+def person(name, says):
+    return PERSON % {"name": name, "says": says}
+
+
+def faulty_notes(person_path, person_name, recording):
+    """One invalid note for each thing the check must find, and one note that is right.
+
+    Each is a made-up person, and each but the last has one thing
+    wrong. `person_path` and `person_name` are a person already in the
+    vault, and `recording` is a source there, both without `.md`.
+    Returns (path, text, the kind of problem it must be given or None).
+    """
+    link = "[[%s|%s]]" % (person_path, person_name)
+    first = person_name.split()[0]
+    home = "objects/people"
+    return [
+        # No `private` key.
+        ("%s/ada-quill.md" % home,
+         person("Ada Quill", "Works with %s." % link).replace("private: false\n", ""),
+         "missing-key"),
+        # Four lines, and the limit is three.
+        ("%s/ben-osei.md" % home,
+         person("Ben Osei", "Works with %s.\nA second line.\nA third line.\nA fourth line." % link),
+         "summary-too-long"),
+        # Sixty-one words on one line, and the limit is sixty.
+        ("%s/cy-ward.md" % home,
+         person("Cy Ward", "Works with %s. %s" % (link, " ".join(["word"] * 57))),
+         "summary-too-long"),
+        # A link to a note that is not there.
+        ("%s/di-novak.md" % home,
+         person("Di Novak", "Works with %s at [[objects/companies/no-such-company|No Such Company]]."
+                % link),
+         "link-goes-nowhere"),
+        # A link to a passage the recording does not have.
+        ("%s/eli-stone.md" % home,
+         person("Eli Stone", "Works with %s. [[%s#^p9999]]" % (link, recording)),
+         "link-goes-nowhere"),
+        # A link to a person that shows a first name alone.
+        ("%s/fay-lund.md" % home,
+         person("Fay Lund", "Works with [[%s|%s]]." % (person_path, first)),
+         "first-name-link"),
+        # No link in or out. A link to a source is not one.
+        ("%s/gus-pine.md" % home,
+         person("Gus Pine", "Keeps to himself. [[%s]]" % recording),
+         "unlinked"),
+        # The name of a person already in the vault.
+        ("%s/the-other-one.md" % home,
+         person(person_name, "A second note with a name in use. Works with %s." % link),
+         "name-not-unique"),
+        # Nothing wrong: every key, a short summary, a full name, a real passage.
+        ("%s/hal-reed.md" % home,
+         person("Hal Reed", "Works with %s. [[%s#^p0001]]" % (link, recording)),
+         None),
+    ]
+
+
+def fault_problems(report, faults):
+    """The faults the check did not find, and the right notes it found fault with.
+
+    A name used twice may be reported on either of the two notes.
+    """
+    found = {}
+    for entry in report.get("problems", []) if isinstance(report, dict) else []:
+        if isinstance(entry, dict):
+            found.setdefault(entry.get("note"), set()).add(entry.get("kind"))
+    everywhere = set().union(*found.values()) if found else set()
+    problems = []
+    for path, _, kind in faults:
+        kinds = found.get(path, set())
+        if kind == TWICE and kind in everywhere:
+            continue
+        if kind is None and kinds:
+            problems.append(
+                "%s: nothing is wrong with it, and the check reported %s"
+                % (path, ", ".join(sorted(str(name) for name in kinds)))
+            )
+        elif kind is not None and kind not in kinds:
+            problems.append("%s: no %s problem was reported" % (path, kind))
+    return problems
 
 
 def mentions(line, folder):
@@ -863,6 +983,47 @@ class S13Init(FinishCase):
         self.assertEqual(stage0.changed_files(before, after), [])
 
 
+class S13GraphSetting(FinishCase):
+    """S1.3: `wd graph-setting`, run as a command on settings that are wrong."""
+
+    def settings(self, vault):
+        return {name: (vault / SETTINGS / name).read_bytes() for name in ("graph.json", "app.json")}
+
+    def test_graph_setting_repairs_the_settings_and_keeps_other_keys(self):
+        with tempfile.TemporaryDirectory() as folder:
+            vault, state = self.fresh_vault(folder, samples=False)
+            (vault / SETTINGS / "graph.json").write_text(json.dumps(WRONG_GRAPH), encoding="utf-8")
+            (vault / SETTINGS / "app.json").write_text(json.dumps(WRONG_APP), encoding="utf-8")
+            self.assertTrue(
+                graph_problems(WRONG_GRAPH, WRONG_APP), "The wrong settings are not wrong.")
+
+            wrong = self.settings(vault)
+            before = self.snapshot(vault)
+            tried = self.wd(["graph-setting", vault, "--dry-run"], state, "S1.3")
+            self.assertEqual(tried.returncode, 0, tried.stdout + tried.stderr)
+            self.assertEqual(
+                stage0.changed_files(before, self.snapshot(vault)), [],
+                "`wd graph-setting --dry-run` changed files in the vault.",
+            )
+            self.assertEqual(self.settings(vault), wrong)
+
+            done = self.wd(["graph-setting", vault, "--apply"], state, "S1.3")
+            self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+            self.assertEqual(
+                stage0.changed_files(before, self.snapshot(vault)),
+                [SETTINGS + "/app.json", SETTINGS + "/graph.json"],
+                "`wd graph-setting --apply` writes the two settings files and nothing else.",
+            )
+            graph = read_json(vault / SETTINGS / "graph.json")
+            app = read_json(vault / SETTINGS / "app.json")
+        self.assertEqual(graph_problems(graph, app), [])
+        self.assertEqual(
+            kept_key_problems("graph.json", WRONG_GRAPH, graph)
+            + kept_key_problems("app.json", WRONG_APP, app),
+            [], "`wd graph-setting --apply` changed a key that is not its own.",
+        )
+
+
 class S14CheckAndStatus(FinishCase):
     """S1.4: `wd check` and the status page."""
 
@@ -886,17 +1047,29 @@ class S14CheckAndStatus(FinishCase):
         self.assertEqual(report["problems"], [])
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
-    def test_check_finds_a_note_that_is_wrong(self):
+    def a_sample_person_and_the_recording(self, vault):
+        """A person and the recording `wd init --samples` made: (path, name, recording)."""
+        people = sorted((vault / "objects" / "people").glob("*.md"))
+        recordings = sorted((vault / RECORDINGS).glob("*.md"))
+        if not people or not recordings:
+            self.fail("`wd init --samples` left no sample person or no sample recording.")
+        name = unquoted(front(people[0].read_text(encoding="utf-8")).get("name", ""))
+        self.assertGreaterEqual(len(name.split()), 2, "The sample person has no full name.")
+        return (
+            "objects/people/" + people[0].stem, name, RECORDINGS + "/" + recordings[0].stem,
+        )
+
+    def test_check_finds_each_kind_of_wrong_note(self):
+        # One invalid note for each requirement, and the matching kind for each.
         with tempfile.TemporaryDirectory() as folder:
             vault, state = self.fresh_vault(folder, samples=True)
-            # No opening block, a link that goes nowhere, and nothing links to it.
-            (vault / "objects" / "people" / "robin-hale.md").write_text(
-                "# Robin Hale\n\nWorks at [[objects/companies/no-such-company|No Such Company]].\n",
-                encoding="utf-8",
-            )
+            faults = faulty_notes(*self.a_sample_person_and_the_recording(vault))
+            for path, text, _ in faults:
+                (vault / path).write_text(text, encoding="utf-8")
             result, report = self.check(vault, state)
-        self.assertNotEqual(result.returncode, 0, "`wd check` passed a vault with a wrong note.")
-        self.assertTrue(report["problems"], "`wd check` listed no problems.")
+        self.assertNotEqual(result.returncode, 0, "`wd check` passed a vault with wrong notes.")
+        self.assertEqual(
+            fault_problems(report, faults), [], "`wd check` did not find each wrong note.")
 
     def measured(self, vault, state):
         report = self.check_measure(vault, state, made_up_home=True)
@@ -906,6 +1079,11 @@ class S14CheckAndStatus(FinishCase):
         with tempfile.TemporaryDirectory() as folder:
             vault, state = self.fresh_vault(folder, samples=True)
             _, report = self.check(vault, state)
+            # Start from a page that is out of date, so that a real
+            # update is needed. A page that was already right would
+            # leave nothing to see.
+            stale = "# Status\n\nAn old page. Nothing here is true any more.\n"
+            (vault / STATUS_PAGE).write_text(stale, encoding="utf-8")
 
             before = self.snapshot(vault)
             tried = self.wd(["status", vault, "--dry-run"], state, "S1.4")
@@ -917,10 +1095,11 @@ class S14CheckAndStatus(FinishCase):
             written = self.wd(["status", vault, "--apply"], state, "S1.4")
             self.assertEqual(written.returncode, 0, written.stdout + written.stderr)
             self.assertEqual(
-                stage0.changed_files(before, self.snapshot(vault)), ["status.md"],
+                stage0.changed_files(before, self.snapshot(vault)), [STATUS_PAGE],
                 "`wd status --apply` writes status.md and nothing else.",
             )
-            page = (vault / "status.md").read_text(encoding="utf-8")
+            page = (vault / STATUS_PAGE).read_text(encoding="utf-8")
+            self.assertNotIn("An old page", page, "`wd status --apply` kept the old page.")
 
             notes, total = self.measured(vault, state)
             empty = Path(folder) / "empty"

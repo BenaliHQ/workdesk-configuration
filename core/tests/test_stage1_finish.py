@@ -114,6 +114,7 @@ def make_vault(root, samples=False):
         (root / folder).mkdir(parents=True)
     (root / "AGENTS.md").write_text("# The rulebook\n\nWrite full names.\n", encoding="utf-8")
     (root / "CLAUDE.md").write_text("@AGENTS.md\n", encoding="utf-8")
+    (root / "status.md").write_text("# Status\n\nWritten by a program.\n", encoding="utf-8")
     for place in finish.SKILL_FOLDERS:
         for name in finish.SKILLS:
             (root / place / name).mkdir(parents=True)
@@ -413,9 +414,13 @@ class Init(unittest.TestCase):
     def test_an_empty_vault_gets_through(self):
         make_vault(self.root)
         self.assertEqual(finish.init_problems(self.root), [])
-        # The status page may be there already.
-        (self.root / "status.md").write_text("# Status\n", encoding="utf-8")
-        self.assertEqual(finish.init_problems(self.root), [])
+
+    def test_init_makes_all_three_root_files(self):
+        # The status page is one of them. A vault without it does not get through.
+        self.assertEqual(finish.FILES_FROM_INIT, finish.ROOT_FILES)
+        make_vault(self.root)
+        (self.root / "status.md").unlink()
+        self.assertEqual(finish.init_problems(self.root), ["status.md: missing"])
 
     def test_a_vault_with_samples_gets_through(self):
         make_vault(self.root, samples=True)
@@ -425,8 +430,8 @@ class Init(unittest.TestCase):
     def test_no_vault_and_an_empty_folder_do_not_get_through(self):
         self.assertEqual(len(finish.init_problems(self.root)), 1)
         self.root.mkdir()
-        # 15 folders, 2 root files, 8 skill pages and 2 settings.
-        self.assertEqual(len(finish.init_problems(self.root)), 27)
+        # 15 folders, 3 root files, 8 skill pages and 2 settings.
+        self.assertEqual(len(finish.init_problems(self.root)), 28)
 
     def test_a_missing_folder_file_or_skill_is_named(self):
         make_vault(self.root)
@@ -557,12 +562,113 @@ The check found 0 problems.
 
     def test_a_check_report(self):
         self.assertEqual(finish.check_report_problems({"problems": []}), [])
-        self.assertEqual(
-            finish.check_report_problems({"problems": ["a.md: a link goes nowhere", {"note": "a.md"}]}), [])
+        entry = {"note": "objects/people/a.md", "kind": "link-goes-nowhere", "sentence": "It is."}
+        self.assertEqual(finish.check_report_problems({"problems": [entry]}), [])
         self.assertEqual(len(finish.check_report_problems({})), 1)
         self.assertEqual(len(finish.check_report_problems({"problems": 0})), 1)
         self.assertEqual(len(finish.check_report_problems({"problems": ["", {}, 3]})), 3)
         self.assertEqual(len(finish.check_report_problems([])), 1)
+        # An entry names its note and its kind. A line of words alone does not get through.
+        self.assertEqual(
+            len(finish.check_report_problems({"problems": [
+                "a.md: a link goes nowhere", {"note": "a.md"}, {"kind": "unlinked"},
+                {"note": "a.md", "kind": " "}, {"note": 3, "kind": "unlinked"},
+            ]})), 5)
+
+    FAULTS = finish.faulty_notes(
+        "objects/people/sam-rivera", "Sam Rivera", "sources/recordings/2026-11-12-acme-intro")
+
+    def found(self, leave_out=(), add=()):
+        """A report that finds every fault, but for the ones left out."""
+        entries = [
+            {"note": path, "kind": kind} for path, _, kind in self.FAULTS
+            if kind is not None and path not in leave_out
+        ]
+        return {"problems": entries + [{"note": note, "kind": kind} for note, kind in add]}
+
+    def test_each_requirement_has_its_own_wrong_note(self):
+        kinds = [kind for _, _, kind in self.FAULTS]
+        for kind in ("missing-key", "summary-too-long", "link-goes-nowhere",
+                     "first-name-link", "unlinked", "name-not-unique"):
+            self.assertIn(kind, kinds)
+        # Two for the summary (lines, words) and two for links (a note, a passage).
+        self.assertEqual(kinds.count("summary-too-long"), 2)
+        self.assertEqual(kinds.count("link-goes-nowhere"), 2)
+        self.assertEqual(kinds.count(None), 1)
+        paths = [path for path, _, _ in self.FAULTS]
+        self.assertEqual(len(set(paths)), len(paths))
+        for path, text, _ in self.FAULTS:
+            self.assertTrue(path.startswith("objects/people/") and path.endswith(".md"), path)
+            self.assertTrue(text.startswith("---\ntype: person\n"), path)
+        texts = {path.rsplit("/", 1)[-1]: text for path, text, _ in self.FAULTS}
+        self.assertNotIn("private:", texts["ada-quill.md"])
+        self.assertEqual(len(texts["ben-osei.md"].split("\n\n")[1].strip().split("\n")), 4)
+        self.assertEqual(len(finish.words(texts["cy-ward.md"].split("\n\n")[1])), 61)
+        self.assertIn("#^p9999]]", texts["eli-stone.md"])
+        self.assertIn("|Sam]]", texts["fay-lund.md"])
+        self.assertNotIn("[[objects/", texts["gus-pine.md"])
+        self.assertIn("name: Sam Rivera\n", texts["the-other-one.md"])
+
+    def test_a_check_that_finds_every_fault_gets_through(self):
+        self.assertEqual(finish.fault_problems(self.found(), self.FAULTS), [])
+
+    def test_one_reported_problem_is_not_enough(self):
+        # The old test passed on any one problem. Each fault now needs its own kind.
+        one = {"problems": [{"note": "objects/people/ada-quill.md", "kind": "missing-key"}]}
+        self.assertEqual(len(finish.fault_problems(one, self.FAULTS)), 7)
+        self.assertEqual(len(finish.fault_problems({"problems": []}, self.FAULTS)), 8)
+        self.assertEqual(len(finish.fault_problems(None, self.FAULTS)), 8)
+
+    def test_a_missed_fault_is_named(self):
+        self.assertEqual(
+            finish.fault_problems(self.found(leave_out=["objects/people/eli-stone.md"]), self.FAULTS),
+            ["objects/people/eli-stone.md: no link-goes-nowhere problem was reported"],
+        )
+
+    def test_the_wrong_kind_on_the_right_note_is_not_enough(self):
+        report = self.found(
+            leave_out=["objects/people/fay-lund.md"],
+            add=[("objects/people/fay-lund.md", "unlinked")],
+        )
+        self.assertEqual(
+            finish.fault_problems(report, self.FAULTS),
+            ["objects/people/fay-lund.md: no first-name-link problem was reported"],
+        )
+
+    def test_a_right_note_must_not_be_given_a_problem(self):
+        report = self.found(add=[("objects/people/hal-reed.md", "unlinked")])
+        self.assertEqual(
+            finish.fault_problems(report, self.FAULTS),
+            ["objects/people/hal-reed.md: nothing is wrong with it, and the check reported unlinked"],
+        )
+
+    def test_a_name_used_twice_may_be_reported_on_either_note(self):
+        report = self.found(
+            leave_out=["objects/people/the-other-one.md"],
+            add=[("objects/people/sam-rivera.md", "name-not-unique")],
+        )
+        self.assertEqual(finish.fault_problems(report, self.FAULTS), [])
+        report = self.found(leave_out=["objects/people/the-other-one.md"])
+        self.assertEqual(
+            finish.fault_problems(report, self.FAULTS),
+            ["objects/people/the-other-one.md: no name-not-unique problem was reported"],
+        )
+
+    def test_the_graph_setting_keeps_keys_that_are_not_its_own(self):
+        self.assertTrue(finish.graph_problems(finish.WRONG_GRAPH, finish.WRONG_APP))
+        graph = dict(GOOD_GRAPH, scale=1.5)
+        app = dict(GOOD_APP, showLineNumber=True)
+        self.assertEqual(finish.kept_key_problems("graph.json", finish.WRONG_GRAPH, graph), [])
+        self.assertEqual(finish.kept_key_problems("app.json", finish.WRONG_APP, app), [])
+        self.assertEqual(
+            finish.kept_key_problems("graph.json", finish.WRONG_GRAPH, GOOD_GRAPH),
+            ["graph.json: scale was 1.5 and is now \"not there\""],
+        )
+        self.assertEqual(
+            finish.kept_key_problems("app.json", finish.WRONG_APP, dict(app, showLineNumber=False)),
+            ["app.json: showLineNumber was true and is now false"],
+        )
+        self.assertEqual(len(finish.kept_key_problems("app.json", finish.WRONG_APP, None)), 1)
 
     def test_a_full_status_page_gets_through(self):
         self.assertEqual(finish.status_problems(self.PAGE, self.NOTES, 0, self.LOAD), [])

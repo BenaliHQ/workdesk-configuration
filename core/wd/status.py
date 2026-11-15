@@ -13,7 +13,6 @@ and a rename, and writes nothing else.
 import datetime
 import json
 import os
-import tempfile
 from pathlib import Path
 
 from wd import check, measure, notes, places
@@ -25,6 +24,13 @@ SESSION_LIMIT = "Words loaded into a session, everything counted"
 FIRST_FEW = 5
 WRITTEN = "Written on "
 USAGE = "usage: wd status <vault> --dry-run\n       wd status <vault> --apply"
+
+
+# A folder that holds nothing, for measuring what a session loads before
+# any vault adds to it. This path can never be there, because the
+# machine's null device is not a folder, so nothing is ever made for it
+# and the count is the same as in a new, empty folder.
+EMPTY_FOLDER = Path(os.devnull) / "empty"
 
 
 class StatusError(Exception):
@@ -57,8 +63,7 @@ def session_words(root, home):
         }
 
     inside = totals(root)
-    with tempfile.TemporaryDirectory() as empty:
-        outside = totals(empty)
+    outside = totals(EMPTY_FOLDER)
     return {
         runtime: {
             "total": inside[runtime],
@@ -149,7 +154,10 @@ def page(report, counts, load, limit, written):
 
 
 def build(root, home, written=None):
-    """Read the vault and make the page. Returns (page, files that could not be read)."""
+    """Read the vault and make the page. Returns (page, files that could not be read).
+
+    Nothing is written, in the vault or anywhere else.
+    """
     vault = notes.Vault(root)
     counts = {folder: len(names) for folder, names in measure.homes(vault).items()}
     report = check.examine(vault)

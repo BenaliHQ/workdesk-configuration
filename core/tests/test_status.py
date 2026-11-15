@@ -391,18 +391,11 @@ class Command(unittest.TestCase):
 class TheFinishTestForS14(stage1.S14CheckAndStatus):
     """The S1.4 checks of the stage 1 finish test, run here as they are written.
 
-    The finish test makes its vault with `wd init`, which package S1.3
-    builds. Until then the same checks run on the clean made-up vault,
-    built by hand in the new layout. Nothing else is changed.
+    They make their vault with `wd init --samples`, so every ordinary
+    test run also proves that the samples pass the check, that the
+    check finds each kind of wrong note, and that the status page is
+    really written again over an old one.
     """
-
-    def fresh_vault(self, folder, samples):
-        vault, state = Path(folder) / "vault", Path(folder) / "state"
-        state.mkdir()
-        sample.build(vault, sample.CLEAN)
-        for home in stage1.FOLDERS:
-            (vault / home).mkdir(parents=True, exist_ok=True)
-        return vault, state
 
 
 if __name__ == "__main__":
