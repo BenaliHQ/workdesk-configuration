@@ -1,0 +1,17 @@
+{
+  "app": {
+    "alwaysUpdateLinks": true,
+    "newLinkFormat": "absolute",
+    "useMarkdownLinks": false
+  },
+  "graph-colors": {
+    "person": "#4C8DF6",
+    "company": "#F28C28",
+    "project": "#2FB573",
+    "term": "#B46CF0",
+    "concept": "#E5C400",
+    "meeting": "#8A94A6",
+    "decision": "#E5484D",
+    "quote": "#19B5B0"
+  }
+}

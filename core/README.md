@@ -11,6 +11,7 @@ This folder holds the program. It is Python 3, standard library only, and runs o
 | `bin/wd` | The command. |
 | `wd/` | The program. |
 | `declarations/` | One file for each object type and each source kind: where it lives in a vault and what a note of it holds. |
+| `product/` | What `wd init` copies into a new vault: the rulebook, the skills, the nine sample notes, and the colors and link settings for Obsidian. |
 | `budgets.json` | The limits from the contract's Budgets table. |
 | `tests/` | The tests and the runner. |
 | `tests/stage<N>_finish.py` | One finish test per stage, written before the stage is built. |
@@ -39,6 +40,34 @@ AGENTS.md   CLAUDE.md   status.md
 An object's type is decided by its home folder. A project is one plain note in `objects/projects/`. The homes are written down once, in `declarations/`, and `wd/places.py` reads them from there.
 
 `declarations/objects/<type>.json` holds `home`, `linkable`, `name-from`, `required-keys`, `sections` and `summary-max-words`. `declarations/sources/<kind>.json` holds `kind`, `home` and `required-keys`. The calendar is read live and has no files, so its home is null.
+
+## Making a vault
+
+```
+core/bin/wd init <vault>
+core/bin/wd init <vault> --samples
+```
+
+`wd init` makes the folders above, copies `AGENTS.md`, `CLAUDE.md` and the four skills (into `.claude/skills/` and `.agents/skills/`), and writes the Obsidian settings. It refuses a path that exists and is not empty, and changes nothing there. It does not write `status.md`, and it writes nothing under `writing/`.
+
+`--samples` adds nine made-up notes from `product/samples/`: one of each object type and one recording, all marked `sample: true` and linked to each other. Every history line and every current fact in them points at a passage of the sample recording.
+
+```
+core/bin/wd graph-setting <vault> --dry-run
+core/bin/wd graph-setting <vault> --apply
+```
+
+`wd graph-setting` owns five keys in two files and leaves every other key alone:
+
+| File | Key | Value |
+|---|---|---|
+| `.obsidian/graph.json` | `colorGroups` | One color for each object type, picked by its home folder. |
+| `.obsidian/graph.json` | `search` | Hides `sources/`, `signals/briefs/` and the three root files from the graph. |
+| `.obsidian/app.json` | `alwaysUpdateLinks` | `true`: a rename in Obsidian carries every link with it. |
+| `.obsidian/app.json` | `newLinkFormat` | `absolute`: a new link is written with its full path. |
+| `.obsidian/app.json` | `useMarkdownLinks` | `false`: links are written in double brackets. |
+
+The colors and the three link settings are in `product/obsidian.json`. `--dry-run` prints what would change and writes nothing. `--apply` writes through a hidden temporary file and a rename. Close the graph view in Obsidian before `--apply`. An open graph keeps its own copy of these settings and can save it back over the file.
 
 Built so far:
 
