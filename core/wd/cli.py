@@ -35,6 +35,18 @@ COMMANDS = [
 ]
 
 
+def init(arguments, out, err):
+    """`wd init <vault>`: make a new, empty vault."""
+    from wd import init as maker
+    return maker.run(arguments, out, err)
+
+
+def graph_setting(arguments, out, err):
+    """`wd graph-setting <vault>`: the graph's colors and what it hides."""
+    from wd import obsidian
+    return obsidian.run(arguments, out, err)
+
+
 def check(arguments, out, err):
     """`wd check <vault>` checks the notes. `wd check --measure <vault>` counts them."""
     if arguments and arguments[0] == "--measure":
@@ -58,10 +70,13 @@ def score(arguments, out, err):
 
 # Commands that are built. Each maps a name to a function that takes
 # the remaining arguments, where to print, and returns a code.
-BUILT = {"check": check, "score": score}
-
-# Registered on its own line, so two packages adding commands merge cleanly.
-BUILT["status"] = status
+BUILT = {
+    "init": init,
+    "check": check,
+    "score": score,
+    "status": status,
+    "graph-setting": graph_setting,
+}
 
 
 def usage():
