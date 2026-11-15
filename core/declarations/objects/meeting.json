@@ -12,7 +12,8 @@
   "sections": [
     "Decisions",
     "Promises",
-    "Detail"
+    "Detail",
+    "History"
   ],
   "summary-max-words": 60
 }

@@ -4,22 +4,25 @@ It makes the folders of the new layout, copies the rulebook and the
 skills from `core/product/`, and writes the Obsidian settings. With
 `--samples` it also copies the nine made-up sample notes.
 
+It finishes by writing the status page, `status.md`, the way
+`wd status` does, so a new vault has all three root files.
+
 It refuses a path that exists and is not empty, and changes nothing
-there. It never writes outside the folder it is given. It does not
-write `status.md` (that is `wd status`), and it writes nothing under
-`writing/`.
+there. It never writes outside the folder it is given, and it writes
+nothing under `writing/`.
 """
 
 import os
 from pathlib import Path
 
-from wd import obsidian, places
+from wd import obsidian, places, status
 
 PRODUCT = Path(__file__).resolve().parents[1] / "product"
 SKILLS = PRODUCT / "skills"
 SAMPLES = PRODUCT / "samples"
 
-# The root files that are copied. `status.md` is written by `wd status`.
+# The root files that are copied. The third, `status.md`, is written
+# last, by the same code as `wd status`.
 RULEBOOK_FILES = ("AGENTS.md", "CLAUDE.md")
 # Where each runtime looks for skills: Claude Code, then Codex.
 SKILL_FOLDERS = (".claude/skills", ".agents/skills")
@@ -149,6 +152,7 @@ def make(root, with_samples=False):
         obsidian.write_safely(target, source.read_bytes(), None)
     (root / obsidian.SETTINGS).mkdir()
     obsidian.apply(root)
+    status_page(root)
     return {
         "root": root,
         "folders": folders(),
@@ -157,6 +161,20 @@ def make(root, with_samples=False):
         "settings": [name for name, _ in settings],
         "samples": [relative for relative, _ in sample_copies],
     }
+
+
+def status_page(root):
+    """Write the new vault's status page, as `wd status --apply` would."""
+    try:
+        text, unreadable = status.build(root, places.home())
+        if unreadable:
+            raise InitError(
+                "The status page was not written, because %d files in the new vault "
+                "could not be read." % len(unreadable)
+            )
+        status.write(root, text, None)
+    except status.StatusError as problem:
+        raise InitError("The status page was not written. %s" % problem)
 
 
 def report(made):
@@ -183,7 +201,10 @@ def report(made):
         lines += ["  %s" % relative for relative in made["samples"]]
     lines += [
         "",
-        "Not made: status.md. `wd status %s --apply` writes it." % made["root"],
+        "The status page:",
+        "  %s  what is in the vault and what a session loads. "
+        "`wd status %s --apply` writes it again." % (status.PAGE, made["root"]),
+        "",
         "Next: open the folder in Obsidian as a vault.",
     ]
     return lines

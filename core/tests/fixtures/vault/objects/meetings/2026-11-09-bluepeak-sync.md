@@ -11,8 +11,6 @@ A catch-up with [[objects/people/lee-castillo|Lee Castillo]] and [[objects/peopl
 
 ## Decisions
 
-## Promises
-
 ## Detail
 
 - [[objects/people/lee-castillo|Lee Castillo]] founded the lab.

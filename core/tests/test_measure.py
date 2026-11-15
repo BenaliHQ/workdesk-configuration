@@ -128,17 +128,19 @@ class Counts(unittest.TestCase):
         ])
         self.assertEqual(self.report["broken_links"], 4)
 
-    def test_objects_nothing_links_to(self):
-        # The status page links to Nick. That is navigation, so he still
-        # counts. A link from the operator's own writing is a connection,
-        # and so is a source naming what it produced.
-        self.assertEqual(self.report["unlinked_objects"], 9)
+    def test_objects_with_no_link_in_or_out(self):
+        # The same rule as `wd check`. The status page links to Nick.
+        # That file is outside the graph, so he still counts. A link
+        # from the owner's own writing is a connection, and so is a
+        # link out: Alpha links to Acme, and the decision links to its
+        # meeting. A source naming what it produced is not one.
+        self.assertEqual(self.report["unlinked_objects"], 7)
         self.assertEqual(self.report["examples"]["unlinked_objects"], [
             "objects/people/nick.md",
-            "objects/projects/alpha.md",
             "objects/projects/site.md",
             "objects/meetings/2026-11-11-lost.md",
             "objects/meetings/2026-11-12-web.md",
+            "objects/meetings/2026-11-13-plain.md",
         ])
 
     def test_people_without_a_full_name(self):
@@ -217,6 +219,88 @@ class SessionLoad(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             build(folder, {"a.md": "write to sam@b.md\n", "b.md": "one two three\n"})
             self.assertEqual(measure.with_imports(Path(folder) / "a.md", set()), 3)
+
+
+# A made-up home with two plugins: one the user switched on, one the
+# user switched off. Each has one skill.
+PLUGIN_HOME = {
+    ".claude/settings.json": json.dumps(
+        {"enabledPlugins": {"lantern@made-up": True, "anchor@made-up": False}}),
+    ".claude/plugins/installed_plugins.json": json.dumps({"version": 2, "plugins": {
+        "lantern@made-up": [{"installPath": "plugins/cache/made-up/lantern/1.0.0"}],
+        "anchor@made-up": [{"installPath": "plugins/cache/made-up/anchor/1.0.0"}],
+    }}),
+    # Three words.
+    ".claude/plugins/cache/made-up/lantern/1.0.0/skills/light/SKILL.md":
+        "---\nname: light\ndescription: Light the way.\n---\n# Light\n",
+    # Five words.
+    ".claude/plugins/cache/made-up/anchor/1.0.0/skills/hold/SKILL.md":
+        "---\nname: hold\ndescription: Hold the boat quite still.\n---\n# Hold\n",
+}
+LANTERN, ANCHOR = 3, 5
+
+
+def plugins(chosen):
+    """A settings file that switches these plugins on or off."""
+    return json.dumps({"enabledPlugins": {
+        "%s@made-up" % name: on for name, on in chosen.items()
+    }})
+
+
+class PluginsInLayers(unittest.TestCase):
+    """Claude Code's settings are layered: the user's file, the vault's, the vault's local file.
+
+    Each later file wins, plugin by plugin. Switching plugins off in
+    the vault is how the owner gets a session under the word limit.
+    The settings files are written here, by Python, in scratch folders.
+    """
+
+    def skills(self, vault_files):
+        with tempfile.TemporaryDirectory() as folder:
+            home = build(Path(folder) / "home", PLUGIN_HOME)
+            vault = build(Path(folder) / "vault", dict({"AGENTS.md": "x\n"}, **vault_files))
+            return measure.session_load(vault, home)["claude-code"]["skills"]
+
+    def test_the_users_file_alone(self):
+        self.assertEqual(self.skills({}), LANTERN)
+
+    def test_the_vault_switches_off_a_plugin_the_user_switched_on(self):
+        self.assertEqual(
+            self.skills({".claude/settings.json": plugins({"lantern": False})}), 0)
+
+    def test_the_vault_switches_on_a_plugin_the_user_switched_off(self):
+        self.assertEqual(
+            self.skills({".claude/settings.json": plugins({"anchor": True})}), LANTERN + ANCHOR)
+
+    def test_the_vaults_local_file_switches_one_off(self):
+        self.assertEqual(
+            self.skills({".claude/settings.local.json": plugins({"lantern": False})}), 0)
+
+    def test_the_vaults_local_file_switches_one_on(self):
+        self.assertEqual(
+            self.skills({".claude/settings.local.json": plugins({"anchor": True})}),
+            LANTERN + ANCHOR,
+        )
+
+    def test_the_local_file_wins_over_the_vaults_file(self):
+        self.assertEqual(self.skills({
+            ".claude/settings.json": plugins({"lantern": False, "anchor": True}),
+            ".claude/settings.local.json": plugins({"lantern": True, "anchor": False}),
+        }), LANTERN)
+
+    def test_a_plugin_a_later_file_does_not_name_keeps_its_setting(self):
+        self.assertEqual(self.skills({
+            ".claude/settings.json": plugins({"anchor": True}),
+            ".claude/settings.local.json": plugins({"anchor": True}),
+        }), LANTERN + ANCHOR)
+        self.assertEqual(self.skills({
+            ".claude/settings.json": plugins({"lantern": False}),
+            ".claude/settings.local.json": "{}",
+        }), 0)
+
+    def test_a_settings_file_that_is_not_valid_changes_nothing(self):
+        self.assertEqual(self.skills({".claude/settings.json": "{not json"}), LANTERN)
+        self.assertEqual(self.skills({".claude/settings.json": "[]"}), LANTERN)
 
 
 class Reading(unittest.TestCase):
@@ -309,7 +393,7 @@ class Command(unittest.TestCase):
             self.assertEqual(sorted(path.name for path in state.iterdir()), ["measure.json"])
         self.assertEqual(finish.measure_problems(report), [])
         self.assertEqual(report["broken_links"], 4)
-        self.assertRegex(result.stdout, r"Objects nothing links to\s+9\n")
+        self.assertRegex(result.stdout, r"Objects with no link in or out\s+7\n")
         self.assertRegex(result.stdout, r"Sources that produced nothing\s+3\n")
         self.assertRegex(result.stdout, r"Session load, Claude Code \(words\)\s+42\n")
         self.assertIn("Saved to", result.stdout)
@@ -332,10 +416,10 @@ class Command(unittest.TestCase):
         )
         self.assertEqual(out.getvalue(), "")
 
-    def test_plain_check_is_not_built_yet(self):
+    def test_plain_check_wants_a_vault(self):
         out, err = io.StringIO(), io.StringIO()
-        self.assertEqual(cli.main(["check"], out=out, err=err), cli.NOT_BUILT)
-        self.assertIn("S1.4", err.getvalue())
+        self.assertEqual(cli.main(["check"], out=out, err=err), cli.USAGE)
+        self.assertIn("usage: wd check <vault>", err.getvalue())
 
     @unittest.skipIf(os.geteuid() == 0, "the administrator can read every file")
     def test_a_note_that_cannot_be_read_is_a_failure(self):

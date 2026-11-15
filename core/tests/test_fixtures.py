@@ -30,8 +30,13 @@ DEAD_ON_PURPOSE = {
     "sources/recordings/2026-11-09-bluepeak-sync",
     "objects/concepts/handoff-tax",
 }
-# An older note, left without its keys on purpose. See fixtures/README.md.
-NOT_IN_FORMAT = {"objects/people/marcus.md"}
+# Left out of format on purpose. See fixtures/README.md. An older note
+# without its keys, and a stray note with eight things wrong.
+NOT_IN_FORMAT = {"objects/people/marcus.md", "objects/terms/reading-room.md"}
+# The one meeting that lost a heading on purpose, and the heading.
+LOST_A_SECTION = {"objects/meetings/2026-11-09-bluepeak-sync.md": "Promises"}
+# Any type may leave these out while they would be empty.
+MAY_BE_LEFT_OUT = ("Currently", "History")
 # Build spec, "Object frontmatter": the keys every object opens with, in order.
 OPENING_KEYS = ["type", "name", "aliases", "private"]
 MAX_SUMMARY_LINES = 3
@@ -87,7 +92,7 @@ class TheVault(unittest.TestCase):
         ]
 
     def test_about_forty_notes(self):
-        self.assertEqual(finish.note_count(VAULT), 44)
+        self.assertEqual(finish.note_count(VAULT), 45)
 
     def test_the_vault_is_in_the_new_layout(self):
         files, folders = stage1_finish.tree(VAULT)
@@ -112,9 +117,9 @@ class TheVault(unittest.TestCase):
         names = {}
         for note in self.linkable():
             keys, body = notes.front(self.vault.text(note))
-            if "name" not in keys:
-                self.assertIn(note, NOT_IN_FORMAT)
+            if note in NOT_IN_FORMAT:
                 continue
+            self.assertIn("name", keys, note)
             self.assertEqual(keys["name"], notes.first_heading(body), note)
             self.assertIn(keys.get("private"), ("true", "false"), note)
             self.assertTrue(keys.get("aliases", "").startswith("["), note)
@@ -139,9 +144,16 @@ class TheVault(unittest.TestCase):
             self.assertEqual(order[:len(opening)], opening, note)
             rest = [key for key in declared["required-keys"] if key not in OPENING_KEYS]
             self.assertEqual(order[len(opening):len(opening) + len(rest)], rest, note)
+            # The sections a note has are ones its type lists, in that
+            # order. All but History and Currently are always there.
+            always = [name for name in declared["sections"] if name not in MAY_BE_LEFT_OUT]
             self.assertEqual(
-                [heading for heading in headings(body) if heading in declared["sections"]],
-                declared["sections"], note,
+                [name for name in always if name not in headings(body)],
+                [LOST_A_SECTION[note]] if note in LOST_A_SECTION else [], note,
+            )
+            self.assertEqual(
+                headings(body),
+                [name for name in declared["sections"] if name in headings(body)], note,
             )
             self.assertEqual(
                 [heading for heading in headings(body) if heading not in declared["sections"]],

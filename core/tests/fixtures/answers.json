@@ -4,7 +4,7 @@
       "objects/people": 10,
       "objects/companies": 4,
       "objects/projects": 3,
-      "objects/terms": 2,
+      "objects/terms": 3,
       "objects/concepts": 2,
       "objects/meetings": 6,
       "objects/decisions": 3,
@@ -17,13 +17,29 @@
       "sources/captures": 1
     },
     "broken_links": 2,
-    "unlinked_objects": 2,
+    "unlinked_objects": 1,
     "people_without_full_name": 1,
     "meetings_with_missing_source": 1,
     "sources_unprocessed": 3,
     "session_load": {
       "claude-code": 67,
       "codex": 39
+    }
+  },
+  "check": {
+    "problems": 13,
+    "by_kind": {
+      "missing-key": 1,
+      "wrong-type": 1,
+      "key-order": 1,
+      "name-not-heading": 1,
+      "name-not-unique": 1,
+      "missing-section": 1,
+      "unknown-section": 1,
+      "summary-too-long": 1,
+      "link-goes-nowhere": 3,
+      "first-name-link": 1,
+      "unlinked": 1
     }
   },
   "score": {

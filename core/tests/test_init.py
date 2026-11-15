@@ -53,9 +53,14 @@ REPORTING = {"said"}
 # ---- helpers ----
 
 def run(arguments):
-    """Run a command inside this process. Returns (code, what it printed, its errors)."""
+    """Run a command inside this process. Returns (code, what it printed, its errors).
+
+    The home folder is the made-up one, so the status page `wd init`
+    writes counts the same words on every machine.
+    """
     out, err = io.StringIO(), io.StringIO()
-    code = cli.main([str(argument) for argument in arguments], out=out, err=err)
+    with mock.patch.dict(os.environ, {"HOME": str(TESTS / "fixtures" / "home")}):
+        code = cli.main([str(argument) for argument in arguments], out=out, err=err)
     return code, out.getvalue(), err.getvalue()
 
 
@@ -215,7 +220,7 @@ class Init(unittest.TestCase):
         } | {".claude", ".agents"}))
         files = sorted(name for name in made if not name.endswith("/"))
         self.assertEqual(files, sorted(
-            ["AGENTS.md", "CLAUDE.md", ".obsidian/app.json", ".obsidian/graph.json"]
+            ["AGENTS.md", "CLAUDE.md", "status.md", ".obsidian/app.json", ".obsidian/graph.json"]
             + ["%s/%s/SKILL.md" % (place, name)
                for place in finish.SKILL_FOLDERS for name in finish.SKILLS]
         ))
@@ -232,10 +237,29 @@ class Init(unittest.TestCase):
                     "%s/%s" % (place, name),
                 )
 
-    def test_it_writes_no_status_page_no_writing_and_no_runtime_settings(self):
+    def test_it_finishes_with_the_status_page(self):
+        # The third root file, written by the same code as `wd status`.
+        run(["init", self.vault, "--samples"])
+        page = (self.vault / "status.md").read_text(encoding="utf-8")
+        self.assertTrue(page.startswith("# Status\n"))
+        self.assertIn("- objects/people: 1", page)
+        self.assertIn("- sources/recordings: 1", page)
+        self.assertIn("The check found 0 problems. It looked at 8 objects and 0 syntheses.", page)
+        self.assertRegex(page, r"- Claude Code: [\d,]+ words in all\. [\d,]+ from the vault "
+                               r"and 42 from outside it\.")
+        code, again, _ = run(["status", self.vault, "--dry-run"])
+        self.assertEqual(code, cli.OK)
+        written = [line for line in page.splitlines() if not line.startswith("Written on ")]
+        self.assertEqual(
+            [line for line in again.splitlines() if not line.startswith("Written on ")], written)
+        run(["init", self.scratch / "empty"])
+        empty = (self.scratch / "empty" / "status.md").read_text(encoding="utf-8")
+        self.assertIn("- objects/people: 0", empty)
+        self.assertIn("The check found 0 problems.", empty)
+
+    def test_it_writes_no_writing_and_no_runtime_settings(self):
         run(["init", self.vault, "--samples"])
         made = snapshot(self.vault)
-        self.assertNotIn("status.md", made)
         self.assertEqual([name for name in made if name.startswith("writing/")], ["writing/"])
         self.assertEqual([name for name in made if name.startswith(".codex")], [])
         for name in made:
@@ -433,8 +457,15 @@ class TheSamples(unittest.TestCase):
             self.assertEqual(order[:len(opening) + len(rest)], opening + rest, note)
             for key in rest:
                 self.assertTrue(keys[key], "%s: %s is empty" % (note, key))
+            # The sections a note has are ones its type lists, in that
+            # order. A sample shows every one of them, but for History on
+            # the meeting and the quote, which is left out while empty.
+            has = [heading for heading, _ in sections(body)]
+            self.assertEqual(has, [name for name in declared["sections"] if name in has], note)
             self.assertEqual(
-                [heading for heading, _ in sections(body)], declared["sections"], note)
+                [name for name in declared["sections"] if name not in has],
+                ["History"] if kind in ("meeting", "quote") else [], note,
+            )
             if kind in places.LINKABLE:
                 self.assertEqual(keys["name"], notes.first_heading(body), note)
                 self.assertTrue(keys["aliases"].startswith("["), note)

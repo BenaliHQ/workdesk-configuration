@@ -10,7 +10,7 @@ import os
 import re
 from pathlib import Path
 
-from wd import notes, places
+from wd import graph, notes, places
 
 REPORT = "measure.json"
 EXAMPLES = 5
@@ -21,7 +21,7 @@ MAX_IMPORT_DEPTH = 5
 
 LABELS = [
     ("broken_links", "Links in objects and syntheses with a missing target"),
-    ("unlinked_objects", "Objects nothing links to"),
+    ("unlinked_objects", "Objects with no link in or out"),
     ("people_without_full_name", "People whose first heading has fewer than two words"),
     ("meetings_with_missing_source", "Meetings with a missing source"),
     ("sources_unprocessed", "Sources that produced nothing"),
@@ -54,24 +54,6 @@ def broken_links(vault, by_home):
             if vault.resolve(target, name) is None:
                 found.append("%s -> %s" % (name, target))
     return found
-
-
-def unlinked_objects(vault, by_home):
-    """Objects that no other note in the vault links to.
-
-    A link from a file at the top of the vault, such as the rulebook or
-    the status page, is navigation, not a connection, so it does not
-    count.
-    """
-    linked = set()
-    for name in vault.notes:
-        if name in places.ROOT_FILES:
-            continue
-        for target in notes.link_targets(vault.text(name)):
-            resolved = vault.resolve(target, name)
-            if resolved and resolved != name:
-                linked.add(resolved)
-    return [name for name in objects(by_home) if name not in linked]
 
 
 def people_without_full_name(vault, by_home):
@@ -186,20 +168,27 @@ def skill_files(folder):
 
 
 def plugin_skill_folders(home, root):
-    """The skills folder of every Claude Code plugin that is installed and switched on."""
+    """The skills folder of every Claude Code plugin that is installed and switched on.
+
+    The settings are layered: the user's file, then the vault's, then
+    the vault's local file. Each later file wins, plugin by plugin. So
+    a plugin the user switched on and the vault switched off is off,
+    and one the user switched off and the vault switched on is on.
+    """
     claude = Path(home) / ".claude"
-    switched_on = set()
+    chosen = {}
     for settings in (
         claude / "settings.json",
         Path(root) / ".claude" / "settings.json",
         Path(root) / ".claude" / "settings.local.json",
     ):
         try:
-            chosen = json.loads(read(settings) or "{}").get("enabledPlugins", {})
+            said = json.loads(read(settings) or "{}").get("enabledPlugins", {})
         except (ValueError, AttributeError):
             continue
-        if isinstance(chosen, dict):
-            switched_on |= {name for name, on in chosen.items() if on is True}
+        if isinstance(said, dict):
+            chosen.update(said)
+    switched_on = {name for name, on in chosen.items() if on is True}
     try:
         installed = json.loads(read(claude / "plugins" / "installed_plugins.json") or "{}")
     except ValueError:
@@ -287,7 +276,8 @@ def measure(root, home):
     by_home = homes(vault)
     lists = {
         "broken_links": broken_links(vault, by_home),
-        "unlinked_objects": unlinked_objects(vault, by_home),
+        # The same rule as `wd check`: see `wd.graph`.
+        "unlinked_objects": graph.unlinked_objects(vault),
         "people_without_full_name": people_without_full_name(vault, by_home),
         "meetings_with_missing_source": meetings_with_missing_source(vault, by_home),
         "sources_unprocessed": sources_unprocessed(vault, by_home),
@@ -328,14 +318,14 @@ def table(report):
     return "\n".join(lines)
 
 
-def save(report, state):
-    """Write the report into machine state, whole or not at all."""
+def save(report, state, name=REPORT):
+    """Write a report into machine state, whole or not at all."""
     state = Path(state)
     state.mkdir(parents=True, exist_ok=True)
-    scratch = state / (".%s.%d" % (REPORT, os.getpid()))
+    scratch = state / (".%s.%d" % (name, os.getpid()))
     scratch.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-    os.replace(str(scratch), str(state / REPORT))
-    return state / REPORT
+    os.replace(str(scratch), str(state / name))
+    return state / name
 
 
 def run(arguments, out, err):

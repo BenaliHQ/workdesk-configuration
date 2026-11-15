@@ -5,7 +5,7 @@ description: Use when the owner asks what is running, when something last ran, w
 
 # Status
 
-1. Run `wd status .` from the vault's root. It writes `status.md`.
+1. Run `wd status . --apply` from the vault's root. It writes `status.md`.
 2. Read `status.md`.
 3. Answer from it in plain words. Lead with anything broken and its fix. If nothing is broken, say so in one line.
 
