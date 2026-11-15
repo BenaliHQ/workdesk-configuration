@@ -6,8 +6,11 @@
     "type",
     "by",
     "source",
-    "private"
+    "private",
+    "date"
   ],
-  "sections": [],
+  "sections": [
+    "History"
+  ],
   "summary-max-words": 60
 }

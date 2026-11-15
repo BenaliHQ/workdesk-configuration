@@ -43,8 +43,19 @@ An object's type is decided by its home folder. A project is one plain note in `
 Built so far:
 
 ```
+core/bin/wd check <vault>
 core/bin/wd check --measure <vault>
+core/bin/wd status <vault> --dry-run
+core/bin/wd status <vault> --apply
 ```
+
+`wd check` checks every note an agent wrote. Every object against its type's declaration: the `type` key matches the home, every required key is there, the opening keys are in order, the name is the first heading and is used once, and each `##` section is one the type has. The summary is three lines and 60 words at most. Every link in an object or a synthesis goes somewhere, a link to a passage only if that file has that marker. No link to a person shows one word alone. No object is left without a link in or out. It prints a short table, saves `check.json` in machine state, and returns 0 only when there are no problems. It never writes inside the vault.
+
+A declaration's `sections` lists the sections a note of that type may carry. Any type may leave out `Currently` and `History` while they would be empty. Every other listed section is always there, so a meeting always has `Decisions`, `Promises` and `Detail`.
+
+An object is unlinked when it has no link to or from another note that shows in the graph: an object, a synthesis or the owner's writing. A link to or from a source does not count, and neither does a source's `produced` list, a brief, or a file at the top of the vault. The rule is written once, in `wd/graph.py`, and the check, the measure and the status page all use it.
+
+`wd status` writes `status.md` at the top of the vault: the notes in each home, what the check found, and the words a session loads at its start in Claude Code and in Codex. Each of those is split into what the vault adds and what comes from outside it, which is what the same user loads when a session starts in an empty folder. The limit from `budgets.json` is shown beside them. The page holds counts and note paths and nothing a note says. `--dry-run` prints the page and writes nothing. `--apply` writes the one file, through a temporary file and a rename.
 
 ```
 core/bin/wd score <vault>
@@ -52,7 +63,7 @@ core/bin/wd score <vault>
 
 A throwaway scorer from stage 0, in `score/`. It takes every existing link that shows a full name, strips its brackets in a scratch copy under machine state, runs the matcher, and counts how often the matcher puts the same link back. It saves `score.json`. It never writes inside the vault and never opens `writing/`, the operator's own folder.
 
-`wd check --measure` counts what is in a vault today: notes in each home, links with a missing target, objects nothing links to, people without a full name, meetings whose `source` points at a file that is missing, sources whose `produced` list is empty, and the words each agent loads at the start of a session. It prints a table and saves `measure.json` in machine state. It never writes inside the vault.
+`wd check --measure` counts what is in a vault today: notes in each home, links with a missing target, objects with no link in or out, people without a full name, meetings whose `source` points at a file that is missing, sources whose `produced` list is empty, and the words each agent loads at the start of a session. It prints a table and saves `measure.json` in machine state. It never writes inside the vault.
 
 `wd` keeps its machine state in `~/.local/state/workdesk/core/`. Set `WD_STATE_DIR` to point it somewhere else, so a test can run on a scratch folder.
 

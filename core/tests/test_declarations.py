@@ -21,6 +21,9 @@ NAMED = ["type", "name", "aliases", "private"]
 
 # What each object type holds. `home` and `linkable` are the build
 # spec's "Object homes" table. The keys and sections were set for S1.1.
+# S1.4 added the quote's date (contract rule 6: a quote is dated) and
+# History on meetings and quotes. `sections` lists what a note may
+# carry, not what it must.
 OBJECTS = {
     "person": ("objects/people", True, NAMED, ["Currently", "History"]),
     "company": ("objects/companies", True, NAMED, ["Currently", "History"]),
@@ -28,9 +31,10 @@ OBJECTS = {
     "term": ("objects/terms", True, NAMED, ["History"]),
     "concept": ("objects/concepts", True, NAMED + ["from"], ["History"]),
     "meeting": ("objects/meetings", False, ["type", "date", "attendees", "source", "private"],
-                ["Decisions", "Promises", "Detail"]),
+                ["Decisions", "Promises", "Detail", "History"]),
     "decision": ("objects/decisions", False, ["type", "date", "source", "private"], ["History"]),
-    "quote": ("objects/quotes", False, ["type", "by", "source", "private"], []),
+    "quote": ("objects/quotes", False, ["type", "by", "source", "private", "date"],
+              ["History"]),
 }
 # Build spec, "Source frontmatter", in its order.
 SOURCE_KEYS = [

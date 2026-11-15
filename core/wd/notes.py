@@ -82,6 +82,22 @@ def link_targets(text):
     return targets
 
 
+def links(text):
+    """Every link in the text, as (target, passage or heading, shown words).
+
+    `[[a/b#^p0003|Sam Rivera]]` gives `("a/b", "^p0003", "Sam Rivera")`.
+    The second and third are empty when the link has none. A link into
+    the note itself, such as `[[#^p0003]]`, has an empty target.
+    """
+    found = []
+    for inner in LINK.findall(without_code(text)):
+        # Inside a table cell the bar before the shown words is written `\|`.
+        pointed, _, shown = inner.replace("\\|", "|").partition("|")
+        target, _, part = pointed.partition("#")
+        found.append((target.strip(), part.strip(), shown.strip()))
+    return found
+
+
 def first_heading(body):
     for line in without_code(body).split("\n"):
         found = HEADING.match(line)

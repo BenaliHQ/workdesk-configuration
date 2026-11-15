@@ -36,13 +36,18 @@ COMMANDS = [
 
 
 def check(arguments, out, err):
-    """`wd check --measure <vault>` is built. Plain `wd check` is not yet."""
+    """`wd check <vault>` checks the notes. `wd check --measure <vault>` counts them."""
     if arguments and arguments[0] == "--measure":
         from wd import measure
         return measure.run(arguments[1:], out, err)
-    print("wd check: not built yet. It arrives with package S1.4. "
-          "`wd check --measure <vault>` is built.", file=err)
-    return NOT_BUILT
+    from wd import check as checker
+    return checker.run(arguments, out, err)
+
+
+def status(arguments, out, err):
+    """`wd status <vault>`, the status page."""
+    from wd import status as page
+    return page.run(arguments, out, err)
 
 
 def score(arguments, out, err):
@@ -54,6 +59,9 @@ def score(arguments, out, err):
 # Commands that are built. Each maps a name to a function that takes
 # the remaining arguments, where to print, and returns a code.
 BUILT = {"check": check, "score": score}
+
+# Registered on its own line, so two packages adding commands merge cleanly.
+BUILT["status"] = status
 
 
 def usage():
