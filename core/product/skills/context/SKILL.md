@@ -5,7 +5,7 @@ description: Use when the owner asks about a person, company, project, term or c
 
 # Context
 
-1. Run `wd find <name>` to locate the object. Use the full name when you have it. If it finds none, say so. If it finds more than one, name them and let the owner pick. Never guess from a first name.
+1. Run `wd find <name>` to locate the object. Use the full name when you have it. If it finds none, say so. If more than one note matches, say which, with one line on each, and answer for the one the owner names. Never guess between them, or from a first name.
 2. Run `wd pack <name>` with the object's exact name. It returns one bundle of context.
 3. Answer from the bundle, in plain words, the answer first. Say where each fact comes from. Say the date of any aging or stale fact.
 4. Keep private content out of what you write.
