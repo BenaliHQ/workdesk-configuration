@@ -7,7 +7,7 @@ sample: true
 ---
 # Build on the order sheet
 
-[[objects/projects/acme-order-desk|Acme Order Desk]] is built on the shared order sheet, not on a new system. Decided by [[objects/people/sam-rivera|Sam Rivera]] in the [[objects/meetings/2026-11-10-acme-first-meeting|Acme first meeting]].
+[[objects/projects/acme-order-desk|Acme Order Desk]] is to be built on the shared order sheet, not on a new system. Decided by [[objects/people/sam-rivera|Sam Rivera]] in the [[objects/meetings/2026-11-10-acme-first-meeting|Acme first meeting]].
 
 ## History
 

@@ -3,7 +3,8 @@
 Two files under `.obsidian/`:
 
     graph.json   colorGroups   one color for each object type, by its home
-                 search        hides sources, briefs and the root files
+                 search        hides sources, briefs and the root files,
+                               and nothing else
     app.json     alwaysUpdateLinks   a rename carries every link with it
                  newLinkFormat       new links are written with the full path
                  useMarkdownLinks    links are written in double brackets
@@ -18,6 +19,8 @@ The homes come from the declarations.
 import json
 import os
 import re
+import stat
+import tempfile
 from pathlib import Path
 
 from wd import declarations, places
@@ -42,13 +45,30 @@ class SettingError(ValueError):
 
 # ---- writing ----
 
+def _mode_for(path):
+    """The permissions the file has now, or the ones a new file would get."""
+    try:
+        return stat.S_IMODE(os.stat(str(path)).st_mode)
+    except FileNotFoundError:
+        mask = os.umask(0)
+        os.umask(mask)
+        return 0o666 & ~mask
+
+
 def write_safely(path, data, before):
     """Put `data` at `path` through a hidden temporary file and a rename.
 
     `before` is what the file held when it was read, or None when it was
-    not there. If the file has changed since, nothing is written.
+    not there. If the file has changed since, nothing is written. A
+    link is never written through.
+
+    The temporary file gets a name nothing else has, and is made only
+    if nothing is there already, so a file or a link left at a guessed
+    name is never opened. Only the file this run made is cleaned up.
     """
     path = Path(path)
+    if path.is_symlink():
+        raise SettingError("%s is a link, so nothing was written to it." % path)
     try:
         now = path.read_bytes()
     except FileNotFoundError:
@@ -57,16 +77,25 @@ def write_safely(path, data, before):
         raise SettingError(
             "%s changed while this was running. Nothing was written to it." % path
         )
-    scratch = path.parent / (".%s.wd-%d.tmp" % (path.name, os.getpid()))
+    mode = _mode_for(path)
+    made = None
     try:
-        with open(str(scratch), "wb") as handle:
-            handle.write(data)
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(str(scratch), str(path))
+        handle, made = tempfile.mkstemp(
+            prefix=".%s." % path.name, suffix=".tmp", dir=str(path.parent)
+        )
+        with os.fdopen(handle, "wb") as out:
+            out.write(data)
+            out.flush()
+            os.fsync(out.fileno())
+        os.chmod(made, mode)
+        os.replace(made, str(path))
+        made = None
     finally:
-        if scratch.exists():
-            scratch.unlink()
+        if made is not None:
+            try:
+                os.unlink(made)
+            except OSError:
+                pass
 
 
 # ---- what the settings should be ----
@@ -111,10 +140,22 @@ def hidden_folders():
     return tops + [places.BRIEFS]
 
 
+def _expression(text):
+    """A path as a regular expression written between slashes."""
+    return re.escape(text).replace("/", "\\/")
+
+
 def search():
-    """The graph's filter. A folder ends with a slash so that only the folder matches."""
-    parts = ["-path:%s/" % folder for folder in hidden_folders()]
-    parts += ["-file:%s" % name for name in places.ROOT_FILES]
+    """The graph's filter: what the graph leaves out, and nothing else.
+
+    Obsidian's `path:` matches its words anywhere in a path, so plain
+    `-path:sources` would also hide `writing/resources/note.md`. Each
+    term is a regular expression tied to the start of the path instead.
+    A folder is everything under it at the top of the vault. A root
+    file is that one file at the top of the vault.
+    """
+    parts = ["-path:/^%s\\//" % _expression(folder) for folder in hidden_folders()]
+    parts += ["-path:/^%s$/" % _expression(name) for name in places.ROOT_FILES]
     return " ".join(parts)
 
 
@@ -139,11 +180,6 @@ def wanted(path=None):
 
 class Missing:
     """Stands for a key that is not in the file."""
-
-
-def _inside(path, root):
-    path, root = Path(path).resolve(), Path(root).resolve()
-    return path == root or root in path.parents
 
 
 def _read(path):
@@ -173,18 +209,21 @@ def plan(vault, path=None):
     Returns one entry for each file: its name, its path, the bytes on
     disk (None when it is not there), the text it would hold, and the
     changes as (key, old value, new value). A missing key's old value is
-    the class `Missing`.
+    the class `Missing`. A settings folder or file that is a link is
+    refused.
     """
     vault = Path(vault)
     folder = vault / SETTINGS
+    names = wanted(path)
+    # A link is never followed and never replaced. Both files are looked
+    # at before either is read, so nothing is made on the way to a refusal.
+    for place in [folder] + [folder / name for name, _ in names]:
+        if place.is_symlink():
+            raise SettingError("%s is a link, so nothing was changed." % place)
     if folder.exists() and not folder.is_dir():
-        raise SettingError("%s is not a folder." % folder)
-    if folder.exists() and not _inside(folder, vault):
-        raise SettingError(
-            "%s points outside the vault, so nothing was written there." % folder
-        )
+        raise SettingError("%s is not a folder, so nothing was changed." % folder)
     entries = []
-    for name, keys in wanted(path):
+    for name, keys in names:
         where = folder / name
         raw, found = _read(where)
         changes = [

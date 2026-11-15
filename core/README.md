@@ -48,7 +48,7 @@ core/bin/wd init <vault>
 core/bin/wd init <vault> --samples
 ```
 
-`wd init` makes the folders above, copies `AGENTS.md`, `CLAUDE.md` and the four skills (into `.claude/skills/` and `.agents/skills/`), and writes the Obsidian settings. It finishes by writing `status.md`, the way `wd status` does, so a new vault has all three root files. It refuses a path that exists and is not empty, and changes nothing there. It writes nothing outside the folder it is given and nothing under `writing/`.
+`wd init` makes the folders above, copies `AGENTS.md`, `CLAUDE.md` and the four skills (into `.claude/skills/` and `.agents/skills/`), and writes the Obsidian settings. It finishes by writing `status.md`, the way `wd status` does, so a new vault has all three root files. It refuses a path that exists and is not empty, and a path that is a link, and changes nothing there. It writes nothing outside the folder it is given and nothing under `writing/`.
 
 `--samples` adds nine made-up notes from `product/samples/`: one of each object type and one recording, all marked `sample: true` and linked to each other. Every history line and every current fact in them points at a passage of the sample recording.
 
@@ -62,12 +62,20 @@ core/bin/wd graph-setting <vault> --apply
 | File | Key | Value |
 |---|---|---|
 | `.obsidian/graph.json` | `colorGroups` | One color for each object type, picked by its home folder. |
-| `.obsidian/graph.json` | `search` | Hides `sources/`, `signals/briefs/` and the three root files from the graph. |
+| `.obsidian/graph.json` | `search` | Hides everything under `sources/` and `signals/briefs/` at the top of the vault, and the three root files, and nothing else. |
 | `.obsidian/app.json` | `alwaysUpdateLinks` | `true`: a rename in Obsidian carries every link with it. |
 | `.obsidian/app.json` | `newLinkFormat` | `absolute`: a new link is written with its full path. |
 | `.obsidian/app.json` | `useMarkdownLinks` | `false`: links are written in double brackets. |
 
-The colors and the three link settings are in `product/obsidian.json`. `--dry-run` prints what would change and writes nothing. `--apply` writes through a hidden temporary file and a rename. Close the graph view in Obsidian before `--apply`. An open graph keeps its own copy of these settings and can save it back over the file.
+The colors and the three link settings are in `product/obsidian.json`. `--dry-run` prints what would change and writes nothing. `--apply` writes through a hidden temporary file with a name of its own, and a rename. It refuses when `.obsidian` or either settings file is a link. Close the graph view in Obsidian before `--apply`. An open graph keeps its own copy of these settings and can save it back over the file.
+
+The filter is five terms, each a regular expression tied to the start of the path:
+
+```
+-path:/^sources\// -path:/^signals\/briefs\// -path:/^AGENTS\.md$/ -path:/^CLAUDE\.md$/ -path:/^status\.md$/
+```
+
+Obsidian's plain `path:` and `file:` match their words anywhere in a path, so `-file:status.md` would also hide `writing/project-status.md`. Whether Obsidian hides exactly these is proven by looking at the graph, not by a test.
 
 Built so far:
 

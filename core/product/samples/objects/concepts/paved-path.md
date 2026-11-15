@@ -8,7 +8,7 @@ sample: true
 ---
 # Paved Path
 
-Watch where people already walk, and pave that. An idea from Imre Solano. [[objects/projects/acme-order-desk|Acme Order Desk]] follows it by starting from the sheet the floor team already uses.
+Watch where people already walk, and pave that: an idea from Imre Solano. [[objects/people/sam-rivera|Sam Rivera]] asked where his people already walk. The answer was the shared order sheet, which [[objects/projects/acme-order-desk|Acme Order Desk]] is to be built on.
 
 ## History
 

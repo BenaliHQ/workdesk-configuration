@@ -85,7 +85,7 @@ Run these from the vault's root. A command that writes takes `--dry-run` to show
 | `wd pack <name>` | Gathers the context on one object in one bundle |
 | `wd fix "<text>"` | Applies a correction and records it as the owner's |
 | `wd track "<phrase>"` | Creates a term and links its mentions |
-| `wd status .` | Writes `status.md` |
+| `wd status . --apply` | Writes `status.md` |
 | `wd check .` | Checks the vault and the notes you wrote |
 | `wd add` | Brings a source in and gives it its permanent place |
 | `wd process` | Turns a meeting recording into objects and history lines |
